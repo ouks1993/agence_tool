@@ -1,7 +1,17 @@
+import { inferAdditionalFields } from "better-auth/client/plugins"
 import { createAuthClient } from "better-auth/react"
 
 export const authClient = createAuthClient({
   baseURL: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+  plugins: [
+    // Mirror the server-side additional user fields so the client session is typed.
+    inferAdditionalFields({
+      user: {
+        role: { type: "string", input: false },
+        active: { type: "boolean", input: false },
+      },
+    }),
+  ],
 })
 
 export const {

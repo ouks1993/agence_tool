@@ -1,9 +1,8 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { SiteFooter } from "@/components/site-footer";
-import { SiteHeader } from "@/components/site-header";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { APP_NAME, APP_DESCRIPTION, APP_TAGLINE } from "@/lib/config";
 import type { Metadata } from "next";
 
 const geistSans = Geist({
@@ -18,60 +17,14 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Agentic Coding Boilerplate",
-    template: "%s | Agentic Coding Boilerplate",
+    default: `${APP_NAME} — ${APP_TAGLINE}`,
+    template: `%s | ${APP_NAME}`,
   },
-  description:
-    "Complete agentic coding boilerplate with authentication, database, AI integration, and modern tooling - perfect for building AI-powered applications and autonomous agents by Leon van Zyl",
-  keywords: [
-    "Next.js",
-    "React",
-    "TypeScript",
-    "AI",
-    "OpenRouter",
-    "Boilerplate",
-    "Authentication",
-    "PostgreSQL",
-  ],
-  authors: [{ name: "Leon van Zyl" }],
-  creator: "Leon van Zyl",
-  openGraph: {
-    type: "website",
-    locale: "en_US",
-    siteName: "Agentic Coding Boilerplate",
-    title: "Agentic Coding Boilerplate",
-    description:
-      "Complete agentic coding boilerplate with authentication, database, AI integration, and modern tooling",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Agentic Coding Boilerplate",
-    description:
-      "Complete agentic coding boilerplate with authentication, database, AI integration, and modern tooling",
-  },
+  description: APP_DESCRIPTION,
   robots: {
-    index: true,
-    follow: true,
-  },
-};
-
-// JSON-LD structured data for SEO
-const jsonLd = {
-  "@context": "https://schema.org",
-  "@type": "WebApplication",
-  name: "Agentic Coding Boilerplate",
-  description:
-    "Complete agentic coding boilerplate with authentication, database, AI integration, and modern tooling",
-  applicationCategory: "DeveloperApplication",
-  operatingSystem: "Any",
-  offers: {
-    "@type": "Offer",
-    price: "0",
-    priceCurrency: "USD",
-  },
-  author: {
-    "@type": "Person",
-    name: "Leon van Zyl",
+    // Internal business tool — keep it out of search engines.
+    index: false,
+    follow: false,
   },
 };
 
@@ -82,14 +35,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-        />
-      </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}
+        className={`${geistSans.variable} ${geistMono.variable} min-h-screen antialiased`}
       >
         <ThemeProvider
           attribute="class"
@@ -97,9 +44,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <SiteHeader />
-          <main id="main-content" className="flex-1">{children}</main>
-          <SiteFooter />
+          {children}
           <Toaster richColors position="top-right" />
         </ThemeProvider>
       </body>
