@@ -12,12 +12,14 @@ import {
   Wallet,
   FileText,
   Receipt,
+  Mail,
   Map as MapIcon,
 } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusBadge } from "@/components/app/status-badge";
 import { BookingItemsManager } from "@/components/bookings/booking-items-manager";
 import { BookingStatusControl } from "@/components/bookings/booking-status-control";
+import { CommunicationsManager } from "@/components/bookings/communications-manager";
 import { DeleteBookingButton } from "@/components/bookings/delete-booking-button";
 import { PaymentsManager } from "@/components/bookings/payments-manager";
 import { TravellersManager } from "@/components/bookings/travellers-manager";
@@ -26,6 +28,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/lib/db";
 import { BOOKING_STATUS_META, type BookingStatus } from "@/lib/domain";
 import { formatDate, formatMoney, passportExpiryStatus } from "@/lib/format";
+import { isEmailConfigured } from "@/lib/notifications/email";
 import { isStripeConfigured } from "@/lib/payments/stripe";
 import { paymentSummary } from "@/lib/payments/summary";
 import { requireUser } from "@/lib/permissions";
@@ -42,10 +45,11 @@ export default async function BookingWorkspace({
   const b = await db.query.booking.findFirst({
     where: eq(booking.id, id),
     with: {
-      client: { columns: { id: true, name: true } },
+      client: { columns: { id: true, name: true, email: true } },
       travellers: { orderBy: (t) => [asc(t.sortOrder)] },
       items: { orderBy: (t) => [asc(t.sortOrder)] },
       payments: { orderBy: (t) => [desc(t.createdAt)] },
+      notifications: { orderBy: (t) => [desc(t.createdAt)] },
     },
   });
   if (!b) notFound();
@@ -197,6 +201,30 @@ export default async function BookingWorkspace({
                   reference: p.reference,
                   note: p.note,
                   createdAt: p.createdAt,
+                }))}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Mail className="size-4" /> Communications
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CommunicationsManager
+                bookingId={b.id}
+                clientEmail={b.client?.email ?? null}
+                emailConfigured={isEmailConfigured()}
+                notifications={b.notifications.map((n) => ({
+                  id: n.id,
+                  channel: n.channel,
+                  recipient: n.recipient,
+                  subject: n.subject,
+                  kind: n.kind,
+                  status: n.status,
+                  createdAt: n.createdAt,
                 }))}
               />
             </CardContent>

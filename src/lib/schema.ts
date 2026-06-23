@@ -414,6 +414,32 @@ export const payment = pgTable(
   (table) => [index("payment_booking_idx").on(table.bookingId)]
 );
 
+/** A notification (email/SMS/…) sent about a booking — the communications log. */
+export const notification = pgTable(
+  "notification",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    bookingId: uuid("booking_id").references(() => booking.id, {
+      onDelete: "cascade",
+    }),
+    // "email" | "sms" | "whatsapp" | "push"
+    channel: text("channel").default("email").notNull(),
+    recipient: text("recipient").notNull(),
+    subject: text("subject"),
+    body: text("body"),
+    // "confirmation" | "voucher" | "receipt" | "custom"
+    kind: text("kind").default("custom").notNull(),
+    // "sent" | "failed" | "logged"
+    status: text("status").default("sent").notNull(),
+    error: text("error"),
+    createdById: text("created_by_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [index("notification_booking_idx").on(table.bookingId)]
+);
+
 /** Per-day title/notes for a booking's itinerary timeline. */
 export const bookingDay = pgTable(
   "booking_day",
@@ -551,6 +577,14 @@ export const bookingRelations = relations(booking, ({ one, many }) => ({
   items: many(bookingItem),
   payments: many(payment),
   days: many(bookingDay),
+  notifications: many(notification),
+}));
+
+export const notificationRelations = relations(notification, ({ one }) => ({
+  booking: one(booking, {
+    fields: [notification.bookingId],
+    references: [booking.id],
+  }),
 }));
 
 export const paymentRelations = relations(payment, ({ one }) => ({

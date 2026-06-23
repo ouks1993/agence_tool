@@ -36,6 +36,13 @@
       "when": 1782236112809,
       "tag": "0004_light_gateway",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1782251896205,
+      "tag": "0005_famous_harpoon",
+      "breakpoints": true
     }
   ]
 }
