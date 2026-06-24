@@ -1,5 +1,6 @@
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
+import { getTranslations } from "next-intl/server"
 import { SignInButton } from "@/components/auth/sign-in-button"
 import {
   Card,
@@ -30,6 +31,8 @@ export default async function LoginPage({
     redirect("/dashboard")
   }
 
+  const t = await getTranslations("login")
+
   const { reset, error } = await searchParams
   const errorMessage = error ? ERROR_MESSAGES[error] : undefined
 
@@ -37,8 +40,8 @@ export default async function LoginPage({
     <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle>Welcome back</CardTitle>
-          <CardDescription>Sign in to your account</CardDescription>
+          <CardTitle>{t("welcome")}</CardTitle>
+          <CardDescription>{t("subtitle")}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col items-center">
           {reset === "success" && (

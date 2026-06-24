@@ -15,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { viewAsAgency } from "@/lib/actions/platform";
+import { viewAsAgency, viewAsUser } from "@/lib/actions/platform";
 import { db } from "@/lib/db";
 import { USER_ROLE_META, type UserRole } from "@/lib/domain";
 import { formatDate } from "@/lib/format";
@@ -130,6 +130,7 @@ export default async function AgencyDetailPage({
                   <TableHead>Member</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Access</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -154,6 +155,13 @@ export default async function AgencyDetailPage({
                             : "bg-red-500/15 text-red-600 dark:text-red-400"
                         }
                       />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <form action={viewAsUser.bind(null, m.id)} className="inline">
+                        <Button type="submit" variant="outline" size="sm">
+                          <Eye className="mr-1 size-4" /> View as
+                        </Button>
+                      </form>
                     </TableCell>
                   </TableRow>
                 ))}

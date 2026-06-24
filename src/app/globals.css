@@ -153,6 +153,10 @@
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
+  /* Arabic (RTL) uses a dedicated Arabic-script font. */
+  html[dir="rtl"] body {
+    font-family: var(--font-arabic), var(--font-geist-sans), system-ui, sans-serif;
+  }
   :focus-visible {
     @apply outline-2 outline-offset-2 outline-ring;
   }

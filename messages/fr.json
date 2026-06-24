@@ -1,0 +1,64 @@
+{
+  "common": {
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "loading": "Chargement…",
+    "search": "Rechercher",
+    "signOut": "Se déconnecter",
+    "exitToPlatform": "Retour à la plateforme",
+    "viewAll": "Voir tout"
+  },
+  "nav": {
+    "dashboard": "Tableau de bord",
+    "finance": "Finance",
+    "support": "Support",
+    "bookings": "Réservations",
+    "operations": "Opérations",
+    "clients": "Clients",
+    "search": "Recherche",
+    "assistant": "Assistant IA",
+    "team": "Équipe",
+    "settings": "Paramètres",
+    "platform": "Plateforme"
+  },
+  "settings": {
+    "title": "Paramètres",
+    "description": "Gérez votre langue, votre thème et votre profil.",
+    "language": "Langue",
+    "languageDesc": "Choisissez la langue de l'interface.",
+    "theme": "Thème",
+    "themeDesc": "Basculez entre le mode clair et sombre.",
+    "light": "Clair",
+    "dark": "Sombre",
+    "system": "Système",
+    "profile": "Profil",
+    "profileDesc": "Mettez à jour votre nom et votre apparence pour l'équipe.",
+    "name": "Nom",
+    "email": "E-mail",
+    "saved": "Paramètres enregistrés"
+  },
+  "login": {
+    "welcome": "Bon retour",
+    "subtitle": "Connectez-vous à votre compte",
+    "email": "E-mail",
+    "password": "Mot de passe",
+    "signIn": "Se connecter",
+    "forgot": "Mot de passe oublié ?",
+    "noAccount": "Pas encore de compte ?",
+    "signUp": "S'inscrire"
+  },
+  "dashboard": {
+    "welcome": "Bon retour, {name}",
+    "yourWorkTitle": "Votre travail, {name}",
+    "overview": "Vue d'ensemble des réservations et de l'activité de l'agence.",
+    "yourWork": "Aperçu de vos réservations et de votre activité.",
+    "activeBookings": "Réservations actives",
+    "confirmedRevenue": "Revenus confirmés",
+    "upcomingTrips": "Voyages à venir",
+    "passportAlerts": "Alertes passeport",
+    "insights": "Analyses",
+    "teamActivity": "Activité de l'équipe",
+    "yourActivity": "Votre activité",
+    "newBooking": "Nouvelle réservation"
+  }
+}

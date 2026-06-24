@@ -3,6 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,6 +12,7 @@ import { signIn, useSession } from "@/lib/auth-client"
 export function SignInButton() {
   const { data: session, isPending: sessionPending } = useSession()
   const router = useRouter()
+  const t = useTranslations("login")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
@@ -52,7 +54,7 @@ export function SignInButton() {
   return (
     <form onSubmit={handleSubmit} className="space-y-4 w-full max-w-sm">
       <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email">{t("email")}</Label>
         <Input
           id="email"
           type="email"
@@ -64,7 +66,7 @@ export function SignInButton() {
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="password">Password</Label>
+        <Label htmlFor="password">{t("password")}</Label>
         <Input
           id="password"
           type="password"
@@ -79,17 +81,17 @@ export function SignInButton() {
         <p className="text-sm text-destructive">{error}</p>
       )}
       <Button type="submit" className="w-full" disabled={isPending}>
-        {isPending ? "Signing in..." : "Sign in"}
+        {isPending ? "Signing in..." : t("signIn")}
       </Button>
       <div className="text-center text-sm text-muted-foreground">
         <Link href="/forgot-password" className="hover:underline">
-          Forgot password?
+          {t("forgot")}
         </Link>
       </div>
       <div className="text-center text-sm text-muted-foreground">
-        Don&apos;t have an account?{" "}
+        {t("noAccount")}{" "}
         <Link href="/register" className="text-primary hover:underline">
-          Sign up
+          {t("signUp")}
         </Link>
       </div>
     </form>

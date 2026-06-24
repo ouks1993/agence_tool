@@ -13,6 +13,7 @@ import {
   Coins,
   Trophy,
 } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/app/page-header";
 import { StatCard } from "@/components/app/stat-card";
 import { StatusBadge } from "@/components/app/status-badge";
@@ -48,6 +49,7 @@ export const metadata = { title: "Dashboard" };
 
 export default async function DashboardPage() {
   const user = await requireAgencyUser();
+  const t = await getTranslations("dashboard");
 
   // Finance/support roles have their own workspaces — send them there so the
   // generic dashboard stays the home for admin, manager and agent only.
@@ -255,26 +257,22 @@ export default async function DashboardPage() {
     };
   }
 
-  const firstName = user.name.split(" ")[0];
+  const firstName = user.name.split(" ")[0] ?? user.name;
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8 sm:px-6">
       <PageHeader
         title={
           canSeeAll
-            ? `Welcome back, ${firstName}`
-            : `Your work, ${firstName}`
+            ? t("welcome", { name: firstName })
+            : t("yourWorkTitle", { name: firstName })
         }
-        description={
-          canSeeAll
-            ? "Agency-wide overview of bookings and activity."
-            : "Your bookings and recent activity."
-        }
+        description={canSeeAll ? t("overview") : t("yourWork")}
       >
         <Button asChild>
           <Link href="/bookings/new">
             <Plus className="mr-2 size-4" />
-            New booking
+            {t("newBooking")}
           </Link>
         </Button>
       </PageHeader>
@@ -282,25 +280,25 @@ export default async function DashboardPage() {
       {/* KPIs */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          label="Active bookings"
+          label={t("activeBookings")}
           value={active.length}
           hint={`${formatMoney(activeValue)} total value`}
           icon={Briefcase}
         />
         <StatCard
-          label="Confirmed revenue"
+          label={t("confirmedRevenue")}
           value={formatMoney(confirmedRevenue)}
           hint="Confirmed & paid"
           icon={Wallet}
         />
         <StatCard
-          label="Upcoming trips"
+          label={t("upcomingTrips")}
           value={upcoming.length}
           hint={upcoming[0] ? `Next: ${formatDate(upcoming[0].departDate)}` : "None scheduled"}
           icon={Plane}
         />
         <StatCard
-          label="Passport alerts"
+          label={t("passportAlerts")}
           value={passportAlerts.length}
           hint={passportAlerts.length ? "Need attention" : "All clear"}
           icon={ShieldAlert}
@@ -401,7 +399,7 @@ export default async function DashboardPage() {
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle className="flex items-center gap-2 text-base">
             <Activity className="size-4" />
-            {canSeeAll ? "Team activity" : "Your activity"}
+            {canSeeAll ? t("teamActivity") : t("yourActivity")}
           </CardTitle>
           {canSeeAll && (
             <Button asChild variant="ghost" size="sm">
@@ -442,7 +440,7 @@ export default async function DashboardPage() {
         <section className="space-y-6">
           <div className="flex items-center gap-2">
             <BarChart3 className="text-muted-foreground size-5" />
-            <h2 className="text-xl font-semibold tracking-tight">Insights</h2>
+            <h2 className="text-xl font-semibold tracking-tight">{t("insights")}</h2>
           </div>
 
           {/* Finance KPIs */}

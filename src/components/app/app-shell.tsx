@@ -17,8 +17,10 @@ import {
   Menu,
   X,
   LogOut,
+  Settings,
   User as UserIcon,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/ui/mode-toggle";
@@ -36,7 +38,8 @@ import { cn } from "@/lib/utils";
 
 type NavItem = {
   href: string;
-  label: string;
+  /** Key into the `nav` translation namespace. */
+  labelKey: string;
   icon: React.ComponentType<{ className?: string }>;
   /** When set, the item is only rendered if the predicate passes for the role. */
   show?: (role: UserRole) => boolean;
@@ -47,18 +50,20 @@ const NAV: NavItem[] = [
   // (admin, manager, agent); finance/support land on their own pages instead.
   {
     href: "/dashboard",
-    label: "Dashboard",
+    labelKey: "dashboard",
     icon: LayoutDashboard,
     show: (r) => roleHome(r) === "/dashboard",
   },
-  { href: "/finance", label: "Finance", icon: Wallet, show: canViewFinance },
-  { href: "/support", label: "Support", icon: LifeBuoy, show: canViewSupport },
-  { href: "/bookings", label: "Bookings", icon: Briefcase },
-  { href: "/operations", label: "Operations", icon: ClipboardList },
-  { href: "/clients", label: "Clients", icon: Users },
-  { href: "/search", label: "Search", icon: Search },
-  { href: "/assistant", label: "AI Assistant", icon: Sparkles },
-  { href: "/team", label: "Team", icon: ShieldCheck, show: canManageTeam },
+  { href: "/finance", labelKey: "finance", icon: Wallet, show: canViewFinance },
+  { href: "/support", labelKey: "support", icon: LifeBuoy, show: canViewSupport },
+  { href: "/bookings", labelKey: "bookings", icon: Briefcase },
+  { href: "/operations", labelKey: "operations", icon: ClipboardList },
+  { href: "/clients", labelKey: "clients", icon: Users },
+  { href: "/search", labelKey: "search", icon: Search },
+  { href: "/assistant", labelKey: "assistant", icon: Sparkles },
+  { href: "/team", labelKey: "team", icon: ShieldCheck, show: canManageTeam },
+  // Settings is available to every role.
+  { href: "/settings", labelKey: "settings", icon: Settings },
 ];
 
 export type ShellUser = {
@@ -79,6 +84,8 @@ export function AppShell({
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const tNav = useTranslations("nav");
+  const tCommon = useTranslations("common");
 
   const items = NAV.filter((i) => !i.show || i.show(user.role));
 
@@ -123,7 +130,7 @@ export function AppShell({
               )}
             >
               <Icon className="size-4 shrink-0" />
-              {item.label}
+              {tNav(item.labelKey)}
             </Link>
           );
         })}
@@ -160,7 +167,7 @@ export function AppShell({
             variant="ghost"
             size="icon"
             onClick={handleSignOut}
-            aria-label="Sign out"
+            aria-label={tCommon("signOut")}
           >
             <LogOut className="size-4" />
           </Button>

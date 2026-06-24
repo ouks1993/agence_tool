@@ -3,7 +3,8 @@ import { Eye } from "lucide-react";
 import { AppShell } from "@/components/app/app-shell";
 import { exitAgencyView } from "@/lib/actions/platform";
 import { db } from "@/lib/db";
-import { isViewingAsAgency, requireAgencyUser } from "@/lib/permissions";
+import { USER_ROLE_META } from "@/lib/domain";
+import { isImpersonating, requireAgencyUser } from "@/lib/permissions";
 import { agency } from "@/lib/schema";
 
 export default async function AppLayout({
@@ -13,9 +14,9 @@ export default async function AppLayout({
 }) {
   const user = await requireAgencyUser();
 
-  // When the platform admin is "viewing as" an agency, show a banner with the
-  // agency name and a way back to the platform console.
-  const impersonating = isViewingAsAgency(user);
+  // When the platform admin is "viewing as" an agency or a user, show a banner
+  // naming what they're viewing and a way back to the platform console.
+  const impersonating = isImpersonating(user);
   const viewedAgency = impersonating
     ? await db.query.agency.findFirst({
         where: eq(agency.id, user.agencyId),
@@ -29,11 +30,23 @@ export default async function AppLayout({
         <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 border-b border-amber-500/30 bg-amber-500/15 px-4 py-2 text-sm text-amber-700 dark:text-amber-300">
           <span className="flex items-center gap-1.5">
             <Eye className="size-4" />
-            Viewing{" "}
-            <strong className="font-semibold">
-              {viewedAgency?.name ?? "agency"}
-            </strong>{" "}
-            as platform admin
+            {user.impersonating === "user" ? (
+              <>
+                Viewing as{" "}
+                <strong className="font-semibold">{user.name}</strong>
+                <span className="opacity-80">
+                  ({USER_ROLE_META[user.role].label} · {viewedAgency?.name ?? "agency"})
+                </span>
+              </>
+            ) : (
+              <>
+                Viewing{" "}
+                <strong className="font-semibold">
+                  {viewedAgency?.name ?? "agency"}
+                </strong>{" "}
+                as platform admin
+              </>
+            )}
           </span>
           <form action={exitAgencyView}>
             <button type="submit" className="font-medium underline underline-offset-2">

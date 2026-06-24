@@ -92,6 +92,8 @@ export const user = pgTable(
     isPlatformAdmin: boolean("is_platform_admin").default(false).notNull(),
     // Application role within the agency: admin | manager | finance | support | agent.
     role: text("role").default("agent").notNull(),
+    // Preferred UI locale: "en" | "fr" | "ar" (null falls back to default).
+    locale: text("locale"),
     // Soft-disable a team member without deleting their history.
     active: boolean("active").default(true).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),

@@ -7,7 +7,7 @@
  *
  * Run: npx tsx --env-file=.env scripts/seed-demo-data.ts
  */
-import { eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {

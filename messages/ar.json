@@ -1,0 +1,64 @@
+{
+  "common": {
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "loading": "جارٍ التحميل…",
+    "search": "بحث",
+    "signOut": "تسجيل الخروج",
+    "exitToPlatform": "العودة إلى المنصة",
+    "viewAll": "عرض الكل"
+  },
+  "nav": {
+    "dashboard": "لوحة التحكم",
+    "finance": "المالية",
+    "support": "الدعم",
+    "bookings": "الحجوزات",
+    "operations": "العمليات",
+    "clients": "العملاء",
+    "search": "بحث",
+    "assistant": "المساعد الذكي",
+    "team": "الفريق",
+    "settings": "الإعدادات",
+    "platform": "المنصة"
+  },
+  "settings": {
+    "title": "الإعدادات",
+    "description": "إدارة اللغة والمظهر والملف الشخصي.",
+    "language": "اللغة",
+    "languageDesc": "اختر لغة الواجهة.",
+    "theme": "المظهر",
+    "themeDesc": "التبديل بين الوضع الفاتح والداكن.",
+    "light": "فاتح",
+    "dark": "داكن",
+    "system": "النظام",
+    "profile": "الملف الشخصي",
+    "profileDesc": "حدّث اسمك وطريقة ظهورك لفريقك.",
+    "name": "الاسم",
+    "email": "البريد الإلكتروني",
+    "saved": "تم حفظ الإعدادات"
+  },
+  "login": {
+    "welcome": "مرحبًا بعودتك",
+    "subtitle": "سجّل الدخول إلى حسابك",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "signIn": "تسجيل الدخول",
+    "forgot": "هل نسيت كلمة المرور؟",
+    "noAccount": "ليس لديك حساب؟",
+    "signUp": "إنشاء حساب"
+  },
+  "dashboard": {
+    "welcome": "مرحبًا بعودتك، {name}",
+    "yourWorkTitle": "أعمالك، {name}",
+    "overview": "نظرة عامة على حجوزات الوكالة ونشاطها.",
+    "yourWork": "نظرة عامة على حجوزاتك ونشاطك.",
+    "activeBookings": "الحجوزات النشطة",
+    "confirmedRevenue": "الإيرادات المؤكدة",
+    "upcomingTrips": "الرحلات القادمة",
+    "passportAlerts": "تنبيهات الجوازات",
+    "insights": "إحصاءات",
+    "teamActivity": "نشاط الفريق",
+    "yourActivity": "نشاطك",
+    "newBooking": "حجز جديد"
+  }
+}

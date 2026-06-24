@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { canManageTeam, type UserRole } from "@/lib/domain";
-import { agency } from "@/lib/schema";
+import { agency, user as userTable } from "@/lib/schema";
 
 export type CurrentUser = {
   id: string;
@@ -16,6 +16,9 @@ export type CurrentUser = {
   isPlatformAdmin: boolean;
   role: UserRole;
   active: boolean;
+  // Set when the platform admin is impersonating: "agency" (act as agency admin)
+  // or "user" (act as a specific user with their own role/scope).
+  impersonating?: "agency" | "user" | null;
 };
 
 /** A user guaranteed to belong to an agency (agencyId is non-null). */
@@ -23,10 +26,16 @@ export type AgencyUser = CurrentUser & { agencyId: string };
 
 /** Cookie set by the platform admin to "view as" a specific agency. */
 export const VIEW_AS_AGENCY_COOKIE = "platform_view_agency";
+/** Cookie set by the platform admin to "view as" a specific user. */
+export const VIEW_AS_USER_COOKIE = "platform_view_user";
 
-/** True when this user is the platform admin currently impersonating an agency. */
+/** True when the platform admin is currently impersonating an agency or a user. */
+export function isImpersonating(user: CurrentUser): boolean {
+  return user.isPlatformAdmin && !!user.impersonating;
+}
+/** Back-compat: true when impersonating (agency or user). */
 export function isViewingAsAgency(user: CurrentUser): boolean {
-  return user.isPlatformAdmin && user.agencyId !== null;
+  return isImpersonating(user);
 }
 
 /**
@@ -67,15 +76,40 @@ export async function requireUser(): Promise<CurrentUser> {
     active: u.active ?? true,
   };
 
-  // "View as agency": when the platform admin has selected an agency to view,
-  // act as an admin of that agency so the whole app (and all capability guards)
-  // grant full access. isPlatformAdmin stays true so /platform still recognizes
-  // them and the agency app can show the "viewing as" banner.
+  // Platform-admin impersonation. "View as user" takes precedence over "view as
+  // agency": acting as a specific user adopts THEIR identity, agency and role
+  // (full fidelity to what that user sees); view-as-agency acts as an agency
+  // admin. isPlatformAdmin stays true so /platform still recognizes them and the
+  // app can show the "viewing as" banner.
   if (base.isPlatformAdmin) {
-    const viewAgencyId = (await cookies()).get(VIEW_AS_AGENCY_COOKIE)?.value;
-    if (viewAgencyId) {
+    const cookieStore = await cookies();
+    const viewUserId = cookieStore.get(VIEW_AS_USER_COOKIE)?.value;
+    const viewAgencyId = cookieStore.get(VIEW_AS_AGENCY_COOKIE)?.value;
+    if (viewUserId) {
+      const target = await db.query.user.findFirst({
+        where: eq(userTable.id, viewUserId),
+        columns: {
+          id: true,
+          name: true,
+          email: true,
+          image: true,
+          agencyId: true,
+          role: true,
+        },
+      });
+      if (target?.agencyId) {
+        base.id = target.id;
+        base.name = target.name;
+        base.email = target.email;
+        base.image = target.image ?? null;
+        base.agencyId = target.agencyId;
+        base.role = (target.role as UserRole) ?? "agent";
+        base.impersonating = "user";
+      }
+    } else if (viewAgencyId) {
       base.agencyId = viewAgencyId;
       base.role = "admin";
+      base.impersonating = "agency";
     }
   }
 

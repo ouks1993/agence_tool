@@ -7,7 +7,11 @@ import { eq } from "drizzle-orm";
 import type { ActionResult } from "@/lib/actions/types";
 import { db } from "@/lib/db";
 import { createInvite } from "@/lib/invites";
-import { requirePlatformAdmin, VIEW_AS_AGENCY_COOKIE } from "@/lib/permissions";
+import {
+  requirePlatformAdmin,
+  VIEW_AS_AGENCY_COOKIE,
+  VIEW_AS_USER_COOKIE,
+} from "@/lib/permissions";
 import { agency, user } from "@/lib/schema";
 
 /** A basic email shape check — good enough to reject obvious typos at the boundary. */
@@ -163,7 +167,36 @@ export async function viewAsAgency(agencyId: string): Promise<void> {
   });
   if (!ag) redirect("/platform");
 
-  (await cookies()).set(VIEW_AS_AGENCY_COOKIE, agencyId, {
+  const store = await cookies();
+  const cookieOpts = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax" as const,
+    path: "/",
+  };
+  store.delete(VIEW_AS_USER_COOKIE);
+  store.set(VIEW_AS_AGENCY_COOKIE, agencyId, cookieOpts);
+
+  redirect("/dashboard");
+}
+
+/**
+ * Enters "view as user" mode: the platform admin acts as the selected user with
+ * THEIR role and scoped data. Only takes effect for a platform admin (resolved
+ * in requireUser).
+ */
+export async function viewAsUser(userId: string): Promise<void> {
+  await requirePlatformAdmin();
+
+  const target = await db.query.user.findFirst({
+    where: eq(user.id, userId),
+    columns: { id: true, agencyId: true },
+  });
+  if (!target?.agencyId) redirect("/platform");
+
+  const store = await cookies();
+  store.delete(VIEW_AS_AGENCY_COOKIE);
+  store.set(VIEW_AS_USER_COOKIE, userId, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
@@ -173,8 +206,10 @@ export async function viewAsAgency(agencyId: string): Promise<void> {
   redirect("/dashboard");
 }
 
-/** Exits "view as agency" mode and returns to the platform console. */
+/** Exits any "view as" mode and returns to the platform console. */
 export async function exitAgencyView(): Promise<void> {
-  (await cookies()).delete(VIEW_AS_AGENCY_COOKIE);
+  const store = await cookies();
+  store.delete(VIEW_AS_AGENCY_COOKIE);
+  store.delete(VIEW_AS_USER_COOKIE);
   redirect("/platform");
 }

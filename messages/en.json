@@ -1,0 +1,64 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "loading": "Loading…",
+    "search": "Search",
+    "signOut": "Sign out",
+    "exitToPlatform": "Exit to platform",
+    "viewAll": "View all"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "finance": "Finance",
+    "support": "Support",
+    "bookings": "Bookings",
+    "operations": "Operations",
+    "clients": "Clients",
+    "search": "Search",
+    "assistant": "AI Assistant",
+    "team": "Team",
+    "settings": "Settings",
+    "platform": "Platform"
+  },
+  "settings": {
+    "title": "Settings",
+    "description": "Manage your language, theme and profile.",
+    "language": "Language",
+    "languageDesc": "Choose the language for the interface.",
+    "theme": "Theme",
+    "themeDesc": "Switch between light and dark mode.",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System",
+    "profile": "Profile",
+    "profileDesc": "Update your name and how you appear to your team.",
+    "name": "Name",
+    "email": "Email",
+    "saved": "Settings saved"
+  },
+  "login": {
+    "welcome": "Welcome back",
+    "subtitle": "Sign in to your account",
+    "email": "Email",
+    "password": "Password",
+    "signIn": "Sign in",
+    "forgot": "Forgot password?",
+    "noAccount": "Don't have an account?",
+    "signUp": "Sign up"
+  },
+  "dashboard": {
+    "welcome": "Welcome back, {name}",
+    "yourWorkTitle": "Your work, {name}",
+    "overview": "Agency-wide overview of bookings and activity.",
+    "yourWork": "Overview of your bookings and activity.",
+    "activeBookings": "Active bookings",
+    "confirmedRevenue": "Confirmed revenue",
+    "upcomingTrips": "Upcoming trips",
+    "passportAlerts": "Passport alerts",
+    "insights": "Insights",
+    "teamActivity": "Team activity",
+    "yourActivity": "Your activity",
+    "newBooking": "New booking"
+  }
+}
