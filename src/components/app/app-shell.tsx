@@ -5,6 +5,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
+  Wallet,
+  LifeBuoy,
   Briefcase,
   ClipboardList,
   Users,
@@ -22,7 +24,13 @@ import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/ui/mode-toggle";
 import { signOut } from "@/lib/auth-client";
 import { APP_NAME, APP_TAGLINE } from "@/lib/config";
-import { canManageTeam, type UserRole } from "@/lib/domain";
+import {
+  canManageTeam,
+  canViewFinance,
+  canViewSupport,
+  roleHome,
+  type UserRole,
+} from "@/lib/domain";
 import { initials } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -30,17 +38,27 @@ type NavItem = {
   href: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
-  managerOnly?: boolean;
+  /** When set, the item is only rendered if the predicate passes for the role. */
+  show?: (role: UserRole) => boolean;
 };
 
 const NAV: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  // Dashboard is the home for roles that don't have a dedicated workspace
+  // (admin, manager, agent); finance/support land on their own pages instead.
+  {
+    href: "/dashboard",
+    label: "Dashboard",
+    icon: LayoutDashboard,
+    show: (r) => roleHome(r) === "/dashboard",
+  },
+  { href: "/finance", label: "Finance", icon: Wallet, show: canViewFinance },
+  { href: "/support", label: "Support", icon: LifeBuoy, show: canViewSupport },
   { href: "/bookings", label: "Bookings", icon: Briefcase },
   { href: "/operations", label: "Operations", icon: ClipboardList },
   { href: "/clients", label: "Clients", icon: Users },
   { href: "/search", label: "Search", icon: Search },
   { href: "/assistant", label: "AI Assistant", icon: Sparkles },
-  { href: "/team", label: "Team", icon: ShieldCheck, managerOnly: true },
+  { href: "/team", label: "Team", icon: ShieldCheck, show: canManageTeam },
 ];
 
 export type ShellUser = {
@@ -62,7 +80,7 @@ export function AppShell({
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const items = NAV.filter((i) => !i.managerOnly || canManageTeam(user.role));
+  const items = NAV.filter((i) => !i.show || i.show(user.role));
 
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(`${href}/`);

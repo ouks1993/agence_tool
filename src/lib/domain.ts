@@ -72,6 +72,26 @@ export function canViewFinance(role: UserRole): boolean {
 export function canDeleteRecords(role: UserRole): boolean {
   return role === "admin" || role === "manager";
 }
+/** Roles that can use the Support workspace (client requests & bookings). */
+export function canViewSupport(role: UserRole): boolean {
+  return role === "admin" || role === "manager" || role === "support";
+}
+
+/**
+ * The default landing page for each role — where they go after login. Finance
+ * and Support get their own workspaces; everyone else uses the dashboard
+ * (which itself adapts: managers/admins see agency-wide, agents see their own).
+ */
+export function roleHome(role: UserRole): string {
+  switch (role) {
+    case "finance":
+      return "/finance";
+    case "support":
+      return "/support";
+    default:
+      return "/dashboard";
+  }
+}
 
 // --- Opportunities (sales pipeline) ----------------------------------------
 

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { and, desc, eq } from "drizzle-orm";
 import { Briefcase, Wallet, Plane, ShieldAlert, Plus, Activity } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
@@ -9,7 +10,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { describeActivity } from "@/lib/activity-format";
 import { db } from "@/lib/db";
-import { BOOKING_STATUS_META, seesAllData, type BookingStatus } from "@/lib/domain";
+import {
+  BOOKING_STATUS_META,
+  roleHome,
+  seesAllData,
+  type BookingStatus,
+} from "@/lib/domain";
 import {
   formatMoney,
   formatRelative,
@@ -24,6 +30,12 @@ export const metadata = { title: "Dashboard" };
 
 export default async function DashboardPage() {
   const user = await requireAgencyUser();
+
+  // Finance/support roles have their own workspaces — send them there so the
+  // generic dashboard stays the home for admin, manager and agent only.
+  const home = roleHome(user.role);
+  if (home !== "/dashboard") redirect(home);
+
   const canSeeAll = seesAllData(user.role);
 
   // Bookings (agency-scoped ALWAYS; full-visibility roles see the whole agency,
@@ -96,7 +108,11 @@ export default async function DashboardPage() {
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8 sm:px-6">
       <PageHeader
-        title={`Welcome back, ${firstName}`}
+        title={
+          canSeeAll
+            ? `Welcome back, ${firstName}`
+            : `Your work, ${firstName}`
+        }
         description={
           canSeeAll
             ? "Agency-wide overview of bookings and activity."
