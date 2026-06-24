@@ -6,9 +6,9 @@ import { z } from "zod";
 import type { ActionResult } from "@/lib/actions/types";
 import { logActivity } from "@/lib/activity";
 import { db } from "@/lib/db";
-import { nextBookingStatus } from "@/lib/domain";
-import { requireUser } from "@/lib/permissions";
-import { booking, bookingTraveller, bookingItem, bookingDay } from "@/lib/schema";
+import { canDeleteRecords, nextBookingStatus } from "@/lib/domain";
+import { requireAgencyUser } from "@/lib/permissions";
+import { booking, bookingTraveller, bookingItem, bookingDay, client } from "@/lib/schema";
 import { getSupplier, type FlightOffer, type HotelOffer } from "@/lib/suppliers";
 
 function toDate(value?: string | null): Date | null {
@@ -21,8 +21,8 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-async function nextReference(): Promise<string> {
-  const count = await db.$count(booking);
+async function nextReference(agencyId: string): Promise<string> {
+  const count = await db.$count(booking, eq(booking.agencyId, agencyId));
   return `BKG-${1001 + count}`;
 }
 
@@ -58,17 +58,27 @@ export type BookingInput = z.input<typeof bookingInput>;
 export async function createBooking(
   input: BookingInput
 ): Promise<ActionResult<{ id: string }>> {
-  const user = await requireUser();
+  const user = await requireAgencyUser();
   const parsed = bookingInput.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid data" };
   }
   const d = parsed.data;
-  const reference = await nextReference();
+
+  // Validate the client belongs to this agency before linking it.
+  if (d.clientId) {
+    const c = await db.query.client.findFirst({
+      where: and(eq(client.id, d.clientId), eq(client.agencyId, user.agencyId)),
+    });
+    if (!c) return { ok: false, error: "Client not found" };
+  }
+
+  const reference = await nextReference(user.agencyId);
 
   const [row] = await db
     .insert(booking)
     .values({
+      agencyId: user.agencyId,
       reference,
       clientId: d.clientId || null,
       destination: d.destination || null,
@@ -92,6 +102,7 @@ export async function createBooking(
   }
 
   await logActivity({
+    agencyId: user.agencyId,
     userId: user.id,
     action: "created",
     entityType: "booking",
@@ -107,14 +118,24 @@ export async function updateBooking(
   id: string,
   input: BookingInput
 ): Promise<ActionResult> {
-  const user = await requireUser();
+  const user = await requireAgencyUser();
   const parsed = bookingInput.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid data" };
   }
   const d = parsed.data;
-  const existing = await db.query.booking.findFirst({ where: eq(booking.id, id) });
+  const existing = await db.query.booking.findFirst({
+    where: and(eq(booking.id, id), eq(booking.agencyId, user.agencyId)),
+  });
   if (!existing) return { ok: false, error: "Booking not found" };
+
+  // Validate the client belongs to this agency before linking it.
+  if (d.clientId) {
+    const c = await db.query.client.findFirst({
+      where: and(eq(client.id, d.clientId), eq(client.agencyId, user.agencyId)),
+    });
+    if (!c) return { ok: false, error: "Client not found" };
+  }
 
   await db
     .update(booking)
@@ -126,9 +147,10 @@ export async function updateBooking(
       currency: d.currency,
       notes: d.notes || null,
     })
-    .where(eq(booking.id, id));
+    .where(and(eq(booking.id, id), eq(booking.agencyId, user.agencyId)));
 
   await logActivity({
+    agencyId: user.agencyId,
     userId: user.id,
     action: "updated",
     entityType: "booking",
@@ -145,13 +167,19 @@ export async function setBookingStatus(
   id: string,
   status: "draft" | "confirmed" | "paid" | "cancelled"
 ): Promise<ActionResult> {
-  const user = await requireUser();
-  const existing = await db.query.booking.findFirst({ where: eq(booking.id, id) });
+  const user = await requireAgencyUser();
+  const existing = await db.query.booking.findFirst({
+    where: and(eq(booking.id, id), eq(booking.agencyId, user.agencyId)),
+  });
   if (!existing) return { ok: false, error: "Booking not found" };
 
-  await db.update(booking).set({ status }).where(eq(booking.id, id));
+  await db
+    .update(booking)
+    .set({ status })
+    .where(and(eq(booking.id, id), eq(booking.agencyId, user.agencyId)));
 
   await logActivity({
+    agencyId: user.agencyId,
     userId: user.id,
     action: "status_changed",
     entityType: "booking",
@@ -166,16 +194,21 @@ export async function setBookingStatus(
 }
 
 export async function deleteBooking(id: string): Promise<ActionResult> {
-  const user = await requireUser();
-  const existing = await db.query.booking.findFirst({ where: eq(booking.id, id) });
+  const user = await requireAgencyUser();
+  const existing = await db.query.booking.findFirst({
+    where: and(eq(booking.id, id), eq(booking.agencyId, user.agencyId)),
+  });
   if (!existing) return { ok: false, error: "Booking not found" };
-  if (user.role !== "manager" && existing.createdById !== user.id) {
+  if (!canDeleteRecords(user.role) && existing.createdById !== user.id) {
     return { ok: false, error: "You don't have permission to delete this" };
   }
 
-  await db.delete(booking).where(eq(booking.id, id));
+  await db
+    .delete(booking)
+    .where(and(eq(booking.id, id), eq(booking.agencyId, user.agencyId)));
 
   await logActivity({
+    agencyId: user.agencyId,
     userId: user.id,
     action: "deleted",
     entityType: "booking",
@@ -211,7 +244,13 @@ export async function bookItem(
   itemId: string,
   bookingId: string
 ): Promise<ActionResult> {
-  const user = await requireUser();
+  const user = await requireAgencyUser();
+  // Verify the parent booking belongs to this agency before touching its item.
+  const parent = await db.query.booking.findFirst({
+    where: and(eq(booking.id, bookingId), eq(booking.agencyId, user.agencyId)),
+  });
+  if (!parent) return { ok: false, error: "Not found" };
+
   const item = await db.query.bookingItem.findFirst({
     where: and(eq(bookingItem.id, itemId), eq(bookingItem.bookingId, bookingId)),
   });
@@ -224,6 +263,7 @@ export async function bookItem(
     .where(eq(bookingItem.id, itemId));
 
   await logActivity({
+    agencyId: user.agencyId,
     userId: user.id,
     action: "updated",
     entityType: "booking",
@@ -240,9 +280,9 @@ export async function bookItem(
 export async function advanceStatus(
   id: string
 ): Promise<ActionResult<{ status: string }>> {
-  const user = await requireUser();
+  const user = await requireAgencyUser();
   const existing = await db.query.booking.findFirst({
-    where: eq(booking.id, id),
+    where: and(eq(booking.id, id), eq(booking.agencyId, user.agencyId)),
     with: { items: true },
   });
   if (!existing) return { ok: false, error: "Booking not found" };
@@ -262,9 +302,13 @@ export async function advanceStatus(
     }
   }
 
-  await db.update(booking).set({ status: next }).where(eq(booking.id, id));
+  await db
+    .update(booking)
+    .set({ status: next })
+    .where(and(eq(booking.id, id), eq(booking.agencyId, user.agencyId)));
 
   await logActivity({
+    agencyId: user.agencyId,
     userId: user.id,
     action: "status_changed",
     entityType: "booking",
@@ -287,7 +331,13 @@ export async function assignItemDay(
   bookingId: string,
   dayIndex: number | null
 ): Promise<ActionResult> {
-  await requireUser();
+  const user = await requireAgencyUser();
+  // Verify the parent booking belongs to this agency before scheduling its item.
+  const parent = await db.query.booking.findFirst({
+    where: and(eq(booking.id, bookingId), eq(booking.agencyId, user.agencyId)),
+  });
+  if (!parent) return { ok: false, error: "Not found" };
+
   await db
     .update(bookingItem)
     .set({ dayIndex })
@@ -303,7 +353,13 @@ export async function setDayNote(
   title: string,
   notes: string
 ): Promise<ActionResult> {
-  await requireUser();
+  const user = await requireAgencyUser();
+  // Verify the parent booking belongs to this agency before editing its days.
+  const parent = await db.query.booking.findFirst({
+    where: and(eq(booking.id, bookingId), eq(booking.agencyId, user.agencyId)),
+  });
+  if (!parent) return { ok: false, error: "Not found" };
+
   const existing = await db.query.bookingDay.findFirst({
     where: and(eq(bookingDay.bookingId, bookingId), eq(bookingDay.dayIndex, dayIndex)),
   });
@@ -328,17 +384,23 @@ export async function setDayNote(
 export async function generateShareLink(
   bookingId: string
 ): Promise<ActionResult<{ token: string }>> {
-  await requireUser();
+  const user = await requireAgencyUser();
   const token = crypto.randomUUID().replace(/-/g, "");
-  await db.update(booking).set({ shareToken: token }).where(eq(booking.id, bookingId));
+  await db
+    .update(booking)
+    .set({ shareToken: token })
+    .where(and(eq(booking.id, bookingId), eq(booking.agencyId, user.agencyId)));
   revalidatePath(`/bookings/${bookingId}/itinerary`);
   return { ok: true, data: { token } };
 }
 
 /** Disable the public shareable link. */
 export async function revokeShareLink(bookingId: string): Promise<ActionResult> {
-  await requireUser();
-  await db.update(booking).set({ shareToken: null }).where(eq(booking.id, bookingId));
+  const user = await requireAgencyUser();
+  await db
+    .update(booking)
+    .set({ shareToken: null })
+    .where(and(eq(booking.id, bookingId), eq(booking.agencyId, user.agencyId)));
   revalidatePath(`/bookings/${bookingId}/itinerary`);
   return { ok: true };
 }
@@ -362,11 +424,17 @@ export async function addTraveller(
   bookingId: string,
   input: TravellerInput
 ): Promise<ActionResult> {
-  await requireUser();
+  const user = await requireAgencyUser();
   const parsed = travellerInput.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid data" };
   }
+  // Verify the parent booking belongs to this agency before adding a traveller.
+  const parent = await db.query.booking.findFirst({
+    where: and(eq(booking.id, bookingId), eq(booking.agencyId, user.agencyId)),
+  });
+  if (!parent) return { ok: false, error: "Not found" };
+
   const d = parsed.data;
   const count = await db.$count(
     bookingTraveller,
@@ -395,11 +463,17 @@ export async function updateTraveller(
   bookingId: string,
   input: TravellerInput
 ): Promise<ActionResult> {
-  await requireUser();
+  const user = await requireAgencyUser();
   const parsed = travellerInput.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid data" };
   }
+  // Verify the parent booking belongs to this agency before editing its traveller.
+  const parent = await db.query.booking.findFirst({
+    where: and(eq(booking.id, bookingId), eq(booking.agencyId, user.agencyId)),
+  });
+  if (!parent) return { ok: false, error: "Not found" };
+
   const d = parsed.data;
   await db
     .update(bookingTraveller)
@@ -424,7 +498,13 @@ export async function removeTraveller(
   id: string,
   bookingId: string
 ): Promise<ActionResult> {
-  await requireUser();
+  const user = await requireAgencyUser();
+  // Verify the parent booking belongs to this agency before removing its traveller.
+  const parent = await db.query.booking.findFirst({
+    where: and(eq(booking.id, bookingId), eq(booking.agencyId, user.agencyId)),
+  });
+  if (!parent) return { ok: false, error: "Not found" };
+
   await db
     .delete(bookingTraveller)
     .where(
@@ -456,11 +536,17 @@ export async function addBookingItem(
   bookingId: string,
   input: BookingItemInput
 ): Promise<ActionResult> {
-  await requireUser();
+  const user = await requireAgencyUser();
   const parsed = itemInput.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid item" };
   }
+  // Verify the parent booking belongs to this agency before adding an item.
+  const parent = await db.query.booking.findFirst({
+    where: and(eq(booking.id, bookingId), eq(booking.agencyId, user.agencyId)),
+  });
+  if (!parent) return { ok: false, error: "Not found" };
+
   const d = parsed.data;
   const count = await db.$count(bookingItem, eq(bookingItem.bookingId, bookingId));
 
@@ -489,7 +575,13 @@ export async function removeBookingItem(
   id: string,
   bookingId: string
 ): Promise<ActionResult> {
-  await requireUser();
+  const user = await requireAgencyUser();
+  // Verify the parent booking belongs to this agency before removing its item.
+  const parent = await db.query.booking.findFirst({
+    where: and(eq(booking.id, bookingId), eq(booking.agencyId, user.agencyId)),
+  });
+  if (!parent) return { ok: false, error: "Not found" };
+
   await db
     .delete(bookingItem)
     .where(and(eq(bookingItem.id, id), eq(bookingItem.bookingId, bookingId)));
@@ -508,7 +600,7 @@ export async function addItemToBooking(input: {
   destination?: string | undefined;
   item: BookingItemInput;
 }): Promise<ActionResult<{ bookingId: string }>> {
-  const user = await requireUser();
+  const user = await requireAgencyUser();
   let bookingId = input.bookingId;
 
   if (!bookingId) {
@@ -527,6 +619,7 @@ export async function addItemToBooking(input: {
   if (!res.ok) return res;
 
   await logActivity({
+    agencyId: user.agencyId,
     userId: user.id,
     action: "updated",
     entityType: "booking",

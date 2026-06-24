@@ -6,7 +6,8 @@ import { z } from "zod";
 import type { ActionResult } from "@/lib/actions/types";
 import { logActivity } from "@/lib/activity";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/permissions";
+import { canDeleteRecords } from "@/lib/domain";
+import { requireAgencyUser } from "@/lib/permissions";
 import { client, clientContact } from "@/lib/schema";
 
 const clientInput = z.object({
@@ -29,7 +30,7 @@ export type ClientInput = z.infer<typeof clientInput>;
 export async function createClient(
   input: ClientInput
 ): Promise<ActionResult<{ id: string }>> {
-  const user = await requireUser();
+  const user = await requireAgencyUser();
   const parsed = clientInput.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid data" };
@@ -39,6 +40,7 @@ export async function createClient(
   const [row] = await db
     .insert(client)
     .values({
+      agencyId: user.agencyId,
       name: d.name,
       type: d.type,
       status: d.status,
@@ -58,6 +60,7 @@ export async function createClient(
   if (!row) return { ok: false, error: "Failed to create client" };
 
   await logActivity({
+    agencyId: user.agencyId,
     userId: user.id,
     action: "created",
     entityType: "client",
@@ -73,14 +76,16 @@ export async function updateClient(
   id: string,
   input: ClientInput
 ): Promise<ActionResult> {
-  const user = await requireUser();
+  const user = await requireAgencyUser();
   const parsed = clientInput.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid data" };
   }
   const d = parsed.data;
 
-  const existing = await db.query.client.findFirst({ where: eq(client.id, id) });
+  const existing = await db.query.client.findFirst({
+    where: and(eq(client.id, id), eq(client.agencyId, user.agencyId)),
+  });
   if (!existing) return { ok: false, error: "Client not found" };
 
   await db
@@ -99,9 +104,10 @@ export async function updateClient(
       notes: d.notes || null,
       ownerId: d.ownerId || null,
     })
-    .where(eq(client.id, id));
+    .where(and(eq(client.id, id), eq(client.agencyId, user.agencyId)));
 
   await logActivity({
+    agencyId: user.agencyId,
     userId: user.id,
     action: "updated",
     entityType: "client",
@@ -115,22 +121,27 @@ export async function updateClient(
 }
 
 export async function deleteClient(id: string): Promise<ActionResult> {
-  const user = await requireUser();
-  const existing = await db.query.client.findFirst({ where: eq(client.id, id) });
+  const user = await requireAgencyUser();
+  const existing = await db.query.client.findFirst({
+    where: and(eq(client.id, id), eq(client.agencyId, user.agencyId)),
+  });
   if (!existing) return { ok: false, error: "Client not found" };
 
-  // Only a manager or the owner/creator may delete a client.
+  // Only a privileged role or the owner/creator may delete a client.
   if (
-    user.role !== "manager" &&
+    !canDeleteRecords(user.role) &&
     existing.ownerId !== user.id &&
     existing.createdById !== user.id
   ) {
     return { ok: false, error: "You don't have permission to delete this client" };
   }
 
-  await db.delete(client).where(eq(client.id, id));
+  await db
+    .delete(client)
+    .where(and(eq(client.id, id), eq(client.agencyId, user.agencyId)));
 
   await logActivity({
+    agencyId: user.agencyId,
     userId: user.id,
     action: "deleted",
     entityType: "client",
@@ -156,12 +167,18 @@ const contactInput = z.object({
 export async function addContact(
   input: z.infer<typeof contactInput>
 ): Promise<ActionResult> {
-  const user = await requireUser();
+  const user = await requireAgencyUser();
   const parsed = contactInput.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid data" };
   }
   const d = parsed.data;
+
+  // Verify the parent client belongs to this agency before mutating its child.
+  const parent = await db.query.client.findFirst({
+    where: and(eq(client.id, d.clientId), eq(client.agencyId, user.agencyId)),
+  });
+  if (!parent) return { ok: false, error: "Not found" };
 
   await db.insert(clientContact).values({
     clientId: d.clientId,
@@ -173,6 +190,7 @@ export async function addContact(
   });
 
   await logActivity({
+    agencyId: user.agencyId,
     userId: user.id,
     action: "updated",
     entityType: "client",
@@ -189,7 +207,15 @@ export async function deleteContact(
   contactId: string,
   clientId: string
 ): Promise<ActionResult> {
-  await requireUser();
+  const user = await requireAgencyUser();
+
+  // The contact has no agencyId of its own; verify its parent client belongs
+  // to this agency before deleting it.
+  const parent = await db.query.client.findFirst({
+    where: and(eq(client.id, clientId), eq(client.agencyId, user.agencyId)),
+  });
+  if (!parent) return { ok: false, error: "Not found" };
+
   await db
     .delete(clientContact)
     .where(and(eq(clientContact.id, contactId), eq(clientContact.clientId, clientId)));

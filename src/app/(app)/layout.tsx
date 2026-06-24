@@ -1,12 +1,12 @@
 import { AppShell } from "@/components/app/app-shell";
-import { requireUser } from "@/lib/permissions";
+import { requireAgencyUser } from "@/lib/permissions";
 
 export default async function AppLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const user = await requireUser();
+  const user = await requireAgencyUser();
 
   return (
     <AppShell

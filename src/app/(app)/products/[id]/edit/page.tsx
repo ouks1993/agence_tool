@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { ProductForm } from "@/components/products/product-form";
 import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db";
 import { toDateInputValue } from "@/lib/format";
-import { requireUser } from "@/lib/permissions";
+import { requireAgencyUser } from "@/lib/permissions";
 import { listClientOptions, listOpportunityOptions } from "@/lib/queries";
 import { product } from "@/lib/schema";
 
@@ -18,12 +18,14 @@ export default async function EditProductPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireUser();
+  const user = await requireAgencyUser();
   const { id } = await params;
   const [p, clients, opportunities] = await Promise.all([
-    db.query.product.findFirst({ where: eq(product.id, id) }),
-    listClientOptions(),
-    listOpportunityOptions(),
+    db.query.product.findFirst({
+      where: and(eq(product.id, id), eq(product.agencyId, user.agencyId)),
+    }),
+    listClientOptions(user.agencyId),
+    listOpportunityOptions(user.agencyId),
   ]);
   if (!p) notFound();
 

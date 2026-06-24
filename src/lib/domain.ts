@@ -4,7 +4,74 @@
  * give them labels, ordering and colours for the UI.
  */
 
-export type UserRole = "manager" | "agent";
+export const USER_ROLES = [
+  "admin",
+  "manager",
+  "finance",
+  "support",
+  "agent",
+] as const;
+export type UserRole = (typeof USER_ROLES)[number];
+
+export const USER_ROLE_META: Record<
+  UserRole,
+  { label: string; description: string; badgeClass: string }
+> = {
+  admin: {
+    label: "Admin",
+    description: "Full access including user & role management",
+    badgeClass: "bg-violet-500/15 text-violet-600 dark:text-violet-400",
+  },
+  manager: {
+    label: "Manager",
+    description: "Oversees the whole team, bookings and operations",
+    badgeClass: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
+  },
+  finance: {
+    label: "Finance",
+    description: "Payments, invoices and financials",
+    badgeClass: "bg-green-500/15 text-green-600 dark:text-green-400",
+  },
+  support: {
+    label: "Customer Support",
+    description: "Client requests and bookings",
+    badgeClass: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+  },
+  agent: {
+    label: "Agent",
+    description: "Sells trips and manages their own bookings",
+    badgeClass: "bg-slate-500/15 text-slate-600 dark:text-slate-300",
+  },
+};
+
+// --- Capabilities (simple role-based access control) ------------------------
+
+/** Roles that see the whole agency's data. Agents only see their own work. */
+export const FULL_VISIBILITY_ROLES: UserRole[] = [
+  "admin",
+  "manager",
+  "finance",
+  "support",
+];
+export function seesAllData(role: UserRole): boolean {
+  return FULL_VISIBILITY_ROLES.includes(role);
+}
+export function canManageTeam(role: UserRole): boolean {
+  return role === "admin" || role === "manager";
+}
+/** Only an admin can grant or change the admin role (prevents escalation). */
+export function canAssignAdmin(role: UserRole): boolean {
+  return role === "admin";
+}
+export function canManagePayments(role: UserRole): boolean {
+  return role === "admin" || role === "manager" || role === "finance";
+}
+export function canViewFinance(role: UserRole): boolean {
+  return canManagePayments(role);
+}
+export function canDeleteRecords(role: UserRole): boolean {
+  return role === "admin" || role === "manager";
+}
 
 // --- Opportunities (sales pipeline) ----------------------------------------
 

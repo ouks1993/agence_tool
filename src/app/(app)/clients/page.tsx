@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
 import { Plus, Users, Building2, User as UserIcon } from "lucide-react";
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
@@ -21,7 +21,7 @@ import {
   type ClientStatus,
 } from "@/lib/domain";
 import { formatDate } from "@/lib/format";
-import { requireUser } from "@/lib/permissions";
+import { requireAgencyUser } from "@/lib/permissions";
 import { listTeamMembers } from "@/lib/queries";
 import { client, opportunity } from "@/lib/schema";
 
@@ -34,23 +34,22 @@ export default async function ClientsPage({
 }: {
   searchParams: SearchParams;
 }) {
-  await requireUser();
+  const user = await requireAgencyUser();
   const sp = await searchParams;
-  const team = await listTeamMembers();
+  const team = await listTeamMembers(user.agencyId);
 
-  const conditions = [];
+  const conditions: SQL[] = [eq(client.agencyId, user.agencyId)];
   if (sp.q) {
-    conditions.push(
-      or(
-        ilike(client.name, `%${sp.q}%`),
-        ilike(client.email, `%${sp.q}%`),
-        ilike(client.company, `%${sp.q}%`)
-      )
+    const q = or(
+      ilike(client.name, `%${sp.q}%`),
+      ilike(client.email, `%${sp.q}%`),
+      ilike(client.company, `%${sp.q}%`)
     );
+    if (q) conditions.push(q);
   }
   if (sp.status) conditions.push(eq(client.status, sp.status));
   if (sp.owner) conditions.push(eq(client.ownerId, sp.owner));
-  const where = conditions.length ? and(...conditions) : undefined;
+  const where = and(...conditions);
 
   const clients = await db.query.client.findMany({
     where,
@@ -66,6 +65,7 @@ export default async function ClientsPage({
       count: sql<number>`count(*)::int`,
     })
     .from(opportunity)
+    .where(eq(opportunity.agencyId, user.agencyId))
     .groupBy(opportunity.clientId);
   const countMap = new Map(counts.map((c) => [c.clientId, c.count]));
 

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { Plus, Target } from "lucide-react";
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
@@ -8,15 +8,16 @@ import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db";
 import { OPEN_STAGES } from "@/lib/domain";
 import { formatMoney } from "@/lib/format";
-import { requireUser } from "@/lib/permissions";
+import { requireAgencyUser } from "@/lib/permissions";
 import { opportunity } from "@/lib/schema";
 
 export const metadata = { title: "Opportunities" };
 
 export default async function OpportunitiesPage() {
-  await requireUser();
+  const user = await requireAgencyUser();
 
   const rows = await db.query.opportunity.findMany({
+    where: eq(opportunity.agencyId, user.agencyId),
     with: {
       client: { columns: { name: true } },
       assignedTo: { columns: { name: true } },

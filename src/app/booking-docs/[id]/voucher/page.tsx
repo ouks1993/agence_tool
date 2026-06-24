@@ -1,10 +1,10 @@
 import { notFound } from "next/navigation";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { DocShell } from "@/components/documents/doc-shell";
 import { db } from "@/lib/db";
 import { BOOKING_ITEM_TYPE_META, type BookingItemType } from "@/lib/domain";
 import { formatDate } from "@/lib/format";
-import { requireUser } from "@/lib/permissions";
+import { requireAgencyUser } from "@/lib/permissions";
 import { booking } from "@/lib/schema";
 
 export const metadata = { title: "Voucher" };
@@ -14,11 +14,11 @@ export default async function VoucherPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireUser();
+  const user = await requireAgencyUser();
   const { id } = await params;
 
   const b = await db.query.booking.findFirst({
-    where: eq(booking.id, id),
+    where: and(eq(booking.id, id), eq(booking.agencyId, user.agencyId)),
     with: {
       client: { columns: { name: true } },
       travellers: { orderBy: (t) => [asc(t.sortOrder)] },

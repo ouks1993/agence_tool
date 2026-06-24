@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import type { ActionResult } from "@/lib/actions/types";
 import { logActivity } from "@/lib/activity";
@@ -10,7 +10,7 @@ import { db } from "@/lib/db";
 import { formatDate, formatMoney } from "@/lib/format";
 import { sendEmail } from "@/lib/notifications/email";
 import { paymentSummary } from "@/lib/payments/summary";
-import { requireUser } from "@/lib/permissions";
+import { requireAgencyUser } from "@/lib/permissions";
 import { booking, notification } from "@/lib/schema";
 
 type BookingWithRelations = {
@@ -80,7 +80,7 @@ export type SendEmailInput = z.input<typeof input>;
 export async function sendBookingEmail(
   raw: SendEmailInput
 ): Promise<ActionResult<{ status: string }>> {
-  const user = await requireUser();
+  const user = await requireAgencyUser();
   const parsed = input.safeParse(raw);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
@@ -88,7 +88,7 @@ export async function sendBookingEmail(
   const d = parsed.data;
 
   const b = await db.query.booking.findFirst({
-    where: eq(booking.id, d.bookingId),
+    where: and(eq(booking.id, d.bookingId), eq(booking.agencyId, user.agencyId)),
     with: {
       client: { columns: { name: true, email: true } },
       items: { columns: { title: true, supplier: true, confirmationNumber: true } },
@@ -117,6 +117,7 @@ export async function sendBookingEmail(
   const result = await sendEmail({ to: recipient, subject, text });
 
   await db.insert(notification).values({
+    agencyId: user.agencyId,
     bookingId: d.bookingId,
     channel: "email",
     recipient,
@@ -129,6 +130,7 @@ export async function sendBookingEmail(
   });
 
   await logActivity({
+    agencyId: user.agencyId,
     userId: user.id,
     action: "sent",
     entityType: "booking",

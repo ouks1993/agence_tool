@@ -1,12 +1,12 @@
 import { notFound } from "next/navigation";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { Compass } from "lucide-react";
 import { PrintButton } from "@/components/products/print-button";
 import { APP_NAME, APP_TAGLINE } from "@/lib/config";
 import { db } from "@/lib/db";
 import { PRODUCT_ITEM_TYPE_META, type ProductItemType } from "@/lib/domain";
 import { formatDate, formatMoney } from "@/lib/format";
-import { requireUser } from "@/lib/permissions";
+import { requireAgencyUser } from "@/lib/permissions";
 import { product } from "@/lib/schema";
 
 export const metadata = { title: "Proposal" };
@@ -16,12 +16,13 @@ export default async function ProposalView({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  // Auth-protected: only signed-in agents preview the client-facing proposal.
-  await requireUser();
+  // Auth-protected: only signed-in agents preview the client-facing proposal,
+  // and only for proposals belonging to their own agency.
+  const user = await requireAgencyUser();
   const { id } = await params;
 
   const p = await db.query.product.findFirst({
-    where: eq(product.id, id),
+    where: and(eq(product.id, id), eq(product.agencyId, user.agencyId)),
     with: {
       client: { columns: { name: true, email: true } },
       items: { orderBy: (t) => [asc(t.sortOrder)] },

@@ -2,6 +2,8 @@ import { db } from "@/lib/db";
 import { activityLog } from "@/lib/schema";
 
 type LogActivityInput = {
+  // The agency this activity belongs to (tenant scope).
+  agencyId: string;
   userId: string | null;
   action: string;
   entityType: "client" | "opportunity" | "product" | "booking" | "user";
@@ -17,6 +19,7 @@ type LogActivityInput = {
 export async function logActivity(input: LogActivityInput): Promise<void> {
   try {
     await db.insert(activityLog).values({
+      agencyId: input.agencyId,
       userId: input.userId,
       action: input.action,
       entityType: input.entityType,

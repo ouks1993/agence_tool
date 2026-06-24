@@ -1,7 +1,8 @@
-import { asc, desc, sql } from "drizzle-orm";
-import { ShieldCheck, Activity, Info } from "lucide-react";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { ShieldCheck, Activity, Info, MailPlus } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusBadge } from "@/components/app/status-badge";
+import { PendingInviteRow, TeamInviteForm } from "@/components/team/invite-form";
 import { MemberControls } from "@/components/team/member-controls";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,15 +16,32 @@ import {
 } from "@/components/ui/table";
 import { describeActivity } from "@/lib/activity-format";
 import { db } from "@/lib/db";
-import { OPEN_STAGES } from "@/lib/domain";
+import { OPEN_STAGES, USER_ROLES, USER_ROLE_META } from "@/lib/domain";
+import type { UserRole } from "@/lib/domain";
 import { formatMoney, formatRelative, initials } from "@/lib/format";
-import { requireManager } from "@/lib/permissions";
-import { user, opportunity, client, activityLog } from "@/lib/schema";
+import { requireAgencyUser, requireManager } from "@/lib/permissions";
+import {
+  agencyInvite,
+  user,
+  opportunity,
+  client,
+  activityLog,
+} from "@/lib/schema";
 
 export const metadata = { title: "Team" };
 
 export default async function TeamPage() {
+  // requireManager enforces the team-management role; requireAgencyUser gives us
+  // a guaranteed non-null agencyId (and redirects platform/agency-less users).
   const me = await requireManager();
+  const agencyUser = await requireAgencyUser();
+  const agencyId = agencyUser.agencyId;
+
+  // Non-admins can assign every role except admin (prevents privilege escalation).
+  const assignableRoles =
+    me.role === "admin"
+      ? [...USER_ROLES]
+      : USER_ROLES.filter((r) => r !== "admin");
 
   const members = await db
     .select({
@@ -35,20 +53,41 @@ export default async function TeamPage() {
       image: user.image,
     })
     .from(user)
+    .where(eq(user.agencyId, agencyId))
     .orderBy(asc(user.name));
 
-  // Per-agent aggregates.
+  // Pending invites for this agency (the new invitation-based onboarding flow).
+  const pendingInvites = await db
+    .select({
+      id: agencyInvite.id,
+      email: agencyInvite.email,
+      role: agencyInvite.role,
+      token: agencyInvite.token,
+      createdAt: agencyInvite.createdAt,
+    })
+    .from(agencyInvite)
+    .where(
+      and(
+        eq(agencyInvite.agencyId, agencyId),
+        eq(agencyInvite.status, "pending")
+      )
+    )
+    .orderBy(desc(agencyInvite.createdAt));
+
+  // Per-agent aggregates (agency-scoped).
   const opps = await db
     .select({
       assignedToId: opportunity.assignedToId,
       stage: opportunity.stage,
       value: opportunity.value,
     })
-    .from(opportunity);
+    .from(opportunity)
+    .where(eq(opportunity.agencyId, agencyId));
 
   const clientCounts = await db
     .select({ ownerId: client.ownerId, count: sql<number>`count(*)::int` })
     .from(client)
+    .where(eq(client.agencyId, agencyId))
     .groupBy(client.ownerId);
   const clientMap = new Map(clientCounts.map((c) => [c.ownerId, c.count]));
 
@@ -68,6 +107,7 @@ export default async function TeamPage() {
   }
 
   const activities = await db.query.activityLog.findMany({
+    where: eq(activityLog.agencyId, agencyId),
     with: { user: { columns: { name: true } } },
     orderBy: [desc(activityLog.createdAt)],
     limit: 30,
@@ -83,11 +123,61 @@ export default async function TeamPage() {
       <div className="bg-muted/50 text-muted-foreground flex items-start gap-2 rounded-lg border p-3 text-sm">
         <Info className="mt-0.5 size-4 shrink-0" />
         <p>
-          New team members create their own account at{" "}
-          <span className="font-medium">/register</span>. They join as agents — set
-          their role and access here.
+          Onboarding is invitation-based. Invite a teammate by email below, then
+          share the invite link — they set up their own account and join with the
+          role you choose.
         </p>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <MailPlus className="size-4" /> Invite a team member
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <TeamInviteForm assignableRoles={assignableRoles} />
+
+          {pendingInvites.length > 0 && (
+            <div>
+              <p className="text-muted-foreground mb-2 text-sm font-medium">
+                Pending invites ({pendingInvites.length})
+              </p>
+              <div className="rounded-lg border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pendingInvites.map((inv) => (
+                      <TableRow key={inv.id}>
+                        <TableCell className="font-medium">{inv.email}</TableCell>
+                        <TableCell>
+                          <StatusBadge
+                            label={USER_ROLE_META[inv.role as UserRole].label}
+                            tone={USER_ROLE_META[inv.role as UserRole].badgeClass}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <PendingInviteRow
+                            inviteId={inv.id}
+                            token={inv.token}
+                            email={inv.email}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -132,6 +222,12 @@ export default async function TeamPage() {
                           )}
                         </p>
                         <p className="text-muted-foreground text-xs">{m.email}</p>
+                        <div className="mt-1">
+                          <StatusBadge
+                            label={USER_ROLE_META[m.role as UserRole].label}
+                            tone={USER_ROLE_META[m.role as UserRole].badgeClass}
+                          />
+                        </div>
                       </div>
                     </div>
                   </TableCell>
@@ -150,6 +246,7 @@ export default async function TeamPage() {
                       role={m.role}
                       active={m.active}
                       isSelf={m.id === me.id}
+                      assignableRoles={assignableRoles}
                     />
                   </TableCell>
                 </TableRow>

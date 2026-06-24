@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/ui/mode-toggle";
 import { signOut } from "@/lib/auth-client";
 import { APP_NAME, APP_TAGLINE } from "@/lib/config";
-import type { UserRole } from "@/lib/domain";
+import { canManageTeam, type UserRole } from "@/lib/domain";
 import { initials } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -62,7 +62,7 @@ export function AppShell({
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const items = NAV.filter((i) => !i.managerOnly || user.role === "manager");
+  const items = NAV.filter((i) => !i.managerOnly || canManageTeam(user.role));
 
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(`${href}/`);

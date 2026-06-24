@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { BookingForm } from "@/components/bookings/booking-form";
 import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db";
 import { toDateInputValue } from "@/lib/format";
-import { requireUser } from "@/lib/permissions";
+import { requireAgencyUser } from "@/lib/permissions";
 import { listClientOptions } from "@/lib/queries";
 import { booking } from "@/lib/schema";
 
@@ -18,11 +18,13 @@ export default async function EditBookingPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireUser();
+  const user = await requireAgencyUser();
   const { id } = await params;
   const [b, clients] = await Promise.all([
-    db.query.booking.findFirst({ where: eq(booking.id, id) }),
-    listClientOptions(),
+    db.query.booking.findFirst({
+      where: and(eq(booking.id, id), eq(booking.agencyId, user.agencyId)),
+    }),
+    listClientOptions(user.agencyId),
   ]);
   if (!b) notFound();
 

@@ -1,13 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import type { ActionResult } from "@/lib/actions/types";
 import { logActivity } from "@/lib/activity";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/permissions";
-import { product, productItem } from "@/lib/schema";
+import { canDeleteRecords } from "@/lib/domain";
+import { requireAgencyUser } from "@/lib/permissions";
+import { client, opportunity, product, productItem } from "@/lib/schema";
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
@@ -19,8 +20,9 @@ function toDate(value?: string | null): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-async function nextReference(): Promise<string> {
-  const count = await db.$count(product);
+async function nextReference(agencyId: string): Promise<string> {
+  // References are unique per agency, so the running count must be scoped.
+  const count = await db.$count(product, eq(product.agencyId, agencyId));
   return `PRD-${1001 + count}`;
 }
 
@@ -72,17 +74,38 @@ export type ProductInput = z.input<typeof productInput>;
 export async function createProduct(
   input: ProductInput
 ): Promise<ActionResult<{ id: string }>> {
-  const user = await requireUser();
+  const user = await requireAgencyUser();
   const parsed = productInput.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid data" };
   }
   const d = parsed.data;
-  const reference = await nextReference();
+
+  // Cross-table references must belong to the caller's agency.
+  if (d.clientId) {
+    const ok = await db.query.client.findFirst({
+      where: and(eq(client.id, d.clientId), eq(client.agencyId, user.agencyId)),
+      columns: { id: true },
+    });
+    if (!ok) return { ok: false, error: "Not found" };
+  }
+  if (d.opportunityId) {
+    const ok = await db.query.opportunity.findFirst({
+      where: and(
+        eq(opportunity.id, d.opportunityId),
+        eq(opportunity.agencyId, user.agencyId)
+      ),
+      columns: { id: true },
+    });
+    if (!ok) return { ok: false, error: "Not found" };
+  }
+
+  const reference = await nextReference(user.agencyId);
 
   const [row] = await db
     .insert(product)
     .values({
+      agencyId: user.agencyId,
       reference,
       title: d.title,
       clientId: d.clientId || null,
@@ -102,6 +125,7 @@ export async function createProduct(
   if (!row) return { ok: false, error: "Failed to create proposal" };
 
   await logActivity({
+    agencyId: user.agencyId,
     userId: user.id,
     action: "created",
     entityType: "product",
@@ -117,14 +141,35 @@ export async function updateProduct(
   id: string,
   input: ProductInput
 ): Promise<ActionResult> {
-  const user = await requireUser();
+  const user = await requireAgencyUser();
   const parsed = productInput.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid data" };
   }
   const d = parsed.data;
-  const existing = await db.query.product.findFirst({ where: eq(product.id, id) });
+  const existing = await db.query.product.findFirst({
+    where: and(eq(product.id, id), eq(product.agencyId, user.agencyId)),
+  });
   if (!existing) return { ok: false, error: "Proposal not found" };
+
+  // Cross-table references must belong to the caller's agency.
+  if (d.clientId) {
+    const ok = await db.query.client.findFirst({
+      where: and(eq(client.id, d.clientId), eq(client.agencyId, user.agencyId)),
+      columns: { id: true },
+    });
+    if (!ok) return { ok: false, error: "Not found" };
+  }
+  if (d.opportunityId) {
+    const ok = await db.query.opportunity.findFirst({
+      where: and(
+        eq(opportunity.id, d.opportunityId),
+        eq(opportunity.agencyId, user.agencyId)
+      ),
+      columns: { id: true },
+    });
+    if (!ok) return { ok: false, error: "Not found" };
+  }
 
   await db
     .update(product)
@@ -141,11 +186,12 @@ export async function updateProduct(
       summary: d.summary || null,
       validUntil: toDate(d.validUntil),
     })
-    .where(eq(product.id, id));
+    .where(and(eq(product.id, id), eq(product.agencyId, user.agencyId)));
 
   await recalcTotals(id);
 
   await logActivity({
+    agencyId: user.agencyId,
     userId: user.id,
     action: "updated",
     entityType: "product",
@@ -162,13 +208,19 @@ export async function setProductStatus(
   id: string,
   status: "draft" | "sent" | "accepted" | "rejected" | "expired"
 ): Promise<ActionResult> {
-  const user = await requireUser();
-  const existing = await db.query.product.findFirst({ where: eq(product.id, id) });
+  const user = await requireAgencyUser();
+  const existing = await db.query.product.findFirst({
+    where: and(eq(product.id, id), eq(product.agencyId, user.agencyId)),
+  });
   if (!existing) return { ok: false, error: "Proposal not found" };
 
-  await db.update(product).set({ status }).where(eq(product.id, id));
+  await db
+    .update(product)
+    .set({ status })
+    .where(and(eq(product.id, id), eq(product.agencyId, user.agencyId)));
 
   await logActivity({
+    agencyId: user.agencyId,
     userId: user.id,
     action: status === "sent" ? "sent" : "status_changed",
     entityType: "product",
@@ -183,16 +235,21 @@ export async function setProductStatus(
 }
 
 export async function deleteProduct(id: string): Promise<ActionResult> {
-  const user = await requireUser();
-  const existing = await db.query.product.findFirst({ where: eq(product.id, id) });
+  const user = await requireAgencyUser();
+  const existing = await db.query.product.findFirst({
+    where: and(eq(product.id, id), eq(product.agencyId, user.agencyId)),
+  });
   if (!existing) return { ok: false, error: "Proposal not found" };
-  if (user.role !== "manager" && existing.createdById !== user.id) {
+  if (!canDeleteRecords(user.role) && existing.createdById !== user.id) {
     return { ok: false, error: "You don't have permission to delete this" };
   }
 
-  await db.delete(product).where(eq(product.id, id));
+  await db
+    .delete(product)
+    .where(and(eq(product.id, id), eq(product.agencyId, user.agencyId)));
 
   await logActivity({
+    agencyId: user.agencyId,
     userId: user.id,
     action: "deleted",
     entityType: "product",
@@ -225,11 +282,17 @@ export async function addProductItem(
   productId: string,
   input: ItemInput
 ): Promise<ActionResult> {
-  await requireUser();
+  const user = await requireAgencyUser();
   const parsed = itemInput.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid item" };
   }
+  // The child item has no agencyId, so verify the parent product's tenant first.
+  const parent = await db.query.product.findFirst({
+    where: and(eq(product.id, productId), eq(product.agencyId, user.agencyId)),
+    columns: { id: true },
+  });
+  if (!parent) return { ok: false, error: "Not found" };
   const d = parsed.data;
   const count = await db.$count(productItem, eq(productItem.productId, productId));
 
@@ -256,12 +319,24 @@ export async function addProductItem(
 
 export async function removeProductItem(
   itemId: string,
-  productId: string
+  // The product id is derived from the loaded item for safety; the caller still
+  // passes it positionally but it is intentionally not trusted here.
+  _productId: string
 ): Promise<ActionResult> {
-  await requireUser();
+  const user = await requireAgencyUser();
+  // Load the item, then confirm its parent product belongs to the caller's agency
+  // before deleting — the item row carries no agencyId of its own.
+  const item = await db.query.productItem.findFirst({
+    where: eq(productItem.id, itemId),
+    columns: { id: true, productId: true },
+    with: { product: { columns: { id: true, agencyId: true } } },
+  });
+  if (!item || item.product.agencyId !== user.agencyId) {
+    return { ok: false, error: "Not found" };
+  }
   await db.delete(productItem).where(eq(productItem.id, itemId));
-  await recalcTotals(productId);
-  revalidatePath(`/products/${productId}`);
+  await recalcTotals(item.productId);
+  revalidatePath(`/products/${item.productId}`);
   return { ok: true };
 }
 
@@ -275,7 +350,7 @@ export async function addItemToProposal(input: {
   clientId?: string | undefined;
   item: ItemInput;
 }): Promise<ActionResult<{ productId: string }>> {
-  const user = await requireUser();
+  const user = await requireAgencyUser();
   let productId = input.productId;
 
   if (!productId) {
@@ -290,10 +365,13 @@ export async function addItemToProposal(input: {
     productId = created.data.id;
   }
 
+  // addProductItem validates that the parent product belongs to the agency, so
+  // a productId from another tenant is rejected here before anything is logged.
   const res = await addProductItem(productId, input.item);
   if (!res.ok) return res;
 
   await logActivity({
+    agencyId: user.agencyId,
     userId: user.id,
     action: "updated",
     entityType: "product",

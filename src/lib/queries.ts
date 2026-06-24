@@ -1,4 +1,4 @@
-import { asc, desc, eq, ne } from "drizzle-orm";
+import { and, asc, desc, eq, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { booking, client, opportunity, product, user } from "@/lib/schema";
 
@@ -11,8 +11,8 @@ export type TeamMember = {
   image: string | null;
 };
 
-/** All active team members, for assignment/owner dropdowns. */
-export async function listTeamMembers(): Promise<TeamMember[]> {
+/** All active team members in the agency, for assignment/owner dropdowns. */
+export async function listTeamMembers(agencyId: string): Promise<TeamMember[]> {
   return db
     .select({
       id: user.id,
@@ -23,17 +23,20 @@ export async function listTeamMembers(): Promise<TeamMember[]> {
       image: user.image,
     })
     .from(user)
-    .where(eq(user.active, true))
+    .where(and(eq(user.agencyId, agencyId), eq(user.active, true)))
     .orderBy(asc(user.name));
 }
 
 export type ClientOption = { id: string; name: string };
 
 /** Minimal client list for pickers. */
-export async function listClientOptions(): Promise<ClientOption[]> {
+export async function listClientOptions(
+  agencyId: string
+): Promise<ClientOption[]> {
   return db
     .select({ id: client.id, name: client.name })
     .from(client)
+    .where(eq(client.agencyId, agencyId))
     .orderBy(asc(client.name));
 }
 
@@ -41,12 +44,20 @@ export type OpportunityOption = { id: string; title: string };
 
 /** Opportunity list for pickers (optionally filtered to one client). */
 export async function listOpportunityOptions(
+  agencyId: string,
   clientId?: string
 ): Promise<OpportunityOption[]> {
   return db
     .select({ id: opportunity.id, title: opportunity.title })
     .from(opportunity)
-    .where(clientId ? eq(opportunity.clientId, clientId) : undefined)
+    .where(
+      clientId
+        ? and(
+            eq(opportunity.agencyId, agencyId),
+            eq(opportunity.clientId, clientId)
+          )
+        : eq(opportunity.agencyId, agencyId)
+    )
     .orderBy(desc(opportunity.updatedAt))
     .limit(100);
 }
@@ -54,7 +65,9 @@ export async function listOpportunityOptions(
 export type BookingOption = { id: string; label: string };
 
 /** Active (non-cancelled) bookings, for the "add to booking" picker. */
-export async function listOpenBookings(): Promise<BookingOption[]> {
+export async function listOpenBookings(
+  agencyId: string
+): Promise<BookingOption[]> {
   const rows = await db
     .select({
       id: booking.id,
@@ -62,7 +75,7 @@ export async function listOpenBookings(): Promise<BookingOption[]> {
       destination: booking.destination,
     })
     .from(booking)
-    .where(ne(booking.status, "cancelled"))
+    .where(and(eq(booking.agencyId, agencyId), ne(booking.status, "cancelled")))
     .orderBy(desc(booking.createdAt))
     .limit(50);
   return rows.map((r) => ({
@@ -74,7 +87,9 @@ export async function listOpenBookings(): Promise<BookingOption[]> {
 export type DraftOption = { id: string; label: string };
 
 /** Draft proposals, for the "add to proposal" picker. */
-export async function listDraftProposals(): Promise<DraftOption[]> {
+export async function listDraftProposals(
+  agencyId: string
+): Promise<DraftOption[]> {
   const rows = await db
     .select({
       id: product.id,
@@ -82,7 +97,7 @@ export async function listDraftProposals(): Promise<DraftOption[]> {
       title: product.title,
     })
     .from(product)
-    .where(eq(product.status, "draft"))
+    .where(and(eq(product.agencyId, agencyId), eq(product.status, "draft")))
     .orderBy(desc(product.createdAt))
     .limit(50);
   return rows.map((r) => ({ id: r.id, label: `${r.reference} · ${r.title}` }));

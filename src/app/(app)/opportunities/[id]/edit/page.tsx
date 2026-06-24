@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { OpportunityForm } from "@/components/opportunities/opportunity-form";
 import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db";
 import { toDateInputValue } from "@/lib/format";
-import { requireUser } from "@/lib/permissions";
+import { requireAgencyUser } from "@/lib/permissions";
 import { listClientOptions, listTeamMembers } from "@/lib/queries";
 import { opportunity } from "@/lib/schema";
 
@@ -18,12 +18,14 @@ export default async function EditOpportunityPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireUser();
+  const user = await requireAgencyUser();
   const { id } = await params;
   const [o, clients, team] = await Promise.all([
-    db.query.opportunity.findFirst({ where: eq(opportunity.id, id) }),
-    listClientOptions(),
-    listTeamMembers(),
+    db.query.opportunity.findFirst({
+      where: and(eq(opportunity.id, id), eq(opportunity.agencyId, user.agencyId)),
+    }),
+    listClientOptions(user.agencyId),
+    listTeamMembers(user.agencyId),
   ]);
   if (!o) notFound();
 

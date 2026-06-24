@@ -9,9 +9,67 @@ import {
   numeric,
   integer,
   jsonb,
+  unique,
 } from "drizzle-orm/pg-core";
 
 // IMPORTANT! ID fields should ALWAYS use UUID types, EXCEPT the BetterAuth tables.
+
+// ---------------------------------------------------------------------------
+// Tenancy: each agency is one isolated tenant (customer of the platform)
+// ---------------------------------------------------------------------------
+
+/** A travel agency — the tenant. All business data is scoped to one agency. */
+export const agency = pgTable(
+  "agency",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    // URL-friendly unique handle, e.g. "acme-travel".
+    slug: text("slug").notNull().unique(),
+    // "active" | "suspended" — a suspended agency's users are locked out.
+    status: text("status").default("active").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [index("agency_slug_idx").on(table.slug)]
+);
+
+/**
+ * A pending invitation to join an agency. Registration is invitation-only:
+ * a new user can only sign up if a pending invite matches their email, which
+ * stamps their agencyId + role. Created by an agency admin (team invites) or
+ * by the platform admin when provisioning a new agency's first admin.
+ */
+export const agencyInvite = pgTable(
+  "agency_invite",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agency.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    // Role the invitee receives on acceptance: admin | manager | finance | support | agent.
+    role: text("role").default("agent").notNull(),
+    // Unguessable token used in the accept link (/invite/[token]).
+    token: text("token").notNull().unique(),
+    // "pending" | "accepted" | "revoked"
+    status: text("status").default("pending").notNull(),
+    invitedById: text("invited_by_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    expiresAt: timestamp("expires_at").notNull(),
+    acceptedAt: timestamp("accepted_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("agency_invite_agency_idx").on(table.agencyId),
+    index("agency_invite_email_idx").on(table.email),
+    index("agency_invite_token_idx").on(table.token),
+  ]
+);
 
 // ---------------------------------------------------------------------------
 // BetterAuth tables (do NOT change id types — BetterAuth manages these)
@@ -25,7 +83,14 @@ export const user = pgTable(
     email: text("email").notNull().unique(),
     emailVerified: boolean("email_verified").default(false).notNull(),
     image: text("image"),
-    // Application role: "manager" can oversee the whole team, "agent" sees their own work.
+    // The agency this user belongs to. NULL for the platform super-admin (vendor),
+    // who lives above all tenants and is identified by isPlatformAdmin.
+    agencyId: uuid("agency_id").references(() => agency.id, {
+      onDelete: "cascade",
+    }),
+    // The platform owner (vendor) who provisions and manages agencies.
+    isPlatformAdmin: boolean("is_platform_admin").default(false).notNull(),
+    // Application role within the agency: admin | manager | finance | support | agent.
     role: text("role").default("agent").notNull(),
     // Soft-disable a team member without deleting their history.
     active: boolean("active").default(true).notNull(),
@@ -35,7 +100,10 @@ export const user = pgTable(
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
   },
-  (table) => [index("user_email_idx").on(table.email)]
+  (table) => [
+    index("user_email_idx").on(table.email),
+    index("user_agency_idx").on(table.agencyId),
+  ]
 );
 
 export const session = pgTable(
@@ -108,6 +176,9 @@ export const client = pgTable(
   "client",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agency.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     // "individual" | "corporate"
     type: text("type").default("individual").notNull(),
@@ -136,6 +207,7 @@ export const client = pgTable(
       .notNull(),
   },
   (table) => [
+    index("client_agency_idx").on(table.agencyId),
     index("client_owner_idx").on(table.ownerId),
     index("client_status_idx").on(table.status),
     index("client_name_idx").on(table.name),
@@ -169,6 +241,9 @@ export const opportunity = pgTable(
   "opportunity",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agency.id, { onDelete: "cascade" }),
     title: text("title").notNull(),
     clientId: uuid("client_id")
       .notNull()
@@ -199,6 +274,7 @@ export const opportunity = pgTable(
       .notNull(),
   },
   (table) => [
+    index("opportunity_agency_idx").on(table.agencyId),
     index("opportunity_client_idx").on(table.clientId),
     index("opportunity_stage_idx").on(table.stage),
     index("opportunity_assigned_idx").on(table.assignedToId),
@@ -214,8 +290,11 @@ export const product = pgTable(
   "product",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    // Human-friendly reference, e.g. "PRD-1042".
-    reference: text("reference").notNull().unique(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agency.id, { onDelete: "cascade" }),
+    // Human-friendly reference, e.g. "PRD-1042". Unique per agency.
+    reference: text("reference").notNull(),
     title: text("title").notNull(),
     clientId: uuid("client_id").references(() => client.id, {
       onDelete: "set null",
@@ -253,9 +332,11 @@ export const product = pgTable(
       .notNull(),
   },
   (table) => [
+    index("product_agency_idx").on(table.agencyId),
     index("product_client_idx").on(table.clientId),
     index("product_opportunity_idx").on(table.opportunityId),
     index("product_status_idx").on(table.status),
+    unique("product_agency_reference_unique").on(table.agencyId, table.reference),
   ]
 );
 
@@ -299,7 +380,10 @@ export const booking = pgTable(
   "booking",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    reference: text("reference").notNull().unique(), // e.g. "BKG-1042"
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agency.id, { onDelete: "cascade" }),
+    reference: text("reference").notNull(), // e.g. "BKG-1042" — unique per agency
     clientId: uuid("client_id").references(() => client.id, {
       onDelete: "set null",
     }),
@@ -325,9 +409,11 @@ export const booking = pgTable(
       .notNull(),
   },
   (table) => [
+    index("booking_agency_idx").on(table.agencyId),
     index("booking_client_idx").on(table.clientId),
     index("booking_status_idx").on(table.status),
     index("booking_depart_idx").on(table.departDate),
+    unique("booking_agency_reference_unique").on(table.agencyId, table.reference),
   ]
 );
 
@@ -419,6 +505,9 @@ export const notification = pgTable(
   "notification",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agency.id, { onDelete: "cascade" }),
     bookingId: uuid("booking_id").references(() => booking.id, {
       onDelete: "cascade",
     }),
@@ -437,7 +526,10 @@ export const notification = pgTable(
     }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
-  (table) => [index("notification_booking_idx").on(table.bookingId)]
+  (table) => [
+    index("notification_agency_idx").on(table.agencyId),
+    index("notification_booking_idx").on(table.bookingId),
+  ]
 );
 
 /** Per-day title/notes for a booking's itinerary timeline. */
@@ -464,6 +556,9 @@ export const activityLog = pgTable(
   "activity_log",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agency.id, { onDelete: "cascade" }),
     userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
     // "created" | "updated" | "deleted" | "stage_changed" | "sent" | "status_changed"
     action: text("action").notNull(),
@@ -476,6 +571,7 @@ export const activityLog = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [
+    index("activity_agency_idx").on(table.agencyId),
     index("activity_user_idx").on(table.userId),
     index("activity_entity_idx").on(table.entityType, table.entityId),
     index("activity_created_idx").on(table.createdAt),
@@ -486,7 +582,33 @@ export const activityLog = pgTable(
 // Relations
 // ---------------------------------------------------------------------------
 
-export const userRelations = relations(user, ({ many }) => ({
+export const agencyRelations = relations(agency, ({ many }) => ({
+  users: many(user),
+  invites: many(agencyInvite),
+  clients: many(client),
+  opportunities: many(opportunity),
+  products: many(product),
+  bookings: many(booking),
+  notifications: many(notification),
+  activities: many(activityLog),
+}));
+
+export const agencyInviteRelations = relations(agencyInvite, ({ one }) => ({
+  agency: one(agency, {
+    fields: [agencyInvite.agencyId],
+    references: [agency.id],
+  }),
+  invitedBy: one(user, {
+    fields: [agencyInvite.invitedById],
+    references: [user.id],
+  }),
+}));
+
+export const userRelations = relations(user, ({ one, many }) => ({
+  agency: one(agency, {
+    fields: [user.agencyId],
+    references: [agency.id],
+  }),
   ownedClients: many(client, { relationName: "client_owner" }),
   assignedOpportunities: many(opportunity, {
     relationName: "opportunity_assignee",
@@ -495,6 +617,10 @@ export const userRelations = relations(user, ({ many }) => ({
 }));
 
 export const clientRelations = relations(client, ({ one, many }) => ({
+  agency: one(agency, {
+    fields: [client.agencyId],
+    references: [agency.id],
+  }),
   owner: one(user, {
     fields: [client.ownerId],
     references: [user.id],
@@ -518,6 +644,10 @@ export const clientContactRelations = relations(clientContact, ({ one }) => ({
 }));
 
 export const opportunityRelations = relations(opportunity, ({ one, many }) => ({
+  agency: one(agency, {
+    fields: [opportunity.agencyId],
+    references: [agency.id],
+  }),
   client: one(client, {
     fields: [opportunity.clientId],
     references: [client.id],
@@ -535,6 +665,10 @@ export const opportunityRelations = relations(opportunity, ({ one, many }) => ({
 }));
 
 export const productRelations = relations(product, ({ one, many }) => ({
+  agency: one(agency, {
+    fields: [product.agencyId],
+    references: [agency.id],
+  }),
   client: one(client, {
     fields: [product.clientId],
     references: [client.id],
@@ -558,6 +692,10 @@ export const productItemRelations = relations(productItem, ({ one }) => ({
 }));
 
 export const activityLogRelations = relations(activityLog, ({ one }) => ({
+  agency: one(agency, {
+    fields: [activityLog.agencyId],
+    references: [agency.id],
+  }),
   user: one(user, {
     fields: [activityLog.userId],
     references: [user.id],
@@ -565,6 +703,10 @@ export const activityLogRelations = relations(activityLog, ({ one }) => ({
 }));
 
 export const bookingRelations = relations(booking, ({ one, many }) => ({
+  agency: one(agency, {
+    fields: [booking.agencyId],
+    references: [agency.id],
+  }),
   client: one(client, {
     fields: [booking.clientId],
     references: [client.id],
@@ -581,6 +723,10 @@ export const bookingRelations = relations(booking, ({ one, many }) => ({
 }));
 
 export const notificationRelations = relations(notification, ({ one }) => ({
+  agency: one(agency, {
+    fields: [notification.agencyId],
+    references: [agency.id],
+  }),
   booking: one(booking, {
     fields: [notification.bookingId],
     references: [booking.id],

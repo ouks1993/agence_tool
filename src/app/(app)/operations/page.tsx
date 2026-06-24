@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { ClipboardList } from "lucide-react";
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
@@ -10,10 +10,11 @@ import {
   BOOKING_LIFECYCLE,
   BOOKING_STATUS_META,
   nextBookingStatus,
+  seesAllData,
   type BookingStatus,
 } from "@/lib/domain";
 import { formatDate, formatMoney } from "@/lib/format";
-import { requireUser } from "@/lib/permissions";
+import { requireAgencyUser } from "@/lib/permissions";
 import { booking } from "@/lib/schema";
 
 export const metadata = { title: "Operations" };
@@ -22,11 +23,18 @@ export const metadata = { title: "Operations" };
 const COLUMNS: BookingStatus[] = [...BOOKING_LIFECYCLE, "cancelled"];
 
 export default async function OperationsPage() {
-  const user = await requireUser();
-  const isManager = user.role === "manager";
+  const user = await requireAgencyUser();
+  const canSeeAll = seesAllData(user.role);
 
+  // Agency scope ALWAYS applies; full-visibility roles see the whole agency,
+  // agents see only the bookings they created within their agency.
   const bookings = await db.query.booking.findMany({
-    where: isManager ? undefined : eq(booking.createdById, user.id),
+    where: canSeeAll
+      ? eq(booking.agencyId, user.agencyId)
+      : and(
+          eq(booking.agencyId, user.agencyId),
+          eq(booking.createdById, user.id)
+        ),
     with: { client: { columns: { name: true } } },
     orderBy: [desc(booking.updatedAt)],
     limit: 500,

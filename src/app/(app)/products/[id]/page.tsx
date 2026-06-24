@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import {
   ArrowLeft,
   Pencil,
@@ -20,7 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/lib/db";
 import { PRODUCT_STATUS_META, type ProductStatus } from "@/lib/domain";
 import { formatDate, formatMoney } from "@/lib/format";
-import { requireUser } from "@/lib/permissions";
+import { requireAgencyUser } from "@/lib/permissions";
 import { product } from "@/lib/schema";
 
 export default async function ProductDetailPage({
@@ -28,11 +28,11 @@ export default async function ProductDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireUser();
+  const user = await requireAgencyUser();
   const { id } = await params;
 
   const p = await db.query.product.findFirst({
-    where: eq(product.id, id),
+    where: and(eq(product.id, id), eq(product.agencyId, user.agencyId)),
     with: {
       client: { columns: { id: true, name: true } },
       opportunity: { columns: { id: true, title: true } },

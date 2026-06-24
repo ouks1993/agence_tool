@@ -3,7 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { ProductForm } from "@/components/products/product-form";
 import { Button } from "@/components/ui/button";
-import { requireUser } from "@/lib/permissions";
+import { requireAgencyUser } from "@/lib/permissions";
 import { listClientOptions, listOpportunityOptions } from "@/lib/queries";
 
 export const metadata = { title: "New proposal" };
@@ -13,11 +13,11 @@ export default async function NewProductPage({
 }: {
   searchParams: Promise<{ clientId?: string; opportunityId?: string }>;
 }) {
-  await requireUser();
+  const user = await requireAgencyUser();
   const sp = await searchParams;
   const [clients, opportunities] = await Promise.all([
-    listClientOptions(),
-    listOpportunityOptions(),
+    listClientOptions(user.agencyId),
+    listOpportunityOptions(user.agencyId),
   ]);
 
   return (

@@ -7,6 +7,8 @@ export const authClient = createAuthClient({
     // Mirror the server-side additional user fields so the client session is typed.
     inferAdditionalFields({
       user: {
+        agencyId: { type: "string", input: false },
+        isPlatformAdmin: { type: "boolean", input: false },
         role: { type: "string", input: false },
         active: { type: "boolean", input: false },
       },

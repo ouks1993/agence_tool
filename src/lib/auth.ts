@@ -1,7 +1,8 @@
 import { betterAuth } from "better-auth"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
+import { APIError } from "better-auth/api"
 import { db } from "./db"
-import { user as userTable } from "./schema"
+import { findPendingInviteByEmail, markInviteAccepted } from "./invites"
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -11,6 +12,19 @@ export const auth = betterAuth({
     // Expose our application columns to BetterAuth so they ride along on the session.
     // `input: false` prevents clients from setting these during sign-up.
     additionalFields: {
+      // The tenant this user belongs to. NULL for the platform super-admin (vendor).
+      agencyId: {
+        type: "string",
+        required: false,
+        input: false,
+      },
+      // The platform owner (vendor) who provisions and manages agencies.
+      isPlatformAdmin: {
+        type: "boolean",
+        required: false,
+        defaultValue: false,
+        input: false,
+      },
       role: {
         type: "string",
         required: false,
@@ -29,16 +43,30 @@ export const auth = betterAuth({
     user: {
       create: {
         before: async (newUser) => {
-          // The very first account to register becomes the manager (the agency owner).
-          // Everyone after them is an agent by default; the manager can promote others.
-          const existing = await db.$count(userTable)
+          // Registration is invitation-only. A new account may only be created
+          // if a pending invite matches the email — that invite determines which
+          // agency the user joins and with which role. This is the enforcement
+          // point: it also blocks direct calls to the public sign-up endpoint.
+          const invite = await findPendingInviteByEmail(newUser.email)
+          if (!invite) {
+            throw new APIError("FORBIDDEN", {
+              message:
+                "Registration is by invitation only. Ask your agency admin for an invite.",
+            })
+          }
           return {
             data: {
               ...newUser,
-              role: existing === 0 ? "manager" : "agent",
+              agencyId: invite.agencyId,
+              role: invite.role,
+              isPlatformAdmin: false,
               active: true,
             },
           }
+        },
+        after: async (newUser) => {
+          // Consume the invite once the account exists.
+          await markInviteAccepted(newUser.email)
         },
       },
     },

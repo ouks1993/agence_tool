@@ -3,7 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { OpportunityForm } from "@/components/opportunities/opportunity-form";
 import { Button } from "@/components/ui/button";
-import { requireUser } from "@/lib/permissions";
+import { requireAgencyUser } from "@/lib/permissions";
 import { listClientOptions, listTeamMembers } from "@/lib/queries";
 
 export const metadata = { title: "New opportunity" };
@@ -13,11 +13,11 @@ export default async function NewOpportunityPage({
 }: {
   searchParams: Promise<{ clientId?: string }>;
 }) {
-  const user = await requireUser();
+  const user = await requireAgencyUser();
   const sp = await searchParams;
   const [clients, team] = await Promise.all([
-    listClientOptions(),
-    listTeamMembers(),
+    listClientOptions(user.agencyId),
+    listTeamMembers(user.agencyId),
   ]);
 
   return (

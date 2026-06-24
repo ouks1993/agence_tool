@@ -1,11 +1,11 @@
 import { notFound } from "next/navigation";
-import { asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import { DocShell } from "@/components/documents/doc-shell";
 import { db } from "@/lib/db";
 import { PAYMENT_KIND_LABEL } from "@/lib/domain";
 import { formatDate, formatMoney } from "@/lib/format";
 import { paymentSummary } from "@/lib/payments/summary";
-import { requireUser } from "@/lib/permissions";
+import { requireAgencyUser } from "@/lib/permissions";
 import { booking } from "@/lib/schema";
 
 export const metadata = { title: "Invoice" };
@@ -15,11 +15,11 @@ export default async function InvoicePage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireUser();
+  const user = await requireAgencyUser();
   const { id } = await params;
 
   const b = await db.query.booking.findFirst({
-    where: eq(booking.id, id),
+    where: and(eq(booking.id, id), eq(booking.agencyId, user.agencyId)),
     with: {
       client: { columns: { name: true, email: true, address: true, city: true, country: true } },
       items: { orderBy: (t) => [asc(t.sortOrder)] },

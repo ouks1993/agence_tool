@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import {
   ArrowLeft,
   Pencil,
@@ -25,7 +25,7 @@ import {
   type BookingStatus,
 } from "@/lib/domain";
 import { formatDate, formatMoney } from "@/lib/format";
-import { requireUser } from "@/lib/permissions";
+import { requireAgencyUser } from "@/lib/permissions";
 import { client } from "@/lib/schema";
 
 export default async function ClientDetailPage({
@@ -33,11 +33,11 @@ export default async function ClientDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireUser();
+  const user = await requireAgencyUser();
   const { id } = await params;
 
   const c = await db.query.client.findFirst({
-    where: eq(client.id, id),
+    where: and(eq(client.id, id), eq(client.agencyId, user.agencyId)),
     with: {
       owner: { columns: { id: true, name: true } },
       contacts: { orderBy: (t, { desc }) => [desc(t.isPrimary)] },

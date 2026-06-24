@@ -1,6 +1,6 @@
 import { headers } from "next/headers"
+import Link from "next/link"
 import { redirect } from "next/navigation"
-import { SignUpForm } from "@/components/auth/sign-up-form"
 import {
   Card,
   CardContent,
@@ -21,11 +21,22 @@ export default async function RegisterPage() {
     <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle>Create an account</CardTitle>
-          <CardDescription>Get started with your new account</CardDescription>
+          <CardTitle>Invitation only</CardTitle>
+          <CardDescription>
+            Registration is by invitation only.
+          </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col items-center">
-          <SignUpForm />
+        <CardContent className="space-y-4 text-center">
+          <p className="text-muted-foreground text-sm">
+            Ask your agency admin to invite you. You&apos;ll receive a link that
+            lets you set up your account.
+          </p>
+          <p className="text-sm">
+            Already have an account?{" "}
+            <Link href="/login" className="text-primary hover:underline">
+              Sign in
+            </Link>
+          </p>
         </CardContent>
       </Card>
     </div>

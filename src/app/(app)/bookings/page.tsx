@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { desc, sql } from "drizzle-orm";
+import { desc, eq, inArray, sql } from "drizzle-orm";
 import { Plus, Briefcase, Users } from "lucide-react";
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
@@ -16,27 +16,34 @@ import {
 import { db } from "@/lib/db";
 import { BOOKING_STATUS_META, type BookingStatus } from "@/lib/domain";
 import { formatDate, formatMoney } from "@/lib/format";
-import { requireUser } from "@/lib/permissions";
+import { requireAgencyUser } from "@/lib/permissions";
 import { booking, bookingTraveller } from "@/lib/schema";
 
 export const metadata = { title: "Bookings" };
 
 export default async function BookingsPage() {
-  await requireUser();
+  const user = await requireAgencyUser();
 
   const bookings = await db.query.booking.findMany({
+    where: eq(booking.agencyId, user.agencyId),
     with: { client: { columns: { name: true } } },
     orderBy: [desc(booking.createdAt)],
     limit: 200,
   });
 
-  const counts = await db
-    .select({
-      bookingId: bookingTraveller.bookingId,
-      count: sql<number>`count(*)::int`,
-    })
-    .from(bookingTraveller)
-    .groupBy(bookingTraveller.bookingId);
+  // Traveller counts are scoped to this agency's bookings only (children have no agencyId).
+  const bookingIds = bookings.map((b) => b.id);
+  const counts =
+    bookingIds.length > 0
+      ? await db
+          .select({
+            bookingId: bookingTraveller.bookingId,
+            count: sql<number>`count(*)::int`,
+          })
+          .from(bookingTraveller)
+          .where(inArray(bookingTraveller.bookingId, bookingIds))
+          .groupBy(bookingTraveller.bookingId)
+      : [];
   const countMap = new Map(counts.map((c) => [c.bookingId, c.count]));
 
   return (

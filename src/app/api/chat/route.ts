@@ -7,7 +7,7 @@ import {
   tool,
   stepCountIs,
 } from "ai";
-import { desc, ilike } from "drizzle-orm";
+import { and, desc, eq, ilike } from "drizzle-orm";
 import { z } from "zod";
 import { createBooking, addBookingItem, addTraveller } from "@/lib/actions/bookings";
 import { auth } from "@/lib/auth";
@@ -36,6 +36,12 @@ export async function POST(req: Request) {
   if (!session) {
     return jsonError("Unauthorized", 401);
   }
+
+  // The agency this user belongs to (tenant scope). NULL only for the platform
+  // super-admin; in that case the data tools below decline rather than querying
+  // globally, so the assistant can never read across agencies.
+  const agencyId =
+    (session.user as unknown as { agencyId?: string | null }).agencyId ?? null;
 
   let body: unknown;
   try {
@@ -136,10 +142,19 @@ export async function POST(req: Request) {
           query: z.string().optional().describe("Name to search for"),
         }),
         execute: async (a) => {
+          // Platform admins (no agency) get nothing — never query globally.
+          if (!agencyId) return { clients: [] };
+          // Always constrain to the caller's agency; the optional name filter is
+          // ANDed on top so we can never read another agency's clients.
+          const agencyScope = eq(clientTable.agencyId, agencyId);
           const rows = await db
             .select({ id: clientTable.id, name: clientTable.name, email: clientTable.email })
             .from(clientTable)
-            .where(a.query ? ilike(clientTable.name, `%${a.query}%`) : undefined)
+            .where(
+              a.query
+                ? and(agencyScope, ilike(clientTable.name, `%${a.query}%`))
+                : agencyScope
+            )
             .orderBy(desc(clientTable.updatedAt))
             .limit(10);
           return { clients: rows };
@@ -150,9 +165,14 @@ export async function POST(req: Request) {
         description: "Get a summary of bookings: counts by status and total value.",
         inputSchema: z.object({}),
         execute: async () => {
+          // Platform admins (no agency) get an empty summary — never query globally.
+          if (!agencyId) {
+            return { totalBookings: 0, byStatus: {}, activeValueEUR: 0 };
+          }
           const rows = await db
             .select({ status: bookingTable.status, total: bookingTable.totalAmount })
-            .from(bookingTable);
+            .from(bookingTable)
+            .where(eq(bookingTable.agencyId, agencyId));
           const byStatus: Record<string, number> = {};
           let activeValue = 0;
           for (const r of rows) {
@@ -201,6 +221,24 @@ export async function POST(req: Request) {
             .min(1),
         }),
         execute: async (a) => {
+          // Platform admins (no agency) cannot create tenant bookings.
+          if (!agencyId) {
+            return { ok: false, error: "No agency context — cannot create a booking." };
+          }
+          // Validate the caller-supplied client belongs to this agency before
+          // creating, so a guessed/foreign clientId can't be attached.
+          if (a.clientId) {
+            const owned = await db.query.client.findFirst({
+              columns: { id: true },
+              where: and(
+                eq(clientTable.id, a.clientId),
+                eq(clientTable.agencyId, agencyId)
+              ),
+            });
+            if (!owned) {
+              return { ok: false, error: "Client not found in this agency." };
+            }
+          }
           const created = await createBooking({
             clientId: a.clientId,
             destination: a.destination,

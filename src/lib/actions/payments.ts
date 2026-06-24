@@ -7,7 +7,7 @@ import type { ActionResult } from "@/lib/actions/types";
 import { logActivity } from "@/lib/activity";
 import { db } from "@/lib/db";
 import { createStripeCheckoutLink, isStripeConfigured } from "@/lib/payments/stripe";
-import { requireUser } from "@/lib/permissions";
+import { requireAgencyUser } from "@/lib/permissions";
 import { booking, payment } from "@/lib/schema";
 
 const paymentInput = z.object({
@@ -24,13 +24,15 @@ export async function recordPayment(
   bookingId: string,
   input: PaymentInput
 ): Promise<ActionResult> {
-  const user = await requireUser();
+  const user = await requireAgencyUser();
   const parsed = paymentInput.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid payment" };
   }
   const d = parsed.data;
-  const b = await db.query.booking.findFirst({ where: eq(booking.id, bookingId) });
+  const b = await db.query.booking.findFirst({
+    where: and(eq(booking.id, bookingId), eq(booking.agencyId, user.agencyId)),
+  });
   if (!b) return { ok: false, error: "Booking not found" };
 
   await db.insert(payment).values({
@@ -46,6 +48,7 @@ export async function recordPayment(
   });
 
   await logActivity({
+    agencyId: user.agencyId,
     userId: user.id,
     action: "updated",
     entityType: "booking",
@@ -62,7 +65,13 @@ export async function deletePayment(
   id: string,
   bookingId: string
 ): Promise<ActionResult> {
-  await requireUser();
+  const user = await requireAgencyUser();
+  // Verify the parent booking belongs to this agency before deleting its payment.
+  const b = await db.query.booking.findFirst({
+    where: and(eq(booking.id, bookingId), eq(booking.agencyId, user.agencyId)),
+  });
+  if (!b) return { ok: false, error: "Not found" };
+
   await db
     .delete(payment)
     .where(and(eq(payment.id, id), eq(payment.bookingId, bookingId)));
@@ -75,11 +84,13 @@ export async function createPaymentLink(
   bookingId: string,
   amount: number
 ): Promise<ActionResult<{ url: string }>> {
-  await requireUser();
+  const user = await requireAgencyUser();
   if (!isStripeConfigured()) {
     return { ok: false, error: "Stripe is not configured. Add STRIPE_SECRET_KEY to .env." };
   }
-  const b = await db.query.booking.findFirst({ where: eq(booking.id, bookingId) });
+  const b = await db.query.booking.findFirst({
+    where: and(eq(booking.id, bookingId), eq(booking.agencyId, user.agencyId)),
+  });
   if (!b) return { ok: false, error: "Booking not found" };
 
   const base = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import {
@@ -13,7 +13,7 @@ import { db } from "@/lib/db";
 import { BOOKING_ITEM_TYPE_META, type BookingItemType } from "@/lib/domain";
 import { formatDate, formatMoney } from "@/lib/format";
 import { buildItinerary } from "@/lib/itinerary";
-import { requireUser } from "@/lib/permissions";
+import { requireAgencyUser } from "@/lib/permissions";
 import { booking } from "@/lib/schema";
 
 export const metadata = { title: "Itinerary" };
@@ -40,11 +40,11 @@ export default async function ItineraryPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireUser();
+  const user = await requireAgencyUser();
   const { id } = await params;
 
   const b = await db.query.booking.findFirst({
-    where: eq(booking.id, id),
+    where: and(eq(booking.id, id), eq(booking.agencyId, user.agencyId)),
     with: {
       items: { orderBy: (t) => [asc(t.sortOrder)] },
       days: true,

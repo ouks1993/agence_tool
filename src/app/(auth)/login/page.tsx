@@ -10,10 +10,19 @@ import {
 } from "@/components/ui/card"
 import { auth } from "@/lib/auth"
 
+/** Friendly messages for the `?error=` codes redirected here by the auth guards. */
+const ERROR_MESSAGES: Record<string, string> = {
+  account_disabled:
+    "Your account has been deactivated. Contact your administrator.",
+  agency_suspended:
+    "Your agency has been suspended. Contact your administrator.",
+  no_agency: "Your account isn't linked to an agency yet.",
+}
+
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ reset?: string }>
+  searchParams: Promise<{ reset?: string; error?: string }>
 }) {
   const session = await auth.api.getSession({ headers: await headers() })
 
@@ -21,7 +30,8 @@ export default async function LoginPage({
     redirect("/dashboard")
   }
 
-  const { reset } = await searchParams
+  const { reset, error } = await searchParams
+  const errorMessage = error ? ERROR_MESSAGES[error] : undefined
 
   return (
     <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center p-4">
@@ -35,6 +45,9 @@ export default async function LoginPage({
             <p className="mb-4 text-sm text-green-600 dark:text-green-400">
               Password reset successfully. Please sign in with your new password.
             </p>
+          )}
+          {errorMessage && (
+            <p className="mb-4 text-sm text-destructive">{errorMessage}</p>
           )}
           <SignInButton />
         </CardContent>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { Plus, FileText } from "lucide-react";
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
@@ -16,15 +16,16 @@ import {
 import { db } from "@/lib/db";
 import { PRODUCT_STATUS_META, type ProductStatus } from "@/lib/domain";
 import { formatDate, formatMoney } from "@/lib/format";
-import { requireUser } from "@/lib/permissions";
+import { requireAgencyUser } from "@/lib/permissions";
 import { product } from "@/lib/schema";
 
 export const metadata = { title: "Proposals" };
 
 export default async function ProductsPage() {
-  await requireUser();
+  const user = await requireAgencyUser();
 
   const products = await db.query.product.findMany({
+    where: eq(product.agencyId, user.agencyId),
     with: { client: { columns: { name: true } } },
     orderBy: [desc(product.createdAt)],
     limit: 200,

@@ -1,18 +1,19 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import type { ActionResult } from "@/lib/actions/types";
 import { logActivity } from "@/lib/activity";
 import { db } from "@/lib/db";
 import {
+  canDeleteRecords,
   OPPORTUNITY_STAGES,
   OPPORTUNITY_STAGE_META,
   type OpportunityStage,
 } from "@/lib/domain";
-import { requireUser } from "@/lib/permissions";
-import { opportunity } from "@/lib/schema";
+import { requireAgencyUser } from "@/lib/permissions";
+import { client, opportunity } from "@/lib/schema";
 
 const oppInput = z.object({
   title: z.string().trim().min(1, "Title is required").max(200),
@@ -42,7 +43,7 @@ function toDate(value?: string): Date | null {
 export async function createOpportunity(
   input: OpportunityInput
 ): Promise<ActionResult<{ id: string }>> {
-  const user = await requireUser();
+  const user = await requireAgencyUser();
   const parsed = oppInput.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid data" };
@@ -50,9 +51,18 @@ export async function createOpportunity(
   const d = parsed.data;
   const stage = d.stage as OpportunityStage;
 
+  // Cross-tenant guard: the referenced client must belong to this agency,
+  // otherwise an opportunity could be attached to another agency's client.
+  const linkedClient = await db.query.client.findFirst({
+    where: and(eq(client.id, d.clientId), eq(client.agencyId, user.agencyId)),
+    columns: { id: true },
+  });
+  if (!linkedClient) return { ok: false, error: "Not found" };
+
   const [row] = await db
     .insert(opportunity)
     .values({
+      agencyId: user.agencyId,
       title: d.title,
       clientId: d.clientId,
       stage,
@@ -74,6 +84,7 @@ export async function createOpportunity(
   if (!row) return { ok: false, error: "Failed to create opportunity" };
 
   await logActivity({
+    agencyId: user.agencyId,
     userId: user.id,
     action: "created",
     entityType: "opportunity",
@@ -90,7 +101,7 @@ export async function updateOpportunity(
   id: string,
   input: OpportunityInput
 ): Promise<ActionResult> {
-  const user = await requireUser();
+  const user = await requireAgencyUser();
   const parsed = oppInput.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid data" };
@@ -99,9 +110,16 @@ export async function updateOpportunity(
   const stage = d.stage as OpportunityStage;
 
   const existing = await db.query.opportunity.findFirst({
-    where: eq(opportunity.id, id),
+    where: and(eq(opportunity.id, id), eq(opportunity.agencyId, user.agencyId)),
   });
   if (!existing) return { ok: false, error: "Opportunity not found" };
+
+  // Cross-tenant guard: the referenced client must belong to this agency.
+  const linkedClient = await db.query.client.findFirst({
+    where: and(eq(client.id, d.clientId), eq(client.agencyId, user.agencyId)),
+    columns: { id: true },
+  });
+  if (!linkedClient) return { ok: false, error: "Not found" };
 
   await db
     .update(opportunity)
@@ -121,9 +139,10 @@ export async function updateOpportunity(
       notes: d.notes || null,
       assignedToId: d.assignedToId || null,
     })
-    .where(eq(opportunity.id, id));
+    .where(and(eq(opportunity.id, id), eq(opportunity.agencyId, user.agencyId)));
 
   await logActivity({
+    agencyId: user.agencyId,
     userId: user.id,
     action: existing.stage !== stage ? "stage_changed" : "updated",
     entityType: "opportunity",
@@ -143,12 +162,12 @@ export async function changeStage(
   id: string,
   stage: OpportunityStage
 ): Promise<ActionResult> {
-  const user = await requireUser();
+  const user = await requireAgencyUser();
   if (!OPPORTUNITY_STAGES.includes(stage)) {
     return { ok: false, error: "Invalid stage" };
   }
   const existing = await db.query.opportunity.findFirst({
-    where: eq(opportunity.id, id),
+    where: and(eq(opportunity.id, id), eq(opportunity.agencyId, user.agencyId)),
   });
   if (!existing) return { ok: false, error: "Opportunity not found" };
 
@@ -158,9 +177,10 @@ export async function changeStage(
       stage,
       probability: OPPORTUNITY_STAGE_META[stage].defaultProbability,
     })
-    .where(eq(opportunity.id, id));
+    .where(and(eq(opportunity.id, id), eq(opportunity.agencyId, user.agencyId)));
 
   await logActivity({
+    agencyId: user.agencyId,
     userId: user.id,
     action: "stage_changed",
     entityType: "opportunity",
@@ -175,23 +195,26 @@ export async function changeStage(
 }
 
 export async function deleteOpportunity(id: string): Promise<ActionResult> {
-  const user = await requireUser();
+  const user = await requireAgencyUser();
   const existing = await db.query.opportunity.findFirst({
-    where: eq(opportunity.id, id),
+    where: and(eq(opportunity.id, id), eq(opportunity.agencyId, user.agencyId)),
   });
   if (!existing) return { ok: false, error: "Opportunity not found" };
 
   if (
-    user.role !== "manager" &&
+    !canDeleteRecords(user.role) &&
     existing.assignedToId !== user.id &&
     existing.createdById !== user.id
   ) {
     return { ok: false, error: "You don't have permission to delete this" };
   }
 
-  await db.delete(opportunity).where(eq(opportunity.id, id));
+  await db
+    .delete(opportunity)
+    .where(and(eq(opportunity.id, id), eq(opportunity.agencyId, user.agencyId)));
 
   await logActivity({
+    agencyId: user.agencyId,
     userId: user.id,
     action: "deleted",
     entityType: "opportunity",

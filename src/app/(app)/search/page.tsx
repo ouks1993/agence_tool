@@ -1,17 +1,17 @@
 import { Info } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { SearchWorkspace } from "@/components/search/search-workspace";
-import { requireUser } from "@/lib/permissions";
+import { requireAgencyUser } from "@/lib/permissions";
 import { listClientOptions, listOpenBookings } from "@/lib/queries";
 import { getSupplier, isLiveSupplierConfigured } from "@/lib/suppliers";
 
 export const metadata = { title: "Search" };
 
 export default async function SearchPage() {
-  await requireUser();
+  const user = await requireAgencyUser();
   const [clients, bookings] = await Promise.all([
-    listClientOptions(),
-    listOpenBookings(),
+    listClientOptions(user.agencyId),
+    listOpenBookings(user.agencyId),
   ]);
   const live = isLiveSupplierConfigured();
   const supplierLabel = getSupplier().label;

@@ -6,24 +6,28 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { setUserRole, setUserActive } from "@/lib/actions/team";
+import { USER_ROLE_META } from "@/lib/domain";
+import type { UserRole } from "@/lib/domain";
 
 export function MemberControls({
   userId,
   role,
   active,
   isSelf,
+  assignableRoles,
 }: {
   userId: string;
   role: string;
   active: boolean;
   isSelf: boolean;
+  assignableRoles: string[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
   const changeRole = (value: string) => {
     startTransition(async () => {
-      const res = await setUserRole(userId, value as "manager" | "agent");
+      const res = await setUserRole(userId, value as UserRole);
       if (res.ok) {
         toast.success("Role updated");
         router.refresh();
@@ -51,11 +55,14 @@ export function MemberControls({
         value={role}
         onChange={(e) => changeRole(e.target.value)}
         disabled={pending}
-        className="h-8 w-32"
+        className="h-8 w-36"
         aria-label="Role"
       >
-        <option value="agent">Agent</option>
-        <option value="manager">Manager</option>
+        {assignableRoles.map((r) => (
+          <option key={r} value={r}>
+            {USER_ROLE_META[r as UserRole].label}
+          </option>
+        ))}
       </Select>
       <Button
         variant={active ? "outline" : "secondary"}

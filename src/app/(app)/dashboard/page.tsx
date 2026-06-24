@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { Briefcase, Wallet, Plane, ShieldAlert, Plus, Activity } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { StatCard } from "@/components/app/stat-card";
@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { describeActivity } from "@/lib/activity-format";
 import { db } from "@/lib/db";
-import { BOOKING_STATUS_META, type BookingStatus } from "@/lib/domain";
+import { BOOKING_STATUS_META, seesAllData, type BookingStatus } from "@/lib/domain";
 import {
   formatMoney,
   formatRelative,
@@ -17,18 +17,24 @@ import {
   initials,
   passportExpiryStatus,
 } from "@/lib/format";
-import { requireUser } from "@/lib/permissions";
+import { requireAgencyUser } from "@/lib/permissions";
 import { booking, activityLog } from "@/lib/schema";
 
 export const metadata = { title: "Dashboard" };
 
 export default async function DashboardPage() {
-  const user = await requireUser();
-  const isManager = user.role === "manager";
+  const user = await requireAgencyUser();
+  const canSeeAll = seesAllData(user.role);
 
-  // Bookings (scoped: managers see all, agents see what they created).
+  // Bookings (agency-scoped ALWAYS; full-visibility roles see the whole agency,
+  // agents see only the bookings they created within their agency).
   const bookings = await db.query.booking.findMany({
-    where: isManager ? undefined : eq(booking.createdById, user.id),
+    where: canSeeAll
+      ? eq(booking.agencyId, user.agencyId)
+      : and(
+          eq(booking.agencyId, user.agencyId),
+          eq(booking.createdById, user.id)
+        ),
     with: {
       client: { columns: { id: true, name: true } },
       travellers: true,
@@ -74,7 +80,12 @@ export default async function DashboardPage() {
   }
 
   const activities = await db.query.activityLog.findMany({
-    where: isManager ? undefined : eq(activityLog.userId, user.id),
+    where: canSeeAll
+      ? eq(activityLog.agencyId, user.agencyId)
+      : and(
+          eq(activityLog.agencyId, user.agencyId),
+          eq(activityLog.userId, user.id)
+        ),
     with: { user: { columns: { name: true } } },
     orderBy: [desc(activityLog.createdAt)],
     limit: 10,
@@ -87,7 +98,7 @@ export default async function DashboardPage() {
       <PageHeader
         title={`Welcome back, ${firstName}`}
         description={
-          isManager
+          canSeeAll
             ? "Agency-wide overview of bookings and activity."
             : "Your bookings and recent activity."
         }
@@ -222,9 +233,9 @@ export default async function DashboardPage() {
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle className="flex items-center gap-2 text-base">
             <Activity className="size-4" />
-            {isManager ? "Team activity" : "Your activity"}
+            {canSeeAll ? "Team activity" : "Your activity"}
           </CardTitle>
-          {isManager && (
+          {canSeeAll && (
             <Button asChild variant="ghost" size="sm">
               <Link href="/team">View team</Link>
             </Button>

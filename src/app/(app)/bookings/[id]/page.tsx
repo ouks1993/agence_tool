@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import {
   ArrowLeft,
   Pencil,
@@ -31,7 +31,7 @@ import { formatDate, formatMoney, passportExpiryStatus } from "@/lib/format";
 import { isEmailConfigured } from "@/lib/notifications/email";
 import { isStripeConfigured } from "@/lib/payments/stripe";
 import { paymentSummary } from "@/lib/payments/summary";
-import { requireUser } from "@/lib/permissions";
+import { requireAgencyUser } from "@/lib/permissions";
 import { booking } from "@/lib/schema";
 
 export default async function BookingWorkspace({
@@ -39,11 +39,11 @@ export default async function BookingWorkspace({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireUser();
+  const user = await requireAgencyUser();
   const { id } = await params;
 
   const b = await db.query.booking.findFirst({
-    where: eq(booking.id, id),
+    where: and(eq(booking.id, id), eq(booking.agencyId, user.agencyId)),
     with: {
       client: { columns: { id: true, name: true, email: true } },
       travellers: { orderBy: (t) => [asc(t.sortOrder)] },

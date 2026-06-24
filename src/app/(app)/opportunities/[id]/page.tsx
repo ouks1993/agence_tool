@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import {
   ArrowLeft,
   Pencil,
@@ -24,7 +24,7 @@ import {
   type ProductStatus,
 } from "@/lib/domain";
 import { formatDate, formatMoney } from "@/lib/format";
-import { requireUser } from "@/lib/permissions";
+import { requireAgencyUser } from "@/lib/permissions";
 import { opportunity } from "@/lib/schema";
 
 export default async function OpportunityDetailPage({
@@ -32,11 +32,11 @@ export default async function OpportunityDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireUser();
+  const user = await requireAgencyUser();
   const { id } = await params;
 
   const o = await db.query.opportunity.findFirst({
-    where: eq(opportunity.id, id),
+    where: and(eq(opportunity.id, id), eq(opportunity.agencyId, user.agencyId)),
     with: {
       client: { columns: { id: true, name: true } },
       assignedTo: { columns: { name: true } },

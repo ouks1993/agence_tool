@@ -3,14 +3,14 @@ import { ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { ClientForm } from "@/components/clients/client-form";
 import { Button } from "@/components/ui/button";
-import { requireUser } from "@/lib/permissions";
+import { requireAgencyUser } from "@/lib/permissions";
 import { listTeamMembers } from "@/lib/queries";
 
 export const metadata = { title: "New client" };
 
 export default async function NewClientPage() {
-  const user = await requireUser();
-  const team = await listTeamMembers();
+  const user = await requireAgencyUser();
+  const team = await listTeamMembers(user.agencyId);
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6 px-4 py-8 sm:px-6">

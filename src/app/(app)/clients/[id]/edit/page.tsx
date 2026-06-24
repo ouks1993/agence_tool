@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { ClientForm } from "@/components/clients/client-form";
 import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/permissions";
+import { requireAgencyUser } from "@/lib/permissions";
 import { listTeamMembers } from "@/lib/queries";
 import { client } from "@/lib/schema";
 
@@ -17,10 +17,12 @@ export default async function EditClientPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireUser();
+  const user = await requireAgencyUser();
   const { id } = await params;
-  const team = await listTeamMembers();
-  const c = await db.query.client.findFirst({ where: eq(client.id, id) });
+  const team = await listTeamMembers(user.agencyId);
+  const c = await db.query.client.findFirst({
+    where: and(eq(client.id, id), eq(client.agencyId, user.agencyId)),
+  });
   if (!c) notFound();
 
   return (
