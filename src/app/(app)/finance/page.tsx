@@ -12,6 +12,12 @@ import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
 import { StatCard } from "@/components/app/stat-card";
 import { StatusBadge } from "@/components/app/status-badge";
+import {
+  AreaInsight,
+  BarInsight,
+  DonutInsight,
+  type Point,
+} from "@/components/charts/insight-charts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -128,6 +134,87 @@ export default async function FinancePage() {
     .orderBy(desc(payment.createdAt))
     .limit(15);
 
+  // --- Chart data (derived in-memory from the agency-scoped bookings) ------
+  // We flatten the already-loaded bookings' payments relation into a single
+  // list of completed payments (refunds kept, so we can subtract them). No new
+  // query: payments only reach us through the agency-scoped `booking` parent.
+  type CompletedPayment = {
+    amount: number;
+    method: string;
+    kind: string;
+    createdAt: Date;
+  };
+  const completedPayments: CompletedPayment[] = [];
+  for (const b of bookings) {
+    for (const p of b.payments) {
+      if (p.status !== "completed") continue;
+      completedPayments.push({
+        amount: parseFloat(p.amount || "0"),
+        method: p.method,
+        kind: p.kind,
+        createdAt: new Date(p.createdAt),
+      });
+    }
+  }
+
+  // Signed amount: refunds reduce collected cash, so they count negative.
+  const signedAmount = (p: CompletedPayment) =>
+    p.kind === "refund" ? -p.amount : p.amount;
+
+  // 1) Collected over time — last 6 months, chronological, net of refunds.
+  const MONTHS_BACK = 6;
+  const SHORT_MONTH = new Intl.DateTimeFormat("en-GB", { month: "short" });
+  // Pre-seed the 6 buckets so empty months still render at zero (and in order).
+  const monthBuckets: { key: string; label: string; value: number }[] = [];
+  const bucketIndex = new Map<string, number>();
+  for (let i = MONTHS_BACK - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    bucketIndex.set(key, monthBuckets.length);
+    monthBuckets.push({ key, label: SHORT_MONTH.format(d), value: 0 });
+  }
+  for (const p of completedPayments) {
+    const key = `${p.createdAt.getFullYear()}-${p.createdAt.getMonth()}`;
+    const idx = bucketIndex.get(key);
+    if (idx === undefined) continue; // older than the window — skip
+    monthBuckets[idx]!.value += signedAmount(p);
+  }
+  const collectedOverTime: Point[] = monthBuckets.map((m) => ({
+    label: m.label,
+    value: Math.round(m.value * 100) / 100,
+  }));
+
+  // 2) Payments by method — completed amounts grouped by method, net of refunds.
+  const PAYMENT_METHODS = [
+    "manual",
+    "card",
+    "transfer",
+    "cash",
+    "stripe",
+  ] as const;
+  const methodTotals = new Map<string, number>(
+    PAYMENT_METHODS.map((m) => [m, 0])
+  );
+  for (const p of completedPayments) {
+    methodTotals.set(p.method, (methodTotals.get(p.method) ?? 0) + signedAmount(p));
+  }
+  const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+  const paymentsByMethod: Point[] = [...methodTotals.entries()]
+    .filter(([, value]) => value > 0.005)
+    .map(([method, value]) => ({
+      label: capitalize(method),
+      value: Math.round(value * 100) / 100,
+    }));
+
+  // 3) Outstanding vs collected — two agency-wide totals (reusing AR figures).
+  const outstandingVsCollected: Point[] = [
+    { label: "Collected", value: Math.round(collected * 100) / 100 },
+    {
+      label: "Outstanding",
+      value: Math.round(outstandingBalance * 100) / 100,
+    },
+  ];
+
   // --- Revenue summary extras (each query agency-scoped) -------------------
   // Agency margin proxy: sum of (totalPrice - totalCost) across the agency's
   // products. Won opportunity value: sum of opportunity.value where stage=won.
@@ -190,6 +277,51 @@ export default async function FinancePage() {
           hint={overdueCount ? "Past departure, still owing" : "All on track"}
           icon={AlertTriangle}
         />
+      </div>
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <TrendingUp className="size-4" /> Collected over time
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <AreaInsight
+              data={collectedOverTime}
+              format="currency"
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <CircleDollarSign className="size-4" /> Payments by method
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <DonutInsight
+              data={paymentsByMethod}
+              format="currency"
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Wallet className="size-4" /> Outstanding vs collected
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <BarInsight
+              data={outstandingVsCollected}
+              format="currency"
+            />
+          </CardContent>
+        </Card>
       </div>
 
       {/* Accounts receivable */}

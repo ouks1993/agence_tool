@@ -1,10 +1,27 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { and, desc, eq } from "drizzle-orm";
-import { Briefcase, Wallet, Plane, ShieldAlert, Plus, Activity } from "lucide-react";
+import {
+  Briefcase,
+  Wallet,
+  Plane,
+  ShieldAlert,
+  Plus,
+  Activity,
+  BarChart3,
+  Banknote,
+  Coins,
+  Trophy,
+} from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { StatCard } from "@/components/app/stat-card";
 import { StatusBadge } from "@/components/app/status-badge";
+import {
+  BarInsight,
+  DonutInsight,
+  AreaInsight,
+  type Point,
+} from "@/components/charts/insight-charts";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,8 +40,9 @@ import {
   initials,
   passportExpiryStatus,
 } from "@/lib/format";
+import { paymentSummary } from "@/lib/payments/summary";
 import { requireAgencyUser } from "@/lib/permissions";
-import { booking, activityLog } from "@/lib/schema";
+import { booking, activityLog, opportunity, user as userTable } from "@/lib/schema";
 
 export const metadata = { title: "Dashboard" };
 
@@ -50,6 +68,9 @@ export default async function DashboardPage() {
     with: {
       client: { columns: { id: true, name: true } },
       travellers: true,
+      // Used by the manager-only insights section to compute collected revenue
+      // and outstanding balances. paymentSummary only reads amount/kind/status.
+      payments: { columns: { amount: true, kind: true, status: true } },
     },
     orderBy: [desc(booking.createdAt)],
     limit: 500,
@@ -102,6 +123,137 @@ export default async function DashboardPage() {
     orderBy: [desc(activityLog.createdAt)],
     limit: 10,
   });
+
+  // ── Manager/admin insights ────────────────────────────────────────────────
+  // Everything below is agency-scoped and only computed/rendered when the role
+  // has full visibility. Agents never reach this branch.
+  type Insights = {
+    byDestination: Point[];
+    byStatus: Point[];
+    teamPerformance: Point[];
+    monthly: Point[];
+    totalRevenue: number;
+    collected: number;
+    outstanding: number;
+    wonPipeline: number;
+  };
+  let insights: Insights | null = null;
+
+  if (canSeeAll) {
+    // 1) Bookings by destination (country) — non-cancelled, top 8 by count.
+    const destinationCounts = new Map<string, number>();
+    for (const b of active) {
+      const raw = b.destination?.trim();
+      // "Marrakech, Morocco" → "Morocco"; fall back to whole string or "Unknown".
+      const label = raw
+        ? raw.includes(",")
+          ? raw.slice(raw.lastIndexOf(",") + 1).trim() || raw
+          : raw
+        : "Unknown";
+      destinationCounts.set(label, (destinationCounts.get(label) ?? 0) + 1);
+    }
+    const byDestination: Point[] = [...destinationCounts.entries()]
+      .map(([label, value]) => ({ label, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 8);
+
+    // 2) Bookings by status — all bookings, labelled via status meta.
+    const statusCounts = new Map<BookingStatus, number>();
+    for (const b of bookings) {
+      const status = b.status as BookingStatus;
+      statusCounts.set(status, (statusCounts.get(status) ?? 0) + 1);
+    }
+    const byStatus: Point[] = [...statusCounts.entries()].map(([status, value]) => ({
+      label: BOOKING_STATUS_META[status]?.label ?? status,
+      value,
+    }));
+
+    // 3) Team performance — bookings created per team member (top 8, skip zero).
+    const members = await db
+      .select({ id: userTable.id, name: userTable.name })
+      .from(userTable)
+      .where(eq(userTable.agencyId, user.agencyId));
+    const createdByCounts = new Map<string, number>();
+    for (const b of bookings) {
+      if (!b.createdById) continue;
+      createdByCounts.set(b.createdById, (createdByCounts.get(b.createdById) ?? 0) + 1);
+    }
+    const teamPerformance: Point[] = members
+      .map((m) => ({
+        // Prefer the first name for a compact axis label.
+        label: m.name.split(" ")[0] || m.name,
+        value: createdByCounts.get(m.id) ?? 0,
+      }))
+      .filter((p) => p.value > 0)
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 8);
+
+    // 4) Monthly bookings — last 6 months in chronological order, by createdAt.
+    const SHORT_MONTHS = [
+      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ];
+    const monthBuckets: { key: string; label: string; value: number }[] = [];
+    const anchor = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(anchor.getFullYear(), anchor.getMonth() - i, 1);
+      monthBuckets.push({
+        key: `${d.getFullYear()}-${d.getMonth()}`,
+        label: SHORT_MONTHS[d.getMonth()] ?? "",
+        value: 0,
+      });
+    }
+    const monthIndex = new Map(monthBuckets.map((m, i) => [m.key, i]));
+    for (const b of bookings) {
+      const created = new Date(b.createdAt);
+      const key = `${created.getFullYear()}-${created.getMonth()}`;
+      const idx = monthIndex.get(key);
+      if (idx !== undefined) monthBuckets[idx]!.value += 1;
+    }
+    const monthly: Point[] = monthBuckets.map(({ label, value }) => ({ label, value }));
+
+    // 5) Finance KPIs.
+    // Total revenue: confirmed bookings' total amount.
+    const totalRevenue = bookings
+      .filter((b) => b.status === "confirmed")
+      .reduce((s, b) => s + parseFloat(b.totalAmount || "0"), 0);
+
+    // Collected & outstanding: derived from completed payments (refunds netted).
+    let collected = 0;
+    let outstanding = 0;
+    for (const b of bookings) {
+      const total = parseFloat(b.totalAmount || "0");
+      const { paid, balance } = paymentSummary(b.payments, total);
+      collected += paid;
+      if (balance > 0) outstanding += balance;
+    }
+
+    // Won pipeline: sum of opportunity value where stage = "won" (agency-scoped).
+    const wonOpportunities = await db
+      .select({ value: opportunity.value })
+      .from(opportunity)
+      .where(
+        and(
+          eq(opportunity.agencyId, user.agencyId),
+          eq(opportunity.stage, "won")
+        )
+      );
+    const wonPipeline = wonOpportunities.reduce(
+      (s, o) => s + parseFloat(o.value || "0"),
+      0
+    );
+
+    insights = {
+      byDestination,
+      byStatus,
+      teamPerformance,
+      monthly,
+      totalRevenue,
+      collected,
+      outstanding,
+      wonPipeline,
+    };
+  }
 
   const firstName = user.name.split(" ")[0];
 
@@ -284,6 +436,83 @@ export default async function DashboardPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Insights — manager/admin only (full-visibility roles) */}
+      {insights && (
+        <section className="space-y-6">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="text-muted-foreground size-5" />
+            <h2 className="text-xl font-semibold tracking-tight">Insights</h2>
+          </div>
+
+          {/* Finance KPIs */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              label="Total revenue"
+              value={formatMoney(insights.totalRevenue)}
+              hint="Confirmed bookings"
+              icon={Wallet}
+            />
+            <StatCard
+              label="Collected"
+              value={formatMoney(insights.collected)}
+              hint="Completed payments, net of refunds"
+              icon={Banknote}
+            />
+            <StatCard
+              label="Outstanding"
+              value={formatMoney(insights.outstanding)}
+              hint="Balances still due"
+              icon={Coins}
+            />
+            <StatCard
+              label="Won pipeline"
+              value={formatMoney(insights.wonPipeline)}
+              hint="Opportunities marked won"
+              icon={Trophy}
+            />
+          </div>
+
+          {/* Charts */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Bookings by destination</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <BarInsight data={insights.byDestination} />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Bookings by status</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <DonutInsight data={insights.byStatus} />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Team performance</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <BarInsight data={insights.teamPerformance} color="var(--chart-3)" />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Monthly bookings</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <AreaInsight data={insights.monthly} />
+              </CardContent>
+            </Card>
+          </div>
+        </section>
+      )}
     </div>
   );
 }
