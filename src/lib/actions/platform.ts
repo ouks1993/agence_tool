@@ -1,11 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import type { ActionResult } from "@/lib/actions/types";
 import { db } from "@/lib/db";
 import { createInvite } from "@/lib/invites";
-import { requirePlatformAdmin } from "@/lib/permissions";
+import { requirePlatformAdmin, VIEW_AS_AGENCY_COOKIE } from "@/lib/permissions";
 import { agency, user } from "@/lib/schema";
 
 /** A basic email shape check — good enough to reject obvious typos at the boundary. */
@@ -145,4 +147,34 @@ export async function reactivateAgency(agencyId: string): Promise<ActionResult> 
   revalidatePath("/platform");
   revalidatePath(`/platform/agencies/${agencyId}`);
   return { ok: true };
+}
+
+/**
+ * Enters "view as agency" mode: the platform admin browses the agency's app with
+ * full (admin) access until they exit. Sets a signed-by-session cookie that only
+ * takes effect for a platform admin (see requireUser), then sends them into the app.
+ */
+export async function viewAsAgency(agencyId: string): Promise<void> {
+  await requirePlatformAdmin();
+
+  const ag = await db.query.agency.findFirst({
+    where: eq(agency.id, agencyId),
+    columns: { id: true },
+  });
+  if (!ag) redirect("/platform");
+
+  (await cookies()).set(VIEW_AS_AGENCY_COOKIE, agencyId, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+  });
+
+  redirect("/dashboard");
+}
+
+/** Exits "view as agency" mode and returns to the platform console. */
+export async function exitAgencyView(): Promise<void> {
+  (await cookies()).delete(VIEW_AS_AGENCY_COOKIE);
+  redirect("/platform");
 }

@@ -1,4 +1,4 @@
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
@@ -20,6 +20,14 @@ export type CurrentUser = {
 
 /** A user guaranteed to belong to an agency (agencyId is non-null). */
 export type AgencyUser = CurrentUser & { agencyId: string };
+
+/** Cookie set by the platform admin to "view as" a specific agency. */
+export const VIEW_AS_AGENCY_COOKIE = "platform_view_agency";
+
+/** True when this user is the platform admin currently impersonating an agency. */
+export function isViewingAsAgency(user: CurrentUser): boolean {
+  return user.isPlatformAdmin && user.agencyId !== null;
+}
 
 /**
  * Returns the authenticated user (including role), or redirects to /login.
@@ -48,7 +56,7 @@ export async function requireUser(): Promise<CurrentUser> {
     redirect("/login?error=account_disabled");
   }
 
-  return {
+  const base: CurrentUser = {
     id: u.id,
     name: u.name,
     email: u.email,
@@ -58,6 +66,20 @@ export async function requireUser(): Promise<CurrentUser> {
     role: (u.role as UserRole) ?? "agent",
     active: u.active ?? true,
   };
+
+  // "View as agency": when the platform admin has selected an agency to view,
+  // act as an admin of that agency so the whole app (and all capability guards)
+  // grant full access. isPlatformAdmin stays true so /platform still recognizes
+  // them and the agency app can show the "viewing as" banner.
+  if (base.isPlatformAdmin) {
+    const viewAgencyId = (await cookies()).get(VIEW_AS_AGENCY_COOKIE)?.value;
+    if (viewAgencyId) {
+      base.agencyId = viewAgencyId;
+      base.role = "admin";
+    }
+  }
+
+  return base;
 }
 
 /**
@@ -68,16 +90,23 @@ export async function requireUser(): Promise<CurrentUser> {
  */
 export async function requireAgencyUser(): Promise<AgencyUser> {
   const user = await requireUser();
-  if (user.isPlatformAdmin) redirect("/platform");
-  if (!user.agencyId) redirect("/login?error=no_agency");
 
-  // A suspended agency locks out all of its users.
-  const ag = await db.query.agency.findFirst({
-    where: eq(agency.id, user.agencyId),
-    columns: { status: true },
-  });
-  if (!ag || ag.status !== "active") {
-    redirect("/login?error=agency_suspended");
+  if (!user.agencyId) {
+    // Platform admin without an agency selected goes to their own console.
+    if (user.isPlatformAdmin) redirect("/platform");
+    redirect("/login?error=no_agency");
+  }
+
+  // A suspended agency locks out its real members, but the platform admin can
+  // still "view as" a suspended agency for support/inspection.
+  if (!user.isPlatformAdmin) {
+    const ag = await db.query.agency.findFirst({
+      where: eq(agency.id, user.agencyId),
+      columns: { status: true },
+    });
+    if (!ag || ag.status !== "active") {
+      redirect("/login?error=agency_suspended");
+    }
   }
 
   return user as AgencyUser;

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, asc, desc, eq } from "drizzle-orm";
-import { ArrowLeft, Mail, Users } from "lucide-react";
+import { ArrowLeft, Eye, Mail, Users } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusBadge } from "@/components/app/status-badge";
 import { AgencyStatusControls } from "@/components/platform/agency-status-controls";
@@ -15,6 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { viewAsAgency } from "@/lib/actions/platform";
 import { db } from "@/lib/db";
 import { USER_ROLE_META, type UserRole } from "@/lib/domain";
 import { formatDate } from "@/lib/format";
@@ -83,6 +84,11 @@ export default async function AgencyDetailPage({
           label={ag.status === "active" ? "Active" : "Suspended"}
           tone={statusTone(ag.status)}
         />
+        <form action={viewAsAgency.bind(null, ag.id)}>
+          <Button type="submit" size="sm" variant="outline">
+            <Eye className="mr-1 size-4" /> View agency app
+          </Button>
+        </form>
         <AgencyStatusControls agencyId={ag.id} status={ag.status} />
       </PageHeader>
 
