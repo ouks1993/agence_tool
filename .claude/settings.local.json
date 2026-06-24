@@ -13,7 +13,9 @@
       "Bash(git log:*)",
       "Bash(find:*)",
       "Bash(git checkout:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(pnpm typecheck *)",
+      "Bash(corepack --version)"
     ]
   },
   "enableAllProjectMcpServers": true,
