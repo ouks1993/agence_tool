@@ -4,7 +4,16 @@ import { APIError } from "better-auth/api"
 import { db } from "./db"
 import { findPendingInviteByEmail, markInviteAccepted } from "./invites"
 
+// Canonical app URL — used as the auth base and trusted origin. Falls back to
+// the public app URL (set per-environment) and finally localhost for dev.
+const baseURL =
+  process.env.BETTER_AUTH_URL ||
+  process.env.NEXT_PUBLIC_APP_URL ||
+  "http://localhost:3000"
+
 export const auth = betterAuth({
+  baseURL,
+  trustedOrigins: [baseURL],
   database: drizzleAdapter(db, {
     provider: "pg",
   }),
