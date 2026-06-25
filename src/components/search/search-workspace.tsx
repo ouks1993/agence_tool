@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Plane, BedDouble, Search, Loader2, Star, ArrowRight, MapPin } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Plane, BedDouble, Search, Loader2, Star, ArrowRight, MapPin, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   AddToBookingDialog,
@@ -321,11 +321,18 @@ function HotelSearch({
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<HotelOffer[] | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const [filters, setFilters] = useState({
+    hotelType: "",
+    board: "",
+    room: "",
+    refundableOnly: false,
+  });
 
   const run = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setNote(null);
+    setFilters({ hotelType: "", board: "", room: "", refundableOnly: false });
     const res = await searchHotelsAction({
       city: form.city,
       cityCode: form.cityCode || undefined,
@@ -343,6 +350,29 @@ function HotelSearch({
     setResults(res.results);
     if (res.degraded) setNote("Live supplier unavailable — showing sample data.");
   };
+
+  const hotelTypes = useMemo(
+    () => [...new Set((results ?? []).map((o) => o.hotelType).filter(Boolean))] as string[],
+    [results]
+  );
+  const boards = useMemo(
+    () => [...new Set((results ?? []).map((o) => o.boardType).filter(Boolean))] as string[],
+    [results]
+  );
+  const roomCats = useMemo(
+    () => [...new Set((results ?? []).map((o) => roomCategory(o)))].sort(),
+    [results]
+  );
+  const filtered = useMemo(() => {
+    if (!results) return null;
+    return results.filter(
+      (o) =>
+        (!filters.hotelType || o.hotelType === filters.hotelType) &&
+        (!filters.board || o.boardType === filters.board) &&
+        (!filters.room || roomCategory(o) === filters.room) &&
+        (!filters.refundableOnly || o.refundable)
+    );
+  }, [results, filters]);
 
   const toItem = (o: HotelOffer): BookingItemInput => ({
     type: "hotel",
@@ -412,10 +442,49 @@ function HotelSearch({
 
       {results && (
         <div className="space-y-3">
-          {results.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No hotels found.</p>
+          {results.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <FilterSelect
+                label="Hotel type"
+                value={filters.hotelType}
+                options={hotelTypes}
+                onChange={(v) => setFilters((f) => ({ ...f, hotelType: v }))}
+              />
+              <FilterSelect
+                label="Board"
+                value={filters.board}
+                options={boards}
+                onChange={(v) => setFilters((f) => ({ ...f, board: v }))}
+              />
+              <FilterSelect
+                label="Room type"
+                value={filters.room}
+                options={roomCats}
+                onChange={(v) => setFilters((f) => ({ ...f, room: v }))}
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant={filters.refundableOnly ? "default" : "outline"}
+                onClick={() =>
+                  setFilters((f) => ({ ...f, refundableOnly: !f.refundableOnly }))
+                }
+              >
+                Refundable
+              </Button>
+              <span className="text-muted-foreground ml-auto text-xs">
+                {filtered?.length ?? 0} of {results.length}
+              </span>
+            </div>
+          )}
+          {!filtered || filtered.length === 0 ? (
+            <p className="text-muted-foreground text-sm">
+              {results.length === 0
+                ? "No hotels found."
+                : "No hotels match these filters."}
+            </p>
           ) : (
-            results.map((o, idx) => (
+            filtered.map((o, idx) => (
               <Card key={o.id} className="overflow-hidden">
                 <CardContent className="flex gap-4 p-3">
                   {/* Photo */}
@@ -446,6 +515,11 @@ function HotelSearch({
                           <Star key={i} className="size-3.5 fill-current" />
                         ))}
                       </span>
+                      {o.hotelType && (
+                        <span className="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs">
+                          <Building2 className="size-3" /> {o.hotelType}
+                        </span>
+                      )}
                       {idx === 0 && (
                         <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-xs font-semibold text-green-600 dark:text-green-400">
                           Best value
@@ -455,6 +529,11 @@ function HotelSearch({
                     {o.city && (
                       <p className="text-muted-foreground mt-0.5 flex items-center gap-1 text-xs">
                         <MapPin className="size-3" /> {o.city}
+                      </p>
+                    )}
+                    {o.roomName && (
+                      <p className="text-muted-foreground mt-1 flex items-center gap-1 text-xs">
+                        <BedDouble className="size-3" /> {o.roomName}
                       </p>
                     )}
                     <p className="text-muted-foreground mt-1 text-xs">
@@ -495,6 +574,57 @@ function HotelSearch({
         </div>
       )}
     </div>
+  );
+}
+
+/** Hotelbeds room-code prefixes → readable room category. */
+const ROOM_CATEGORIES: Record<string, string> = {
+  SGL: "Single",
+  DBL: "Double",
+  TWN: "Twin",
+  DUI: "Double/Twin",
+  TPL: "Triple",
+  QUA: "Quadruple",
+  SUI: "Suite",
+  JST: "Junior Suite",
+  FAM: "Family",
+  STU: "Studio",
+  APT: "Apartment",
+  BUN: "Bungalow",
+  VIL: "Villa",
+  ROO: "Room",
+};
+
+function roomCategory(o: HotelOffer): string {
+  const prefix = o.roomCode?.split(/[.-]/)[0];
+  return (prefix && ROOM_CATEGORIES[prefix]) || "Other";
+}
+
+function FilterSelect({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: string[];
+  onChange: (value: string) => void;
+}) {
+  if (options.length === 0) return null;
+  return (
+    <Select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="h-8 w-auto text-xs"
+    >
+      <option value="">{label}: all</option>
+      {options.map((o) => (
+        <option key={o} value={o}>
+          {o}
+        </option>
+      ))}
+    </Select>
   );
 }
 

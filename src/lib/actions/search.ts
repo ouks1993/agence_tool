@@ -256,14 +256,13 @@ export async function searchHotelsAction(
     const codes = top.map((o) => o.hotelCode).filter(Boolean) as string[];
     if (codes.length > 0) {
       try {
-        const thumbs = await getHotelbedsContentBatch(codes);
-        top = top.map((o) =>
-          o.hotelCode && thumbs[o.hotelCode]
-            ? { ...o, thumbnail: thumbs[o.hotelCode] }
-            : o
-        );
+        const enrich = await getHotelbedsContentBatch(codes);
+        top = top.map((o) => {
+          const e = o.hotelCode ? enrich[o.hotelCode] : undefined;
+          return e ? { ...o, thumbnail: e.thumbnail, hotelType: e.hotelType } : o;
+        });
       } catch (error) {
-        console.error("Hotel thumbnail batch failed:", error);
+        console.error("Hotel enrichment batch failed:", error);
       }
     }
   }

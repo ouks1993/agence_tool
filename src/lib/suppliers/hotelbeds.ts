@@ -19,6 +19,7 @@ type HbContent = {
     name?: { content?: string };
     description?: { content?: string };
     category?: { content?: string };
+    accommodationType?: { typeDescription?: string };
     address?: { content?: string };
     city?: { content?: string };
     postalCode?: string;
@@ -27,7 +28,17 @@ type HbContent = {
     email?: string;
     web?: string;
     coordinates?: { latitude?: number; longitude?: number };
-    images?: Array<{ path?: string; order?: number; visualOrder?: number }>;
+    segments?: Array<{ description?: { content?: string } }>;
+    facilities?: Array<{
+      description?: { content?: string };
+      indYesOrNo?: boolean;
+    }>;
+    images?: Array<{
+      path?: string;
+      order?: number;
+      visualOrder?: number;
+      roomCode?: string;
+    }>;
   };
 };
 
@@ -45,16 +56,30 @@ export async function getHotelbedsContent(code: string): Promise<HotelDetails> {
   const images = (h.images ?? [])
     .slice()
     .sort((a, b) => (a.visualOrder ?? a.order ?? 99) - (b.visualOrder ?? b.order ?? 99))
-    .map((img) => (img.path ? `${PHOTO_BASE}${img.path}` : ""))
-    .filter(Boolean)
-    .slice(0, 12);
+    .filter((img) => img.path)
+    .map((img) => ({ url: `${PHOTO_BASE}${img.path}`, roomCode: img.roomCode }))
+    .slice(0, 40);
 
   const phone = h.phones?.find((p) => p.phoneNumber)?.phoneNumber;
+
+  const segments = (h.segments ?? [])
+    .map((s) => s.description?.content)
+    .filter((x): x is string => Boolean(x));
+
+  // Only boolean "has it" amenities, de-duplicated, capped for display.
+  const facilities = Array.from(
+    new Set(
+      (h.facilities ?? [])
+        .filter((f) => f.indYesOrNo === true && f.description?.content)
+        .map((f) => f.description!.content as string)
+    )
+  ).slice(0, 24);
 
   return {
     code: String(h.code),
     name: h.name?.content ?? "",
     category: h.category?.content,
+    hotelType: h.accommodationType?.typeDescription,
     description: h.description?.content,
     address: h.address?.content,
     city: h.city?.content,
@@ -65,6 +90,8 @@ export async function getHotelbedsContent(code: string): Promise<HotelDetails> {
     web: h.web,
     latitude: h.coordinates?.latitude,
     longitude: h.coordinates?.longitude,
+    segments,
+    facilities,
     images,
   };
 }
@@ -128,6 +155,7 @@ type HbRate = {
   rateClass?: string;
   cancellationPolicies?: unknown[];
 };
+type HbRoom = { code?: string; name?: string; rates?: HbRate[] };
 type HbHotel = {
   code: number;
   name: string;
@@ -136,36 +164,45 @@ type HbHotel = {
   zoneName?: string;
   currency?: string;
   minRate?: string;
-  rooms?: Array<{ rates?: HbRate[] }>;
+  rooms?: HbRoom[];
 };
 type HbAvailability = {
   hotels?: { hotels?: HbHotel[] };
 };
 
+export type HotelEnrichment = {
+  thumbnail?: string | undefined;
+  hotelType?: string | undefined;
+};
+
 /**
- * Fetches the first photo for many hotel codes in ONE Content API call. Returns
- * a map of hotel code → image URL, for list thumbnails.
+ * Fetches a thumbnail + accommodation type for many hotel codes in ONE Content
+ * API call. Returns a map of hotel code → enrichment, for list cards/filters.
  */
 export async function getHotelbedsContentBatch(
   codes: string[]
-): Promise<Record<string, string>> {
+): Promise<Record<string, HotelEnrichment>> {
   if (codes.length === 0) return {};
   const json = await hotelbeds<{
     hotels?: Array<{
       code: number;
+      accommodationType?: { typeDescription?: string };
       images?: Array<{ path?: string; order?: number; visualOrder?: number }>;
     }>;
   }>(
     `/hotel-content-api/1.0/hotels?codes=${codes.join(
       ","
-    )}&language=ENG&fields=images&from=1&to=${codes.length}`
+    )}&language=ENG&fields=images,accommodationType&from=1&to=${codes.length}`
   );
-  const map: Record<string, string> = {};
+  const map: Record<string, HotelEnrichment> = {};
   for (const h of json.hotels ?? []) {
     const first = (h.images ?? [])
       .slice()
       .sort((a, b) => (a.visualOrder ?? a.order ?? 99) - (b.visualOrder ?? b.order ?? 99))[0];
-    if (first?.path) map[String(h.code)] = `${PHOTO_BASE}${first.path}`;
+    map[String(h.code)] = {
+      thumbnail: first?.path ? `${PHOTO_BASE}${first.path}` : undefined,
+      hotelType: h.accommodationType?.typeDescription,
+    };
   }
   return map;
 }
@@ -212,8 +249,16 @@ export class HotelbedsSupplier implements SupplierProvider {
 
     const offers: HotelOffer[] = [];
     for (const h of json.hotels?.hotels ?? []) {
-      const rate = h.rooms?.[0]?.rates?.[0];
-      const total = parseFloat(h.minRate ?? rate?.net ?? "0");
+      // Pick the cheapest rate across all rooms so price, room and rateKey stay
+      // consistent (the hotel-level minRate may belong to any room).
+      let best: { net: number; room: HbRoom; rate: HbRate } | null = null;
+      for (const room of h.rooms ?? []) {
+        for (const rate of room.rates ?? []) {
+          const net = parseFloat(rate.net ?? "0");
+          if (net > 0 && (!best || net < best.net)) best = { net, room, rate };
+        }
+      }
+      const total = best ? best.net : parseFloat(h.minRate ?? "0");
       if (!total) continue;
       offers.push({
         id: `hotelbeds-ht-${h.code}`,
@@ -222,14 +267,16 @@ export class HotelbedsSupplier implements SupplierProvider {
         stars: parseStars(h.categoryName),
         city: h.destinationName ?? params.city,
         address: h.zoneName,
-        boardType: rate?.boardName,
-        // RT = refundable rate class; NRF = non-refundable.
-        refundable: rate?.rateClass !== "NRF",
+        boardType: best?.rate.boardName,
+        roomName: best?.room.name,
+        roomCode: best?.room.code,
+        // NRF = non-refundable; anything else is refundable.
+        refundable: best?.rate.rateClass !== "NRF",
         pricePerNight: Math.round((total / nights) * 100) / 100,
         priceTotal: total,
         nights,
         currency: h.currency ?? params.currency ?? "EUR",
-        rateKey: rate?.rateKey,
+        rateKey: best?.rate.rateKey,
         hotelCode: String(h.code),
       });
     }

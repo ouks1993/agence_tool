@@ -1,7 +1,16 @@
 "use client";
 
-import { useState } from "react";
-import { Globe, Image as ImageIcon, Loader2, MapPin, Phone, Star } from "lucide-react";
+import { useMemo, useState } from "react";
+import {
+  BedDouble,
+  Building2,
+  Globe,
+  Image as ImageIcon,
+  Loader2,
+  MapPin,
+  Phone,
+  Star,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,11 +25,12 @@ import { formatMoney } from "@/lib/format";
 import type { HotelDetails, HotelOffer } from "@/lib/suppliers";
 import { cn } from "@/lib/utils";
 
-/**
- * Shows rich hotel content — photo gallery, description, address, contact — in a
- * dialog. Content is fetched on first open (one provider call) to respect rate
- * limits, using the offer's own fields (name/stars/price) until it arrives.
- */
+/** Room-category prefix from a Hotelbeds room code, e.g. "DBL.ST" → "DBL". */
+function roomPrefix(code?: string): string | null {
+  if (!code) return null;
+  return code.split(/[.-]/)[0] ?? null;
+}
+
 export function HotelDetailsDialog({ offer }: { offer: HotelOffer }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -41,7 +51,18 @@ export function HotelDetailsDialog({ offer }: { offer: HotelOffer }) {
     if (v) load();
   };
 
-  const images = details?.images ?? [];
+  // Order photos so the booked room's photos come first.
+  const { gallery, roomPhotoCount } = useMemo(() => {
+    const imgs = details?.images ?? [];
+    const prefix = roomPrefix(offer.roomCode);
+    const room = prefix
+      ? imgs.filter((i) => roomPrefix(i.roomCode) === prefix)
+      : [];
+    const roomUrls = room.map((i) => i.url);
+    const rest = imgs.map((i) => i.url).filter((u) => !roomUrls.includes(u));
+    return { gallery: [...roomUrls, ...rest], roomPhotoCount: roomUrls.length };
+  }, [details, offer.roomCode]);
+
   const mapUrl =
     details?.latitude && details?.longitude
       ? `https://www.google.com/maps/search/?api=1&query=${details.latitude},${details.longitude}`
@@ -56,13 +77,19 @@ export function HotelDetailsDialog({ offer }: { offer: HotelOffer }) {
       </DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex flex-wrap items-center gap-2">
             {offer.name}
             <span className="flex items-center text-amber-500">
               {Array.from({ length: offer.stars }).map((_, i) => (
                 <Star key={i} className="size-3.5 fill-current" />
               ))}
             </span>
+            {(details?.hotelType ?? offer.hotelType) && (
+              <span className="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs">
+                <Building2 className="size-3" />
+                {details?.hotelType ?? offer.hotelType}
+              </span>
+            )}
           </DialogTitle>
         </DialogHeader>
 
@@ -72,24 +99,23 @@ export function HotelDetailsDialog({ offer }: { offer: HotelOffer }) {
           </div>
         ) : (
           <div className="space-y-4">
-            {/* Gallery */}
-            {images.length > 0 && (
+            {gallery.length > 0 && (
               <div className="space-y-2">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={images[activeImg]}
+                  src={gallery[activeImg]}
                   alt={offer.name}
                   className="aspect-video w-full rounded-lg object-cover"
                 />
-                {images.length > 1 && (
+                {gallery.length > 1 && (
                   <div className="flex gap-2 overflow-x-auto pb-1">
-                    {images.map((src, i) => (
+                    {gallery.map((src, i) => (
                       <button
                         key={src}
                         type="button"
                         onClick={() => setActiveImg(i)}
                         className={cn(
-                          "size-16 shrink-0 overflow-hidden rounded-md border-2",
+                          "relative size-16 shrink-0 overflow-hidden rounded-md border-2",
                           i === activeImg ? "border-primary" : "border-transparent"
                         )}
                       >
@@ -99,32 +125,51 @@ export function HotelDetailsDialog({ offer }: { offer: HotelOffer }) {
                     ))}
                   </div>
                 )}
+                {roomPhotoCount > 0 && (
+                  <p className="text-muted-foreground text-xs">
+                    First {roomPhotoCount} photo{roomPhotoCount === 1 ? "" : "s"} show
+                    the {offer.roomName ?? "selected room"}.
+                  </p>
+                )}
               </div>
             )}
 
-            {/* Price + contact */}
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="text-sm">
-                <span className="text-lg font-bold">
-                  {formatMoney(offer.priceTotal, offer.currency)}
-                </span>
-                <span className="text-muted-foreground">
-                  {" "}
-                  · {formatMoney(offer.pricePerNight, offer.currency)}/night ·{" "}
-                  {offer.nights} night{offer.nights === 1 ? "" : "s"}
-                </span>
+            {/* Selected room + price */}
+            <div className="bg-muted/40 flex flex-wrap items-center justify-between gap-2 rounded-lg p-3">
+              <div className="flex items-start gap-2 text-sm">
+                <BedDouble className="mt-0.5 size-4 shrink-0" />
+                <div>
+                  <p className="font-medium">{offer.roomName ?? "Room"}</p>
+                  <p className="text-muted-foreground text-xs">
+                    {offer.boardType ?? "Room only"} ·{" "}
+                    {offer.refundable ? "Refundable" : "Non-refundable"} · {offer.nights}{" "}
+                    night{offer.nights === 1 ? "" : "s"}
+                  </p>
+                </div>
               </div>
-              <span
-                className={cn(
-                  "rounded-full px-2 py-0.5 text-xs font-semibold",
-                  offer.refundable
-                    ? "bg-green-500/15 text-green-600 dark:text-green-400"
-                    : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
-                )}
-              >
-                {offer.refundable ? "Refundable" : "Non-refundable"}
-              </span>
+              <div className="text-right">
+                <p className="text-lg font-bold">
+                  {formatMoney(offer.priceTotal, offer.currency)}
+                </p>
+                <p className="text-muted-foreground text-xs">
+                  {formatMoney(offer.pricePerNight, offer.currency)}/night
+                </p>
+              </div>
             </div>
+
+            {/* Tags */}
+            {details && details.segments.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {details.segments.map((s) => (
+                  <span
+                    key={s}
+                    className="bg-accent text-accent-foreground rounded-full px-2 py-0.5 text-xs"
+                  >
+                    {s}
+                  </span>
+                ))}
+              </div>
+            )}
 
             {/* Address & contact */}
             {details && (
@@ -173,6 +218,23 @@ export function HotelDetailsDialog({ offer }: { offer: HotelOffer }) {
                     </a>
                   </p>
                 )}
+              </div>
+            )}
+
+            {/* Amenities */}
+            {details && details.facilities.length > 0 && (
+              <div>
+                <p className="mb-2 text-sm font-medium">Facilities</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {details.facilities.map((f) => (
+                    <span
+                      key={f}
+                      className="rounded-md border px-2 py-0.5 text-xs"
+                    >
+                      {f}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
 

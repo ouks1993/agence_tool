@@ -87,17 +87,27 @@ export type HotelOffer = {
   thumbnailColor?: string | undefined;
   /** First photo URL, attached from content for list thumbnails. */
   thumbnail?: string | undefined;
+  /** Accommodation type, e.g. "Hotel" / "Hostel" / "Apartment". */
+  hotelType?: string | undefined;
+  /** Name of the cheapest room for this price, e.g. "Classic Double". */
+  roomName?: string | undefined;
+  /** Provider room code (prefix maps to a room category, e.g. DBL → Double). */
+  roomCode?: string | undefined;
   /** Opaque rate identifier required to book this exact rate (Hotelbeds). */
   rateKey?: string | undefined;
   /** Provider hotel code, used to fetch rich content (photos, description). */
   hotelCode?: string | undefined;
 };
 
-/** Rich hotel content (photos, description, address) from a content API. */
+/** A single image with an optional room association. */
+export type HotelImage = { url: string; roomCode?: string | undefined };
+
+/** Rich hotel content (photos, description, address, amenities) from content API. */
 export type HotelDetails = {
   code: string;
   name: string;
   category?: string | undefined;
+  hotelType?: string | undefined;
   description?: string | undefined;
   address?: string | undefined;
   city?: string | undefined;
@@ -108,8 +118,12 @@ export type HotelDetails = {
   web?: string | undefined;
   latitude?: number | undefined;
   longitude?: number | undefined;
-  /** Full image URLs. */
-  images: string[];
+  /** Marketing tags, e.g. "Business hotels", "Hotels with charm". */
+  segments: string[];
+  /** Amenity names present at the property. */
+  facilities: string[];
+  /** All images, each optionally tagged with a room code. */
+  images: HotelImage[];
 };
 
 // --- Airport / place autocomplete -------------------------------------------
