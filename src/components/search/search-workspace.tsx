@@ -9,6 +9,7 @@ import {
   type ClientOption,
 } from "@/components/search/add-to-booking-dialog";
 import { AirportInput } from "@/components/search/airport-input";
+import { HotelDestinationInput } from "@/components/search/hotel-destination-input";
 import { HotelDetailsDialog } from "@/components/search/hotel-details-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -361,20 +362,12 @@ function HotelSearch({
       <Card>
         <CardContent className="p-5">
           <form onSubmit={run} className="grid grid-cols-2 gap-3 md:grid-cols-6">
-            <Field label="City" className="col-span-2 md:col-span-1">
-              <Input
+            <Field label="Destination" className="col-span-2">
+              <HotelDestinationInput
                 value={form.city}
-                onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
-                placeholder="Marrakech"
-                required
-              />
-            </Field>
-            <Field label="City code" className="col-span-1">
-              <Input
-                value={form.cityCode}
-                onChange={(e) => setForm((f) => ({ ...f, cityCode: e.target.value }))}
-                placeholder="RAK"
-                maxLength={3}
+                onChange={(v) => setForm((f) => ({ ...f, city: v, cityCode: "" }))}
+                onSelect={(d) => setForm((f) => ({ ...f, city: d.name, cityCode: d.iata }))}
+                placeholder="Start typing a city…"
               />
             </Field>
             <Field label="Check-in" className="col-span-1">

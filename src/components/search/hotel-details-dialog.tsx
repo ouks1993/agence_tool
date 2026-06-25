@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Globe, Loader2, MapPin, Phone, Star } from "lucide-react";
+import { Globe, Image as ImageIcon, Loader2, MapPin, Phone, Star } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -51,7 +51,7 @@ export function HotelDetailsDialog({ offer }: { offer: HotelOffer }) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">
-          Details
+          <ImageIcon className="mr-1 size-4" /> Photos &amp; details
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">

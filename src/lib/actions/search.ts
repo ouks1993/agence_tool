@@ -147,6 +147,58 @@ export async function searchFlightsAction(
   return { ok: true, results, source, degraded };
 }
 
+/**
+ * Curated Hotelbeds destinations (code verified against the live API). Hotelbeds
+ * uses its own destination codes — not all match IATA — so this is an allow-list
+ * of confirmed-working ones rather than a guess.
+ */
+const HOTEL_DESTINATIONS: AirportSuggestion[] = [
+  { iata: "MAD", name: "Madrid", city: "Madrid", country: "ES" },
+  { iata: "BCN", name: "Barcelona", city: "Barcelona", country: "ES" },
+  { iata: "PMI", name: "Palma de Mallorca", city: "Palma de Mallorca", country: "ES" },
+  { iata: "AGP", name: "Málaga / Costa del Sol", city: "Málaga", country: "ES" },
+  { iata: "IBZ", name: "Ibiza", city: "Ibiza", country: "ES" },
+  { iata: "VLC", name: "Valencia", city: "Valencia", country: "ES" },
+  { iata: "SVQ", name: "Seville", city: "Seville", country: "ES" },
+  { iata: "PAR", name: "Paris", city: "Paris", country: "FR" },
+  { iata: "NCE", name: "Nice", city: "Nice", country: "FR" },
+  { iata: "MRS", name: "Marseille", city: "Marseille", country: "FR" },
+  { iata: "LON", name: "London", city: "London", country: "GB" },
+  { iata: "DUB", name: "Dublin", city: "Dublin", country: "IE" },
+  { iata: "AMS", name: "Amsterdam", city: "Amsterdam", country: "NL" },
+  { iata: "LIS", name: "Lisbon", city: "Lisbon", country: "PT" },
+  { iata: "BER", name: "Berlin", city: "Berlin", country: "DE" },
+  { iata: "VIE", name: "Vienna", city: "Vienna", country: "AT" },
+  { iata: "ATH", name: "Athens", city: "Athens", country: "GR" },
+  { iata: "IST", name: "Istanbul", city: "Istanbul", country: "TR" },
+  { iata: "DXB", name: "Dubai", city: "Dubai", country: "AE" },
+  { iata: "BKK", name: "Bangkok", city: "Bangkok", country: "TH" },
+  { iata: "SIN", name: "Singapore", city: "Singapore", country: "SG" },
+  { iata: "NYC", name: "New York", city: "New York", country: "US" },
+  { iata: "LAX", name: "Los Angeles", city: "Los Angeles", country: "US" },
+  { iata: "MIA", name: "Miami", city: "Miami", country: "US" },
+  { iata: "RAK", name: "Marrakesh", city: "Marrakesh", country: "MA" },
+  { iata: "AGA", name: "Agadir", city: "Agadir", country: "MA" },
+  { iata: "FEZ", name: "Fez", city: "Fez", country: "MA" },
+  { iata: "ALG", name: "Algiers", city: "Algiers", country: "DZ" },
+  { iata: "DJE", name: "Djerba", city: "Djerba", country: "TN" },
+];
+
+/** Hotel destination autocomplete (filters the curated Hotelbeds list). */
+export async function searchHotelDestinationsAction(
+  query: string
+): Promise<AirportSuggestion[]> {
+  await requireUser();
+  const q = query.trim().toLowerCase();
+  if (q.length < 1) return [];
+  return HOTEL_DESTINATIONS.filter(
+    (d) =>
+      d.iata.toLowerCase().includes(q) ||
+      d.city.toLowerCase().includes(q) ||
+      d.name.toLowerCase().includes(q)
+  ).slice(0, 8);
+}
+
 /** Loads rich content (photos, description, address) for one hotel. */
 export async function getHotelDetailsAction(
   code: string
