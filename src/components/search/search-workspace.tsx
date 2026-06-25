@@ -99,7 +99,9 @@ function FlightSearch({
     adults: "1",
     cabin: "economy",
     currency: "EUR",
+    tripType: "round" as "round" | "oneway",
   });
+  const oneWay = form.tripType === "oneway";
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<FlightOffer[] | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -112,7 +114,7 @@ function FlightSearch({
       origin: form.origin,
       destination: form.destination,
       departDate: form.departDate,
-      returnDate: form.returnDate || undefined,
+      returnDate: oneWay ? undefined : form.returnDate || undefined,
       adults: Number(form.adults),
       cabin: form.cabin as "economy" | "premium" | "business" | "first",
       currency: form.currency,
@@ -126,10 +128,13 @@ function FlightSearch({
     if (res.degraded) setNote("Live supplier unavailable — showing sample data.");
   };
 
+  const flightCodes = (o: FlightOffer): string =>
+    o.segments.map((s) => s.flightNumber).join(", ");
+
   const toItem = (o: FlightOffer): BookingItemInput => ({
     type: "flight",
-    title: `${o.airlineName}: ${form.origin.toUpperCase()} → ${form.destination.toUpperCase()}`,
-    description: `${o.cabin}, ${o.stops === 0 ? "direct" : `${o.stops} stop`}, ${formatDuration(o.durationMinutes)}${form.returnDate ? " (round trip)" : ""}`,
+    title: `${o.airlineName} ${flightCodes(o)}: ${form.origin.toUpperCase()} → ${form.destination.toUpperCase()}`,
+    description: `${o.cabin}, ${o.stops === 0 ? "direct" : `${o.stops} stop`}, ${formatDuration(o.durationMinutes)} (${oneWay ? "one-way" : "round trip"})`,
     supplier: o.airlineName,
     quantity: 1,
     amount: o.priceTotal,
@@ -143,6 +148,24 @@ function FlightSearch({
     <div className="space-y-6">
       <Card>
         <CardContent className="p-5">
+          <div className="mb-4 flex gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={!oneWay ? "default" : "outline"}
+              onClick={() => setForm((f) => ({ ...f, tripType: "round" }))}
+            >
+              Round trip
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={oneWay ? "default" : "outline"}
+              onClick={() => setForm((f) => ({ ...f, tripType: "oneway", returnDate: "" }))}
+            >
+              One-way
+            </Button>
+          </div>
           <form onSubmit={run} className="grid grid-cols-2 gap-3 md:grid-cols-7">
             <Field label="From" className="col-span-1">
               <Input
@@ -174,6 +197,7 @@ function FlightSearch({
               <Input
                 type="date"
                 value={form.returnDate}
+                disabled={oneWay}
                 onChange={(e) => setForm((f) => ({ ...f, returnDate: e.target.value }))}
               />
             </Field>
@@ -221,8 +245,11 @@ function FlightSearch({
               <Card key={o.id}>
                 <CardContent className="flex flex-wrap items-center justify-between gap-4 p-4">
                   <div className="min-w-0 space-y-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="font-semibold">{o.airlineName}</span>
+                      <span className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 font-mono text-xs">
+                        {o.segments.map((s) => s.flightNumber).join(" · ")}
+                      </span>
                       {idx === 0 && (
                         <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-xs font-semibold text-green-600 dark:text-green-400">
                           Cheapest
