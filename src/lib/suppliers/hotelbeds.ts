@@ -4,10 +4,70 @@ import type {
   BookingConfirmation,
   FlightOffer,
   FlightSearchParams,
+  HotelDetails,
   HotelOffer,
   HotelSearchParams,
   SupplierProvider,
 } from "./types";
+
+/** Hotelbeds serves photos from this CDN; `bigger` is a good display size. */
+const PHOTO_BASE = "https://photos.hotelbeds.com/giata/bigger/";
+
+type HbContent = {
+  hotel?: {
+    code: number;
+    name?: { content?: string };
+    description?: { content?: string };
+    category?: { content?: string };
+    address?: { content?: string };
+    city?: { content?: string };
+    postalCode?: string;
+    countryCode?: string;
+    phones?: Array<{ phoneNumber?: string; phoneType?: string }>;
+    email?: string;
+    web?: string;
+    coordinates?: { latitude?: number; longitude?: number };
+    images?: Array<{ path?: string; order?: number; visualOrder?: number }>;
+  };
+};
+
+/**
+ * Fetches rich hotel content (photos, description, address) for one hotel code
+ * via the Hotelbeds Content API. Same auth as the booking API.
+ */
+export async function getHotelbedsContent(code: string): Promise<HotelDetails> {
+  const json = await hotelbeds<HbContent>(
+    `/hotel-content-api/1.0/hotels/${code}/details?language=ENG`
+  );
+  const h = json.hotel;
+  if (!h) throw new Error("Hotel content not found");
+
+  const images = (h.images ?? [])
+    .slice()
+    .sort((a, b) => (a.visualOrder ?? a.order ?? 99) - (b.visualOrder ?? b.order ?? 99))
+    .map((img) => (img.path ? `${PHOTO_BASE}${img.path}` : ""))
+    .filter(Boolean)
+    .slice(0, 12);
+
+  const phone = h.phones?.find((p) => p.phoneNumber)?.phoneNumber;
+
+  return {
+    code: String(h.code),
+    name: h.name?.content ?? "",
+    category: h.category?.content,
+    description: h.description?.content,
+    address: h.address?.content,
+    city: h.city?.content,
+    country: h.countryCode,
+    postalCode: h.postalCode,
+    phone,
+    email: h.email,
+    web: h.web,
+    latitude: h.coordinates?.latitude,
+    longitude: h.coordinates?.longitude,
+    images,
+  };
+}
 
 /**
  * Hotelbeds (APITUDE) hotel provider.
@@ -142,6 +202,7 @@ export class HotelbedsSupplier implements SupplierProvider {
         nights,
         currency: h.currency ?? params.currency ?? "EUR",
         rateKey: rate?.rateKey,
+        hotelCode: String(h.code),
       });
     }
     return offers.sort((a, b) => a.priceTotal - b.priceTotal);

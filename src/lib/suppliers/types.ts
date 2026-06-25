@@ -87,6 +87,27 @@ export type HotelOffer = {
   thumbnailColor?: string | undefined;
   /** Opaque rate identifier required to book this exact rate (Hotelbeds). */
   rateKey?: string | undefined;
+  /** Provider hotel code, used to fetch rich content (photos, description). */
+  hotelCode?: string | undefined;
+};
+
+/** Rich hotel content (photos, description, address) from a content API. */
+export type HotelDetails = {
+  code: string;
+  name: string;
+  category?: string | undefined;
+  description?: string | undefined;
+  address?: string | undefined;
+  city?: string | undefined;
+  country?: string | undefined;
+  postalCode?: string | undefined;
+  phone?: string | undefined;
+  email?: string | undefined;
+  web?: string | undefined;
+  latitude?: number | undefined;
+  longitude?: number | undefined;
+  /** Full image URLs. */
+  images: string[];
 };
 
 // --- Airport / place autocomplete -------------------------------------------

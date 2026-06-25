@@ -1,15 +1,19 @@
 "use server";
 
 import { z } from "zod";
+import type { ActionResult } from "@/lib/actions/types";
 import { requireUser } from "@/lib/permissions";
 import {
   getFlightSupplier,
   getHotelSupplier,
+  getHotelbedsContent,
   isDuffelConfigured,
+  isHotelbedsConfigured,
   safeSearch,
   searchDuffelPlaces,
   type AirportSuggestion,
   type FlightOffer,
+  type HotelDetails,
   type HotelOffer,
 } from "@/lib/suppliers";
 
@@ -141,6 +145,25 @@ export async function searchFlightsAction(
       })
   );
   return { ok: true, results, source, degraded };
+}
+
+/** Loads rich content (photos, description, address) for one hotel. */
+export async function getHotelDetailsAction(
+  code: string
+): Promise<ActionResult<HotelDetails>> {
+  await requireUser();
+  if (!code) return { ok: false, error: "Missing hotel code" };
+  if (!isHotelbedsConfigured()) {
+    return { ok: false, error: "Hotel details require a live provider." };
+  }
+  try {
+    return { ok: true, data: await getHotelbedsContent(code) };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Could not load hotel details.",
+    };
+  }
 }
 
 export async function searchHotelsAction(

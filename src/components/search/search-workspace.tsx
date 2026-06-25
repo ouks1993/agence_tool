@@ -9,6 +9,7 @@ import {
   type ClientOption,
 } from "@/components/search/add-to-booking-dialog";
 import { AirportInput } from "@/components/search/airport-input";
+import { HotelDetailsDialog } from "@/components/search/hotel-details-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -450,7 +451,7 @@ function HotelSearch({
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3">
                     <div className="text-right">
                       <p className="text-lg font-bold">
                         {formatMoney(o.priceTotal, o.currency)}
@@ -459,6 +460,7 @@ function HotelSearch({
                         {formatMoney(o.pricePerNight, o.currency)}/night
                       </p>
                     </div>
+                    {o.hotelCode && <HotelDetailsDialog offer={o} />}
                     <AddToBookingDialog
                       item={toItem(o)}
                       itemSummary={`${o.name} · ${formatMoney(o.priceTotal, o.currency)} (${o.nights}n from ${formatDate(form.checkIn)})`}
