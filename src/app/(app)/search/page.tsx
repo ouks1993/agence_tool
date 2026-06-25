@@ -3,7 +3,11 @@ import { PageHeader } from "@/components/app/page-header";
 import { SearchWorkspace } from "@/components/search/search-workspace";
 import { requireAgencyUser } from "@/lib/permissions";
 import { listClientOptions, listOpenBookings } from "@/lib/queries";
-import { getSupplier, isLiveSupplierConfigured } from "@/lib/suppliers";
+import {
+  getFlightSupplier,
+  getHotelSupplier,
+  isLiveSupplierConfigured,
+} from "@/lib/suppliers";
 
 export const metadata = { title: "Search" };
 
@@ -14,7 +18,12 @@ export default async function SearchPage() {
     listOpenBookings(user.agencyId),
   ]);
   const live = isLiveSupplierConfigured();
-  const supplierLabel = getSupplier().label;
+  const flightLabel = getFlightSupplier().label;
+  const hotelLabel = getHotelSupplier().label;
+  const supplierLabel =
+    flightLabel === hotelLabel
+      ? flightLabel
+      : `${flightLabel} · ${hotelLabel}`;
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-8 sm:px-6">
@@ -28,9 +37,10 @@ export default async function SearchPage() {
           <Info className="mt-0.5 size-4 shrink-0" />
           <p>
             Running on <span className="font-medium">sample data</span>. Add your
-            Amadeus API keys (<code>AMADEUS_CLIENT_ID</code> /{" "}
-            <code>AMADEUS_CLIENT_SECRET</code>) to <code>.env</code> for live
-            flight and hotel prices — no code changes needed.
+            Amadeus keys (<code>AMADEUS_CLIENT_ID</code> /{" "}
+            <code>AMADEUS_CLIENT_SECRET</code>) for live flights and Hotelbeds keys
+            (<code>HOTELBEDS_API_KEY</code> / <code>HOTELBEDS_SECRET</code>) for
+            live hotels — no code changes needed.
           </p>
         </div>
       )}

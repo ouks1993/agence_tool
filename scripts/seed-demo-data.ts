@@ -10,6 +10,7 @@
 import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { assertSafeDestructiveTarget } from "./guard";
 import {
   account,
   activityLog,
@@ -34,6 +35,8 @@ const money = (n: number) => n.toFixed(2);
 const pick = <T,>(arr: T[], i: number): T => arr[i % arr.length]!;
 
 async function main() {
+  assertSafeDestructiveTarget("the demo-data seed");
+
   // --- 1. Ensure a full team (keep existing manager/finance/support, add agents) ---
   const ctx = await (auth as any).$context;
   const agents = [

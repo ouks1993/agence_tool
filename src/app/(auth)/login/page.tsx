@@ -17,6 +17,8 @@ const ERROR_MESSAGES: Record<string, string> = {
     "Your account has been deactivated. Contact your administrator.",
   agency_suspended:
     "Your agency has been suspended. Contact your administrator.",
+  subscription_inactive:
+    "Your agency's subscription is inactive. Ask an admin to update billing.",
   no_agency: "Your account isn't linked to an agency yet.",
 }
 

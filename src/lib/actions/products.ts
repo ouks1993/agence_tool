@@ -234,6 +234,52 @@ export async function setProductStatus(
   return { ok: true };
 }
 
+/**
+ * Creates (or rotates) the public, signable proposal link. Moves a draft to
+ * "sent" since sharing it is effectively sending it to the client.
+ */
+export async function generateProposalLink(
+  id: string
+): Promise<ActionResult<{ token: string }>> {
+  const user = await requireAgencyUser();
+  const existing = await db.query.product.findFirst({
+    where: and(eq(product.id, id), eq(product.agencyId, user.agencyId)),
+    columns: { id: true, status: true, reference: true, title: true },
+  });
+  if (!existing) return { ok: false, error: "Proposal not found" };
+
+  const token = crypto.randomUUID().replace(/-/g, "");
+  await db
+    .update(product)
+    .set({ shareToken: token, status: existing.status === "draft" ? "sent" : existing.status })
+    .where(and(eq(product.id, id), eq(product.agencyId, user.agencyId)));
+
+  await logActivity({
+    agencyId: user.agencyId,
+    userId: user.id,
+    action: "sent",
+    entityType: "product",
+    entityId: id,
+    entityLabel: `${existing.reference} · ${existing.title}`,
+    metadata: { sharedLink: true },
+  });
+
+  revalidatePath("/products");
+  revalidatePath(`/products/${id}`);
+  return { ok: true, data: { token } };
+}
+
+/** Disables the public proposal link (revokes the share token). */
+export async function revokeProposalLink(id: string): Promise<ActionResult> {
+  const user = await requireAgencyUser();
+  await db
+    .update(product)
+    .set({ shareToken: null })
+    .where(and(eq(product.id, id), eq(product.agencyId, user.agencyId)));
+  revalidatePath(`/products/${id}`);
+  return { ok: true };
+}
+
 export async function deleteProduct(id: string): Promise<ActionResult> {
   const user = await requireAgencyUser();
   const existing = await db.query.product.findFirst({

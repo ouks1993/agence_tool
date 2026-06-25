@@ -7,7 +7,7 @@
  * implementation with zero changes to the UI, actions or AI tools.
  */
 
-export type SupplierSource = "mock" | "amadeus";
+export type SupplierSource = "mock" | "amadeus" | "hotelbeds";
 
 // --- Flights ----------------------------------------------------------------
 
@@ -85,6 +85,8 @@ export type HotelOffer = {
   nights: number;
   currency: string;
   thumbnailColor?: string | undefined;
+  /** Opaque rate identifier required to book this exact rate (Hotelbeds). */
+  rateKey?: string | undefined;
 };
 
 // --- Provider ---------------------------------------------------------------

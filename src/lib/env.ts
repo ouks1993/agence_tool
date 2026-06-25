@@ -24,6 +24,23 @@ const serverEnvSchema = z.object({
   // Storage
   BLOB_READ_WRITE_TOKEN: z.string().optional(),
 
+  // Email (Resend)
+  RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().optional(),
+
+  // Billing (Stripe — vendor bills agencies)
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_PRICE_ID: z.string().optional(),
+
+  // Travel suppliers (flights via Amadeus, hotels via Hotelbeds)
+  AMADEUS_CLIENT_ID: z.string().optional(),
+  AMADEUS_CLIENT_SECRET: z.string().optional(),
+  AMADEUS_HOSTNAME: z.string().optional(),
+  HOTELBEDS_API_KEY: z.string().optional(),
+  HOTELBEDS_SECRET: z.string().optional(),
+  HOTELBEDS_HOSTNAME: z.string().optional(),
+
   // App
   NODE_ENV: z
     .enum(["development", "production", "test"])
@@ -106,6 +123,22 @@ export function checkEnv(): void {
 
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
     warnings.push("BLOB_READ_WRITE_TOKEN is not set. Using local storage for file uploads.");
+  }
+
+  if (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM) {
+    warnings.push("RESEND_API_KEY / EMAIL_FROM are not set. Emails will be logged to the console instead of sent.");
+  }
+
+  if (!process.env.STRIPE_SECRET_KEY) {
+    warnings.push("STRIPE_SECRET_KEY is not set. SaaS subscription billing is disabled.");
+  }
+
+  if (!process.env.AMADEUS_CLIENT_ID || !process.env.AMADEUS_CLIENT_SECRET) {
+    warnings.push("Amadeus keys are not set. Flight search uses sample data.");
+  }
+
+  if (!process.env.HOTELBEDS_API_KEY || !process.env.HOTELBEDS_SECRET) {
+    warnings.push("Hotelbeds keys are not set. Hotel search uses sample data.");
   }
 
   // Log warnings in development

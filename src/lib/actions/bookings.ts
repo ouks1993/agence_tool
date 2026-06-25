@@ -9,7 +9,12 @@ import { db } from "@/lib/db";
 import { canDeleteRecords, nextBookingStatus } from "@/lib/domain";
 import { requireAgencyUser } from "@/lib/permissions";
 import { booking, bookingTraveller, bookingItem, bookingDay, client } from "@/lib/schema";
-import { getSupplier, type FlightOffer, type HotelOffer } from "@/lib/suppliers";
+import {
+  getFlightSupplier,
+  getHotelSupplier,
+  type FlightOffer,
+  type HotelOffer,
+} from "@/lib/suppliers";
 
 function toDate(value?: string | null): Date | null {
   if (!value) return null;
@@ -225,13 +230,16 @@ async function confirmItemBooking(item: {
   type: string;
   details: unknown;
 }): Promise<string> {
-  const provider = getSupplier();
   try {
     if (item.type === "flight") {
-      return (await provider.bookFlight(item.details as FlightOffer)).confirmationNumber;
+      return (
+        await getFlightSupplier().bookFlight(item.details as FlightOffer)
+      ).confirmationNumber;
     }
     if (item.type === "hotel") {
-      return (await provider.bookHotel(item.details as HotelOffer)).confirmationNumber;
+      return (
+        await getHotelSupplier().bookHotel(item.details as HotelOffer)
+      ).confirmationNumber;
     }
   } catch (error) {
     console.error("Supplier booking failed, issuing manual reference:", error);

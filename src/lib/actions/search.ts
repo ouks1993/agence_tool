@@ -3,7 +3,8 @@
 import { z } from "zod";
 import { requireUser } from "@/lib/permissions";
 import {
-  getSupplier,
+  getFlightSupplier,
+  getHotelSupplier,
   safeSearch,
   type FlightOffer,
   type HotelOffer,
@@ -56,12 +57,13 @@ export async function searchFlightsAction(
       ok: false,
       error: parsed.error.issues[0]?.message ?? "Invalid search",
       results: [],
-      source: getSupplier().label,
+      source: getFlightSupplier().label,
       degraded: false,
     };
   }
   const p = parsed.data;
   const { results, source, degraded } = await safeSearch<FlightOffer>(
+    getFlightSupplier,
     (provider) =>
       provider.searchFlights({
         origin: p.origin,
@@ -96,7 +98,7 @@ export async function searchHotelsAction(
       ok: false,
       error: parsed.error.issues[0]?.message ?? "Invalid search",
       results: [],
-      source: getSupplier().label,
+      source: getHotelSupplier().label,
       degraded: false,
     };
   }
@@ -112,6 +114,7 @@ export async function searchHotelsAction(
     currency: p.currency,
   };
   const { results, source, degraded } = await safeSearch<HotelOffer>(
+    getHotelSupplier,
     (provider) => provider.searchHotels(buildParams),
     (mock) => mock.searchHotels(buildParams)
   );

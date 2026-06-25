@@ -28,6 +28,20 @@ export const agency = pgTable(
     slug: text("slug").notNull().unique(),
     // "active" | "suspended" — a suspended agency's users are locked out.
     status: text("status").default("active").notNull(),
+    // --- SaaS billing (vendor → agency). Distinct from traveler `payment`. ---
+    // Stripe customer for this agency (the bill payer). NULL until billing setup.
+    stripeCustomerId: text("stripe_customer_id"),
+    // The agency's active / most-recent subscription id.
+    stripeSubscriptionId: text("stripe_subscription_id"),
+    // Stripe subscription.status: trialing | active | past_due | canceled |
+    // unpaid | incomplete | incomplete_expired | paused. NULL until billing starts.
+    subscriptionStatus: text("subscription_status"),
+    // The price the agency is subscribed to.
+    priceId: text("price_id"),
+    // End of the current paid period (renewal/expiry date).
+    currentPeriodEnd: timestamp("current_period_end"),
+    // Trial expiry, if the agency is on a trial.
+    trialEndsAt: timestamp("trial_ends_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()
@@ -324,6 +338,19 @@ export const product = pgTable(
     // Client-facing proposal narrative (often AI-generated).
     summary: text("summary"),
     validUntil: timestamp("valid_until"),
+    // --- Public sharing + e-signature acceptance ---
+    // Unguessable token for the public, signable proposal link (/p/[token]).
+    shareToken: text("share_token").unique(),
+    // Set when the client accepts (and signs) or declines via the public link.
+    acceptedAt: timestamp("accepted_at"),
+    declinedAt: timestamp("declined_at"),
+    // Captured at signing for non-repudiation.
+    signerName: text("signer_name"),
+    signerEmail: text("signer_email"),
+    // Typed-name or drawn-signature payload (data URL / plain text).
+    signatureData: text("signature_data"),
+    signerIp: text("signer_ip"),
+    signerUserAgent: text("signer_user_agent"),
     createdById: text("created_by_id").references(() => user.id, {
       onDelete: "set null",
     }),
@@ -518,7 +545,7 @@ export const notification = pgTable(
     recipient: text("recipient").notNull(),
     subject: text("subject"),
     body: text("body"),
-    // "confirmation" | "voucher" | "receipt" | "custom"
+    // "confirmation" | "voucher" | "receipt" | "custom" | "invite" | "proposal"
     kind: text("kind").default("custom").notNull(),
     // "sent" | "failed" | "logged"
     status: text("status").default("sent").notNull(),

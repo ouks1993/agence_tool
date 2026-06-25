@@ -13,6 +13,7 @@ import {
   Search,
   Sparkles,
   ShieldCheck,
+  CreditCard,
   Compass,
   Menu,
   X,
@@ -62,6 +63,8 @@ const NAV: NavItem[] = [
   { href: "/search", labelKey: "search", icon: Search },
   { href: "/assistant", labelKey: "assistant", icon: Sparkles },
   { href: "/team", labelKey: "team", icon: ShieldCheck, show: canManageTeam },
+  // Billing is admin-only (manages the agency's SaaS subscription).
+  { href: "/billing", labelKey: "billing", icon: CreditCard, show: (r) => r === "admin" },
   // Settings is available to every role.
   { href: "/settings", labelKey: "settings", icon: Settings },
 ];

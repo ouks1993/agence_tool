@@ -64,6 +64,20 @@
       "when": 1782340364786,
       "tag": "0008_add_user_locale",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1782359271867,
+      "tag": "0009_thankful_sister_grimm",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1782359987381,
+      "tag": "0010_nervous_baron_strucker",
+      "breakpoints": true
     }
   ]
 }

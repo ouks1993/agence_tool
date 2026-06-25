@@ -18,6 +18,7 @@
  */
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { assertSafeDestructiveTarget } from "./guard";
 import {
   agency,
   agencyInvite,
@@ -96,6 +97,8 @@ async function seedAgency(id: string, slug: string): Promise<Seeded> {
 }
 
 async function main() {
+  assertSafeDestructiveTarget("the tenant-isolation test");
+
   // Clean any leftovers from a previous failed run.
   await db.delete(agency).where(eq(agency.id, TA));
   await db.delete(agency).where(eq(agency.id, TB));

@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import type { ActionResult } from "@/lib/actions/types";
+import { createBillingCustomer, isBillingConfigured } from "@/lib/billing/stripe";
 import { db } from "@/lib/db";
 import { createInvite } from "@/lib/invites";
 import {
@@ -13,6 +14,9 @@ import {
   VIEW_AS_USER_COOKIE,
 } from "@/lib/permissions";
 import { agency, user } from "@/lib/schema";
+
+/** Length of the free trial granted to a newly provisioned agency. */
+const TRIAL_DAYS = 14;
 
 /** A basic email shape check — good enough to reject obvious typos at the boundary. */
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -107,6 +111,29 @@ export async function createAgency(input: {
 
   if (!newAgency) {
     return { ok: false, error: "Failed to create the agency." };
+  }
+
+  // Provision SaaS billing (best-effort): create a Stripe customer scoped to this
+  // agency and start a trial. A billing failure must never block agency creation
+  // — it can be reconciled later from the platform console.
+  if (isBillingConfigured()) {
+    try {
+      const customer = await createBillingCustomer({
+        name,
+        email: adminEmail,
+        agencyId: newAgency.id,
+      });
+      await db
+        .update(agency)
+        .set({
+          stripeCustomerId: customer.id,
+          subscriptionStatus: "trialing",
+          trialEndsAt: new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000),
+        })
+        .where(eq(agency.id, newAgency.id));
+    } catch (err) {
+      console.error("Stripe customer creation failed for new agency:", err);
+    }
   }
 
   // Invite the agency's first admin. The token is surfaced to the platform admin so

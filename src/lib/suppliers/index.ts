@@ -1,39 +1,63 @@
 import { AmadeusSupplier } from "./amadeus";
+import { HotelbedsSupplier } from "./hotelbeds";
 import { MockSupplier } from "./mock";
 import type { SupplierProvider } from "./types";
 
+/**
+ * Supplier abstraction layer.
+ *
+ * Sourcing is split per vertical: flights run through Amadeus, hotels through
+ * Hotelbeds. Each falls back to the mock provider when its credentials are
+ * absent, so the UI/AI always get usable results in development.
+ */
+
 export * from "./types";
 
-/** True when live Amadeus credentials are configured. */
-export function isLiveSupplierConfigured(): boolean {
+/** True when live Amadeus (flights) credentials are configured. */
+export function isAmadeusConfigured(): boolean {
   return Boolean(
     process.env.AMADEUS_CLIENT_ID && process.env.AMADEUS_CLIENT_SECRET
   );
 }
 
-let cached: SupplierProvider | null = null;
+/** True when live Hotelbeds (hotels) credentials are configured. */
+export function isHotelbedsConfigured(): boolean {
+  return Boolean(process.env.HOTELBEDS_API_KEY && process.env.HOTELBEDS_SECRET);
+}
 
-/**
- * Returns the active supplier: Amadeus when credentials exist, otherwise the
- * mock provider with realistic sample data.
- */
-export function getSupplier(): SupplierProvider {
-  if (cached) return cached;
-  cached = isLiveSupplierConfigured()
-    ? new AmadeusSupplier()
-    : new MockSupplier();
-  return cached;
+/** True when any live provider is configured (either vertical). */
+export function isLiveSupplierConfigured(): boolean {
+  return isAmadeusConfigured() || isHotelbedsConfigured();
+}
+
+let flightCached: SupplierProvider | null = null;
+let hotelCached: SupplierProvider | null = null;
+
+/** The flights provider: Amadeus when configured, otherwise the mock. */
+export function getFlightSupplier(): SupplierProvider {
+  if (flightCached) return flightCached;
+  flightCached = isAmadeusConfigured() ? new AmadeusSupplier() : new MockSupplier();
+  return flightCached;
+}
+
+/** The hotels provider: Hotelbeds when configured, otherwise the mock. */
+export function getHotelSupplier(): SupplierProvider {
+  if (hotelCached) return hotelCached;
+  hotelCached = isHotelbedsConfigured() ? new HotelbedsSupplier() : new MockSupplier();
+  return hotelCached;
 }
 
 /**
  * Runs a supplier search but never throws — on any live-provider error it falls
- * back to the mock so the UI/AI always get usable results.
+ * back to the mock so the UI/AI always get usable results. The provider is
+ * chosen by the caller (flights vs hotels) via `getProvider`.
  */
 export async function safeSearch<T>(
+  getProvider: () => SupplierProvider,
   run: (provider: SupplierProvider) => Promise<T[]>,
   fallback: (provider: SupplierProvider) => Promise<T[]>
 ): Promise<{ results: T[]; source: string; degraded: boolean }> {
-  const provider = getSupplier();
+  const provider = getProvider();
   try {
     const results = await run(provider);
     return { results, source: provider.label, degraded: false };

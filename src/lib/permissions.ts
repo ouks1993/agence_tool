@@ -2,6 +2,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
+import { isSubscriptionBlocking } from "@/lib/billing/stripe";
 import { db } from "@/lib/db";
 import { canManageTeam, type UserRole } from "@/lib/domain";
 import { agency, user as userTable } from "@/lib/schema";
@@ -131,15 +132,20 @@ export async function requireAgencyUser(): Promise<AgencyUser> {
     redirect("/login?error=no_agency");
   }
 
-  // A suspended agency locks out its real members, but the platform admin can
-  // still "view as" a suspended agency for support/inspection.
+  // A suspended agency — or one whose subscription has lapsed — locks out its
+  // real members, but the platform admin can still "view as" any agency for
+  // support/inspection.
   if (!user.isPlatformAdmin) {
     const ag = await db.query.agency.findFirst({
       where: eq(agency.id, user.agencyId),
-      columns: { status: true },
+      columns: { status: true, subscriptionStatus: true },
     });
     if (!ag || ag.status !== "active") {
       redirect("/login?error=agency_suspended");
+    }
+    // NULL / trialing / active subscriptions pass; only hard-failed states block.
+    if (isSubscriptionBlocking(ag.subscriptionStatus)) {
+      redirect("/login?error=subscription_inactive");
     }
   }
 

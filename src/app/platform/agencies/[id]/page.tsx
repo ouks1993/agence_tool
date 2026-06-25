@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, asc, desc, eq } from "drizzle-orm";
-import { ArrowLeft, Eye, Mail, Users } from "lucide-react";
+import { ArrowLeft, CreditCard, Eye, Mail, Users } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusBadge } from "@/components/app/status-badge";
 import { AgencyStatusControls } from "@/components/platform/agency-status-controls";
@@ -27,6 +27,22 @@ function statusTone(status: string): string {
   return status === "active"
     ? "bg-green-500/15 text-green-600 dark:text-green-400"
     : "bg-red-500/15 text-red-600 dark:text-red-400";
+}
+
+/** Tone for a Stripe subscription status badge. */
+function subscriptionTone(status: string | null): string {
+  if (status === "active" || status === "trialing")
+    return "bg-green-500/15 text-green-600 dark:text-green-400";
+  if (status === "past_due" || status === "incomplete")
+    return "bg-amber-500/15 text-amber-600 dark:text-amber-400";
+  if (!status) return "bg-slate-500/15 text-slate-600 dark:text-slate-300";
+  return "bg-red-500/15 text-red-600 dark:text-red-400";
+}
+
+/** Human label for a subscription status (Stripe values are snake_case). */
+function subscriptionLabel(status: string | null): string {
+  if (!status) return "No subscription";
+  return status.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
 }
 
 export default async function AgencyDetailPage({
@@ -84,6 +100,10 @@ export default async function AgencyDetailPage({
           label={ag.status === "active" ? "Active" : "Suspended"}
           tone={statusTone(ag.status)}
         />
+        <StatusBadge
+          label={subscriptionLabel(ag.subscriptionStatus)}
+          tone={subscriptionTone(ag.subscriptionStatus)}
+        />
         <form action={viewAsAgency.bind(null, ag.id)}>
           <Button type="submit" size="sm" variant="outline">
             <Eye className="mr-1 size-4" /> View agency app
@@ -108,6 +128,40 @@ export default async function AgencyDetailPage({
           <div className="space-y-1">
             <p className="text-muted-foreground text-xs">Created</p>
             <p className="font-medium">{formatDate(ag.createdAt)}</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <CreditCard className="size-4" /> Subscription
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-3">
+          <div className="space-y-1">
+            <p className="text-muted-foreground text-xs">Status</p>
+            <p className="font-medium">{subscriptionLabel(ag.subscriptionStatus)}</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-muted-foreground text-xs">
+              {ag.subscriptionStatus === "trialing" ? "Trial ends" : "Renews"}
+            </p>
+            <p className="font-medium">
+              {ag.subscriptionStatus === "trialing"
+                ? ag.trialEndsAt
+                  ? formatDate(ag.trialEndsAt)
+                  : "—"
+                : ag.currentPeriodEnd
+                  ? formatDate(ag.currentPeriodEnd)
+                  : "—"}
+            </p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-muted-foreground text-xs">Stripe customer</p>
+            <p className="truncate font-medium" title={ag.stripeCustomerId ?? undefined}>
+              {ag.stripeCustomerId ?? "Not provisioned"}
+            </p>
           </div>
         </CardContent>
       </Card>

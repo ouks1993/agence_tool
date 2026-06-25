@@ -13,7 +13,13 @@ import { createBooking, addBookingItem, addTraveller } from "@/lib/actions/booki
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { client as clientTable, booking as bookingTable } from "@/lib/schema";
-import { safeSearch, type FlightOffer, type HotelOffer } from "@/lib/suppliers";
+import {
+  getFlightSupplier,
+  getHotelSupplier,
+  safeSearch,
+  type FlightOffer,
+  type HotelOffer,
+} from "@/lib/suppliers";
 
 const messagePartSchema = z.object({
   type: z.string(),
@@ -88,6 +94,7 @@ export async function POST(req: Request) {
         execute: async (a) => {
           const params = { ...a, currency: "EUR" };
           const { results, source } = await safeSearch<FlightOffer>(
+            getFlightSupplier,
             (p) => p.searchFlights(params),
             (m) => m.searchFlights(params)
           );
@@ -118,6 +125,7 @@ export async function POST(req: Request) {
         execute: async (a) => {
           const params = { ...a, currency: "EUR" };
           const { results, source } = await safeSearch<HotelOffer>(
+            getHotelSupplier,
             (p) => p.searchHotels(params),
             (m) => m.searchHotels(params)
           );

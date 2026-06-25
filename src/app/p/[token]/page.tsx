@@ -1,30 +1,32 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { and, asc, eq } from "drizzle-orm";
-import { Compass, Download } from "lucide-react";
-import { PrintButton } from "@/components/products/print-button";
+import { asc, eq } from "drizzle-orm";
+import { CheckCircle2, Compass, Download, XCircle } from "lucide-react";
+import { ProposalSignForm } from "@/components/products/proposal-sign-form";
 import { Button } from "@/components/ui/button";
 import { APP_NAME, APP_TAGLINE } from "@/lib/config";
 import { db } from "@/lib/db";
 import { PRODUCT_ITEM_TYPE_META, type ProductItemType } from "@/lib/domain";
 import { formatDate, formatMoney } from "@/lib/format";
-import { requireAgencyUser } from "@/lib/permissions";
 import { product } from "@/lib/schema";
 
-export const metadata = { title: "Proposal" };
+export const metadata = { title: "Proposal", robots: { index: false } };
 
-export default async function ProposalView({
+/** True when the proposal's validity date has passed. */
+function isExpired(validUntil: Date | null): boolean {
+  if (!validUntil) return false;
+  return validUntil.getTime() < Date.now();
+}
+
+export default async function PublicProposal({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ token: string }>;
 }) {
-  // Auth-protected: only signed-in agents preview the client-facing proposal,
-  // and only for proposals belonging to their own agency.
-  const user = await requireAgencyUser();
-  const { id } = await params;
+  const { token } = await params;
 
   const p = await db.query.product.findFirst({
-    where: and(eq(product.id, id), eq(product.agencyId, user.agencyId)),
+    where: eq(product.shareToken, token),
     with: {
       client: { columns: { name: true, email: true } },
       items: { orderBy: (t) => [asc(t.sortOrder)] },
@@ -33,20 +35,44 @@ export default async function ProposalView({
   if (!p) notFound();
 
   const totalPrice = parseFloat(p.totalPrice || "0");
+  const expired = isExpired(p.validUntil);
+  const open = !p.acceptedAt && !p.declinedAt && !expired;
 
   return (
-    <div className="bg-muted/30 min-h-screen py-8 print:bg-white print:py-0">
+    <div className="bg-muted/30 min-h-screen py-8">
       <div className="mx-auto max-w-3xl px-4">
-        <div className="mb-4 flex justify-end gap-2">
+        <div className="mb-4 flex justify-end">
           <Button asChild variant="outline" size="sm">
-            <Link href={`/proposal/${id}/pdf`} target="_blank">
+            <Link href={`/p/${token}/pdf`} target="_blank">
               <Download className="mr-1 size-4" /> Download PDF
             </Link>
           </Button>
-          <PrintButton />
         </div>
 
-        <div className="bg-card rounded-lg border p-8 shadow-sm print:border-0 print:shadow-none">
+        {/* Acceptance / decline status banner */}
+        {p.acceptedAt && (
+          <div className="mb-4 flex items-center gap-2 rounded-lg border border-green-500/30 bg-green-500/10 p-4 text-sm text-green-700 dark:text-green-400">
+            <CheckCircle2 className="size-5 shrink-0" />
+            <span>
+              Accepted{p.signerName ? ` by ${p.signerName}` : ""} on{" "}
+              {formatDate(p.acceptedAt)}.
+            </span>
+          </div>
+        )}
+        {p.declinedAt && (
+          <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-700 dark:text-red-400">
+            <XCircle className="size-5 shrink-0" />
+            <span>This proposal was declined on {formatDate(p.declinedAt)}.</span>
+          </div>
+        )}
+        {expired && !p.acceptedAt && !p.declinedAt && (
+          <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-400">
+            This proposal expired on {formatDate(p.validUntil)}. Please ask for an
+            updated one.
+          </div>
+        )}
+
+        <div className="bg-card rounded-lg border p-8 shadow-sm">
           {/* Header */}
           <div className="flex items-start justify-between border-b pb-6">
             <div className="flex items-center gap-3">
@@ -75,7 +101,9 @@ export default async function ProposalView({
                   · {formatDate(p.startDate)} → {formatDate(p.endDate)}
                 </span>
               )}
-              <span>· {p.paxCount} traveller{p.paxCount === 1 ? "" : "s"}</span>
+              <span>
+                · {p.paxCount} traveller{p.paxCount === 1 ? "" : "s"}
+              </span>
             </div>
           </div>
 
@@ -98,12 +126,15 @@ export default async function ProposalView({
                 {p.items.map((item) => {
                   const linePrice = parseFloat(item.unitPrice || "0") * item.quantity;
                   return (
-                    <li key={item.id} className="flex items-start justify-between gap-4 py-3">
+                    <li
+                      key={item.id}
+                      className="flex items-start justify-between gap-4 py-3"
+                    >
                       <div>
                         <p className="font-medium">{item.title}</p>
                         <p className="text-muted-foreground text-xs">
-                          {PRODUCT_ITEM_TYPE_META[item.type as ProductItemType]?.label ??
-                            item.type}
+                          {PRODUCT_ITEM_TYPE_META[item.type as ProductItemType]
+                            ?.label ?? item.type}
                           {item.description ? ` · ${item.description}` : ""}
                         </p>
                       </div>
@@ -133,6 +164,13 @@ export default async function ProposalView({
               subject to availability at the time of booking.
             </p>
           </div>
+
+          {/* Accept & sign */}
+          {open && (
+            <div className="mt-8 border-t pt-6">
+              <ProposalSignForm token={token} defaultEmail={p.client?.email ?? null} />
+            </div>
+          )}
         </div>
       </div>
     </div>
