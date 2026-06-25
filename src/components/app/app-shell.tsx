@@ -11,6 +11,7 @@ import {
   ClipboardList,
   Users,
   Search,
+  BedDouble,
   Sparkles,
   ShieldCheck,
   CreditCard,
@@ -61,6 +62,7 @@ const NAV: NavItem[] = [
   { href: "/operations", labelKey: "operations", icon: ClipboardList },
   { href: "/clients", labelKey: "clients", icon: Users },
   { href: "/search", labelKey: "search", icon: Search },
+  { href: "/hotels", labelKey: "hotels", icon: BedDouble },
   { href: "/assistant", labelKey: "assistant", icon: Sparkles },
   { href: "/team", labelKey: "team", icon: ShieldCheck, show: canManageTeam },
   // Billing is admin-only (manages the agency's SaaS subscription).

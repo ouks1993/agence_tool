@@ -6,6 +6,7 @@ import type {
   FlightSearchParams,
   HotelDetails,
   HotelOffer,
+  HotelRoomRate,
   HotelSearchParams,
   SupplierProvider,
 } from "./types";
@@ -19,6 +20,8 @@ type HbContent = {
     name?: { content?: string };
     description?: { content?: string };
     category?: { content?: string };
+    /** The list endpoint returns the rating as a code, e.g. "3EST". */
+    categoryCode?: string;
     accommodationType?: { typeDescription?: string };
     address?: { content?: string };
     city?: { content?: string };
@@ -52,7 +55,11 @@ export async function getHotelbedsContent(code: string): Promise<HotelDetails> {
   );
   const h = json.hotel;
   if (!h) throw new Error("Hotel content not found");
+  return mapHbContent(h);
+}
 
+/** Maps one Hotelbeds content hotel (single- or list-endpoint shape) to HotelDetails. */
+function mapHbContent(h: NonNullable<HbContent["hotel"]>): HotelDetails {
   const images = (h.images ?? [])
     .slice()
     .sort((a, b) => (a.visualOrder ?? a.order ?? 99) - (b.visualOrder ?? b.order ?? 99))
@@ -78,7 +85,8 @@ export async function getHotelbedsContent(code: string): Promise<HotelDetails> {
   return {
     code: String(h.code),
     name: h.name?.content ?? "",
-    category: h.category?.content,
+    // Single endpoint returns category.content; list endpoint returns categoryCode.
+    category: h.category?.content ?? h.categoryCode,
     hotelType: h.accommodationType?.typeDescription,
     description: h.description?.content,
     address: h.address?.content,
@@ -94,6 +102,23 @@ export async function getHotelbedsContent(code: string): Promise<HotelDetails> {
     facilities,
     images,
   };
+}
+
+/**
+ * Fetches a page of FULL hotel content for one destination (used by the content
+ * sync). One call returns up to `to - from + 1` hotels with all their images and
+ * facilities, so a handful of calls caches an entire destination.
+ */
+export async function fetchHotelbedsContentPage(
+  destinationCode: string,
+  from: number,
+  to: number
+): Promise<HotelDetails[]> {
+  const json = await hotelbeds<{ hotels?: NonNullable<HbContent["hotel"]>[] }>(
+    `/hotel-content-api/1.0/hotels?destinationCode=${destinationCode}` +
+      `&language=ENG&fields=all&from=${from}&to=${to}`
+  );
+  return (json.hotels ?? []).map(mapHbContent);
 }
 
 /**
@@ -148,12 +173,15 @@ async function hotelbeds<T>(
   return (await res.json()) as T;
 }
 
+type HbCancellationPolicy = { from?: string; amount?: string };
 type HbRate = {
   rateKey?: string;
   net?: string;
   boardName?: string;
   rateClass?: string;
-  cancellationPolicies?: unknown[];
+  adults?: number;
+  children?: number;
+  cancellationPolicies?: HbCancellationPolicy[];
 };
 type HbRoom = { code?: string; name?: string; rates?: HbRate[] };
 type HbHotel = {
@@ -207,10 +235,170 @@ export async function getHotelbedsContentBatch(
   return map;
 }
 
+/**
+ * Fetches every bookable room+rate for ONE hotel, priced for the supplied
+ * occupancy. Re-run whenever occupancy or dates change so the details-page room
+ * table always reflects the live supplier price for that exact party.
+ */
+export async function getHotelbedsRates(
+  params: HotelSearchParams & { hotelCode: string }
+): Promise<HotelRoomRate[]> {
+  const nights = nightsBetween(params.checkIn, params.checkOut);
+  const json = await hotelbeds<HbAvailability>("/hotel-api/1.0/hotels", {
+    method: "POST",
+    body: {
+      stay: { checkIn: params.checkIn, checkOut: params.checkOut },
+      occupancies: buildOccupancies(params),
+      hotels: { hotel: [Number(params.hotelCode)] },
+    },
+  });
+
+  const hotel = json.hotels?.hotels?.[0];
+  if (!hotel) return [];
+  const currency = hotel.currency ?? params.currency ?? "EUR";
+
+  const rates: HotelRoomRate[] = [];
+  for (const room of hotel.rooms ?? []) {
+    for (const rate of room.rates ?? []) {
+      const net = parseFloat(rate.net ?? "0");
+      if (!(net > 0)) continue;
+      rates.push({
+        id: rate.rateKey ?? `${room.code}-${rate.boardName}-${net}`,
+        rateKey: rate.rateKey,
+        roomCode: room.code,
+        roomName: room.name ?? "Room",
+        boardType: rate.boardName,
+        refundable: rate.rateClass !== "NRF",
+        adults: rate.adults ?? Math.max(1, params.adults),
+        children: rate.children ?? (params.childAges?.length ?? 0),
+        priceTotal: net,
+        pricePerNight: Math.round((net / nights) * 100) / 100,
+        nights,
+        currency,
+        cancellationDeadline: cancellationDeadline(rate),
+      });
+    }
+  }
+  return rates.sort((a, b) => a.priceTotal - b.priceTotal);
+}
+
 /** "4 EST" / "4 STARS" → 4. */
 function parseStars(category?: string): number {
   const m = category ? /(\d)/.exec(category) : null;
   return m ? parseInt(m[1]!, 10) : 0;
+}
+
+/**
+ * Builds the Hotelbeds `occupancies` block from the search params. Children are
+ * sent as a count plus a `paxes` list carrying each child's age, because the
+ * rate (and therefore the price) depends on the ages, not just the headcount.
+ */
+function buildOccupancies(params: HotelSearchParams) {
+  const childAges = params.childAges ?? [];
+  return [
+    {
+      rooms: params.rooms ?? 1,
+      adults: Math.max(1, params.adults),
+      children: childAges.length,
+      ...(childAges.length
+        ? { paxes: childAges.map((age) => ({ type: "CH", age })) }
+        : {}),
+    },
+  ];
+}
+
+/** Earliest free-cancellation deadline across a rate's policies, ISO string. */
+function cancellationDeadline(rate: HbRate): string | undefined {
+  const froms = (rate.cancellationPolicies ?? [])
+    .map((p) => p.from)
+    .filter((x): x is string => Boolean(x))
+    .sort();
+  return froms[0];
+}
+
+/** A rough 0–10 guest score derived deterministically from rating + code. */
+export function estimatedReviewScore(stars: number, code: number): number {
+  const base = 6.5 + stars * 0.55; // 3★≈8.1 … 5★≈9.2
+  const jitter = ((code % 7) - 3) * 0.1;
+  return Math.min(9.9, Math.max(6, Math.round((base + jitter) * 10) / 10));
+}
+
+/** Parses a Hotelbeds category string/code ("4 STARS", "3EST") to a star count. */
+export function parseStarsValue(category?: string): number {
+  return parseStars(category);
+}
+
+/** Plausible, deterministic nightly estimate when no live rate is available. */
+export function estimatedNightly(stars: number, code: number): number {
+  const base = 55 + stars * stars * 13;
+  const jitter = 0.85 + ((code % 30) / 30) * 0.5;
+  return Math.round(base * jitter);
+}
+
+type HbContentListHotel = {
+  code: number;
+  name?: { content?: string };
+  categoryCode?: string;
+  accommodationType?: { typeDescription?: string };
+  address?: { content?: string };
+  city?: { content?: string };
+  coordinates?: { latitude?: number; longitude?: number };
+  images?: Array<{ path?: string; order?: number; visualOrder?: number }>;
+};
+
+/**
+ * Lists REAL hotels for a destination from the Content API — names, stars,
+ * address, coordinates and real photos — independent of availability. Used as a
+ * fallback when the availability/booking API is unavailable (e.g. quota), so the
+ * results still show real hotels and real images. Prices are estimated and
+ * flagged (`estimated: true`) because no live rate is returned here.
+ */
+export async function searchHotelbedsContentHotels(
+  params: HotelSearchParams
+): Promise<HotelOffer[]> {
+  const destinationCode = (params.cityCode || params.city).toUpperCase();
+  if (!destinationCode) return [];
+  const nights = nightsBetween(params.checkIn, params.checkOut);
+  const rooms = Math.max(1, params.rooms ?? 1);
+  const max = Math.min(params.maxResults ?? 30, 50);
+
+  const json = await hotelbeds<{ hotels?: HbContentListHotel[] }>(
+    `/hotel-content-api/1.0/hotels?destinationCode=${destinationCode}` +
+      `&language=ENG&fields=name,categoryCode,accommodationType,address,city,coordinates,images` +
+      `&from=1&to=${max}`
+  );
+
+  const offers: HotelOffer[] = [];
+  for (const h of json.hotels ?? []) {
+    const first = (h.images ?? [])
+      .slice()
+      .sort((a, b) => (a.visualOrder ?? a.order ?? 99) - (b.visualOrder ?? b.order ?? 99))[0];
+    // Only surface hotels we can actually show a photo for.
+    if (!first?.path) continue;
+    const stars = parseStars(h.categoryCode);
+    const perNight = estimatedNightly(stars, h.code) * rooms;
+    offers.push({
+      id: `hotelbeds-ct-${h.code}`,
+      source: "hotelbeds",
+      name: h.name?.content ?? `Hotel ${h.code}`,
+      stars,
+      city: h.city?.content ?? params.city,
+      address: h.address?.content,
+      refundable: true,
+      pricePerNight: perNight,
+      priceTotal: perNight * nights,
+      nights,
+      currency: params.currency ?? "EUR",
+      thumbnail: `${PHOTO_BASE}${first.path}`,
+      hotelType: h.accommodationType?.typeDescription,
+      hotelCode: String(h.code),
+      latitude: h.coordinates?.latitude,
+      longitude: h.coordinates?.longitude,
+      reviewScore: estimatedReviewScore(stars, h.code),
+      estimated: true,
+    });
+  }
+  return offers.sort((a, b) => b.stars - a.stars);
 }
 
 export class HotelbedsSupplier implements SupplierProvider {
@@ -231,13 +419,7 @@ export class HotelbedsSupplier implements SupplierProvider {
 
     const body = {
       stay: { checkIn: params.checkIn, checkOut: params.checkOut },
-      occupancies: [
-        {
-          rooms: params.rooms ?? 1,
-          adults: Math.max(1, params.adults),
-          children: 0,
-        },
-      ],
+      occupancies: buildOccupancies(params),
       destination: { code: destinationCode },
       ...(params.minStars ? { filter: { minCategory: params.minStars } } : {}),
     };
@@ -278,6 +460,7 @@ export class HotelbedsSupplier implements SupplierProvider {
         currency: h.currency ?? params.currency ?? "EUR",
         rateKey: best?.rate.rateKey,
         hotelCode: String(h.code),
+        reviewScore: estimatedReviewScore(parseStars(h.categoryName), h.code),
       });
     }
     return offers.sort((a, b) => a.priceTotal - b.priceTotal);

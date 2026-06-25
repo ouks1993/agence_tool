@@ -65,10 +65,14 @@ export type HotelSearchParams = {
   checkOut: string;
   adults: number;
   rooms?: number | undefined;
+  /** Ages (years) of each child in the party — drives occupancy pricing. */
+  childAges?: number[] | undefined;
   currency?: string | undefined;
   /** Minimum star rating filter. */
   minStars?: number | undefined;
   maxResults?: number | undefined;
+  /** Restrict availability to a single hotel code (used by the details page). */
+  hotelCode?: string | undefined;
 };
 
 export type HotelOffer = {
@@ -97,6 +101,41 @@ export type HotelOffer = {
   rateKey?: string | undefined;
   /** Provider hotel code, used to fetch rich content (photos, description). */
   hotelCode?: string | undefined;
+  /** Latitude/longitude when known, for distance-from-centre sorting/filters. */
+  latitude?: number | undefined;
+  longitude?: number | undefined;
+  /** 0–10 guest review score (estimated from rating when no live review feed). */
+  reviewScore?: number | undefined;
+  /**
+   * True when the price is an estimate (real hotel + photos sourced from the
+   * Content API, but live availability/pricing was unavailable).
+   */
+  estimated?: boolean | undefined;
+};
+
+/**
+ * A single bookable room+rate for one hotel, priced for a specific occupancy.
+ * Powers the room-availability table on the details page; re-fetched whenever
+ * occupancy or dates change so the price always reflects the live supplier rate.
+ */
+export type HotelRoomRate = {
+  /** Stable id for React keys (rateKey when present, else a composed string). */
+  id: string;
+  /** Opaque rate identifier required to book this exact rate (Hotelbeds). */
+  rateKey?: string | undefined;
+  roomCode?: string | undefined;
+  roomName: string;
+  boardType?: string | undefined;
+  refundable: boolean;
+  /** Occupancy this rate was priced for. */
+  adults: number;
+  children: number;
+  priceTotal: number;
+  pricePerNight: number;
+  nights: number;
+  currency: string;
+  /** Free-cancellation deadline (ISO) when the rate is refundable. */
+  cancellationDeadline?: string | undefined;
 };
 
 /** A single image with an optional room association. */

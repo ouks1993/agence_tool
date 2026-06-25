@@ -78,6 +78,13 @@
       "when": 1782359987381,
       "tag": "0010_nervous_baron_strucker",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1782423053621,
+      "tag": "0011_far_aaron_stack",
+      "breakpoints": true
     }
   ]
 }

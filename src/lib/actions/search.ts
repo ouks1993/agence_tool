@@ -4,19 +4,26 @@ import { z } from "zod";
 import type { ActionResult } from "@/lib/actions/types";
 import { requireUser } from "@/lib/permissions";
 import {
+  getHotelbedsRates,
   getFlightSupplier,
   getHotelSupplier,
-  getHotelbedsContent,
   getHotelbedsContentBatch,
   isDuffelConfigured,
   isHotelbedsConfigured,
+  mockHotelRates,
   safeSearch,
   searchDuffelPlaces,
+  searchHotelbedsContentHotels,
   type AirportSuggestion,
   type FlightOffer,
   type HotelDetails,
   type HotelOffer,
+  type HotelRoomRate,
 } from "@/lib/suppliers";
+import {
+  getHotelContentCached,
+  listHotelOffersCached,
+} from "@/lib/suppliers/content-cache";
 
 /** Small built-in airport list so autocomplete works without a live provider. */
 const AIRPORTS_FALLBACK: AirportSuggestion[] = [
@@ -87,6 +94,8 @@ const hotelSchema = z.object({
   checkOut: z.string().min(1, "Check-out required"),
   adults: z.coerce.number().int().min(1).max(9).default(2),
   rooms: z.coerce.number().int().min(1).max(9).default(1),
+  /** Ages of each child (0–17). Length is the child count sent to the supplier. */
+  childAges: z.array(z.coerce.number().int().min(0).max(17)).max(9).default([]),
   minStars: z.coerce.number().int().min(0).max(5).optional(),
   currency: z.string().default("EUR"),
 });
@@ -105,6 +114,8 @@ export type HotelSearchResult = {
   results: HotelOffer[];
   source: string;
   degraded: boolean;
+  /** True when hotels/photos are live but rates are estimated (no live pricing). */
+  estimatedPricing?: boolean;
 };
 
 export async function searchFlightsAction(
@@ -200,23 +211,82 @@ export async function searchHotelDestinationsAction(
   ).slice(0, 8);
 }
 
-/** Loads rich content (photos, description, address) for one hotel. */
+/** Loads rich content (photos, description, address) for one hotel, cache-first. */
 export async function getHotelDetailsAction(
   code: string
 ): Promise<ActionResult<HotelDetails>> {
   await requireUser();
   if (!code) return { ok: false, error: "Missing hotel code" };
-  if (!isHotelbedsConfigured()) {
-    return { ok: false, error: "Hotel details require a live provider." };
-  }
   try {
-    return { ok: true, data: await getHotelbedsContent(code) };
+    const data = await getHotelContentCached(code);
+    if (!data) return { ok: false, error: "Hotel details not available." };
+    return { ok: true, data };
   } catch (error) {
     return {
       ok: false,
       error: error instanceof Error ? error.message : "Could not load hotel details.",
     };
   }
+}
+
+const roomsSchema = z.object({
+  hotelCode: z.string().trim().min(1, "Hotel code required"),
+  cityCode: z.string().trim().optional(),
+  city: z.string().trim().default(""),
+  checkIn: z.string().min(1, "Check-in required"),
+  checkOut: z.string().min(1, "Check-out required"),
+  adults: z.coerce.number().int().min(1).max(9).default(2),
+  rooms: z.coerce.number().int().min(1).max(9).default(1),
+  childAges: z.array(z.coerce.number().int().min(0).max(17)).max(9).default([]),
+  currency: z.string().default("EUR"),
+});
+
+export type HotelRoomsResult = {
+  ok: boolean;
+  error?: string;
+  rooms: HotelRoomRate[];
+  degraded: boolean;
+};
+
+/**
+ * Re-prices every room of one hotel for a specific occupancy + date range.
+ * Called on the details page whenever adults / children / child ages / rooms /
+ * dates change, so the room table always reflects the live supplier price.
+ */
+export async function searchHotelRoomsAction(
+  input: z.input<typeof roomsSchema>
+): Promise<HotelRoomsResult> {
+  await requireUser();
+  const parsed = roomsSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid request",
+      rooms: [],
+      degraded: false,
+    };
+  }
+  const p = parsed.data;
+  const params = {
+    hotelCode: p.hotelCode,
+    city: p.city,
+    cityCode: p.cityCode || undefined,
+    checkIn: p.checkIn,
+    checkOut: p.checkOut,
+    adults: p.adults,
+    rooms: p.rooms,
+    childAges: p.childAges,
+    currency: p.currency,
+  };
+
+  if (isHotelbedsConfigured()) {
+    try {
+      return { ok: true, rooms: await getHotelbedsRates(params), degraded: false };
+    } catch (error) {
+      console.error("Hotel rates failed, falling back to sample rooms:", error);
+    }
+  }
+  return { ok: true, rooms: mockHotelRates(params), degraded: true };
 }
 
 export async function searchHotelsAction(
@@ -241,18 +311,41 @@ export async function searchHotelsAction(
     checkOut: p.checkOut,
     adults: p.adults,
     rooms: p.rooms,
+    childAges: p.childAges,
     minStars: p.minStars,
     currency: p.currency,
   };
-  const { results, source, degraded } = await safeSearch<HotelOffer>(
+  let { results, source, degraded } = await safeSearch<HotelOffer>(
     getHotelSupplier,
     (provider) => provider.searchHotels(buildParams),
     (mock) => mock.searchHotels(buildParams)
   );
+  let estimatedPricing = false;
 
-  // Show a focused page and enrich those with photo thumbnails in one batch call.
+  // Availability (prices) and Content (photos) are separate Hotelbeds APIs with
+  // separate quotas. If availability degraded to mock but Hotelbeds is
+  // configured, fall back to REAL hotels from the Content API — real names and
+  // real photos — with estimated rates, instead of fully synthetic mock hotels.
+  if (degraded && isHotelbedsConfigured()) {
+    try {
+      // Cache-first (quota-free); fall back to a live Content call on a miss.
+      let real = await listHotelOffersCached(buildParams);
+      if (real.length === 0) real = await searchHotelbedsContentHotels(buildParams);
+      if (real.length > 0) {
+        results = real;
+        source = "Hotelbeds (live photos · estimated rates)";
+        degraded = false;
+        estimatedPricing = true;
+      }
+    } catch (error) {
+      console.error("Content hotel list failed, keeping sample data:", error);
+    }
+  }
+
+  // Show a focused page. Live-availability results carry no photo yet, so enrich
+  // them in one batch call; Content-API results already include thumbnails.
   let top = results.slice(0, 40);
-  if (!degraded && isHotelbedsConfigured()) {
+  if (!degraded && !estimatedPricing && isHotelbedsConfigured()) {
     const codes = top.map((o) => o.hotelCode).filter(Boolean) as string[];
     if (codes.length > 0) {
       try {
@@ -267,5 +360,5 @@ export async function searchHotelsAction(
     }
   }
 
-  return { ok: true, results: top, source, degraded };
+  return { ok: true, results: top, source, degraded, estimatedPricing };
 }

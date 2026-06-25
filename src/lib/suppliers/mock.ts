@@ -3,12 +3,23 @@ import type {
   FlightOffer,
   FlightSearchParams,
   FlightSegment,
+  HotelDetails,
   HotelOffer,
+  HotelRoomRate,
   HotelSearchParams,
   SupplierProvider,
   CabinClass,
   BookingConfirmation,
 } from "./types";
+
+/**
+ * Stable, real placeholder photo for sample data. picsum.photos returns a real
+ * image keyed by the seed, so the same hotel/room always shows the same picture
+ * (and the live Hotelbeds CDN is used instead whenever availability succeeds).
+ */
+function mockPhoto(seed: string, w = 800, h = 600): string {
+  return `https://picsum.photos/seed/${encodeURIComponent(seed)}/${w}/${h}`;
+}
 
 // --- deterministic RNG so the same search returns stable results ------------
 
@@ -174,6 +185,7 @@ export class MockSupplier implements SupplierProvider {
     const currency = params.currency ?? "EUR";
     const nights = nightsBetween(params.checkIn, params.checkOut);
     const rooms = Math.max(1, params.rooms ?? 1);
+    const occ = occupancyMultiplier(params);
     const count = Math.min(params.maxResults ?? 8, 14);
     const seed = hashString(`${city.toLowerCase()}-${params.checkIn}-${params.checkOut}`);
     const rand = mulberry32(seed);
@@ -184,7 +196,7 @@ export class MockSupplier implements SupplierProvider {
       const brand = HOTEL_BRANDS[Math.floor(rand() * HOTEL_BRANDS.length)];
       const suffix = HOTEL_SUFFIX[Math.floor(rand() * HOTEL_SUFFIX.length)];
       const pricePerNight = Math.round(
-        (45 + stars * stars * 11) * (0.8 + rand() * 0.8) * rooms
+        (45 + stars * stars * 11) * (0.8 + rand() * 0.8) * rooms * occ
       );
       if (params.minStars && stars < params.minStars) continue;
       offers.push({
@@ -201,6 +213,9 @@ export class MockSupplier implements SupplierProvider {
         nights,
         currency,
         thumbnailColor: HOTEL_COLORS[Math.floor(rand() * HOTEL_COLORS.length)],
+        thumbnail: mockPhoto(`mock-${seed}-${i}-0`, 400, 300),
+        hotelCode: `mock-${seed}-${i}`,
+        reviewScore: Math.min(9.8, 6.8 + stars * 0.5 + rand() * 0.4),
       });
     }
     return offers.sort((a, b) => a.priceTotal - b.priceTotal);
@@ -221,4 +236,112 @@ export class MockSupplier implements SupplierProvider {
 
 function mockRef(prefix: string): string {
   return `MK-${prefix}-${Date.now().toString(36).toUpperCase()}`;
+}
+
+/**
+ * Price scales with the party: each adult beyond the first adds ~85%, and each
+ * child is charged by age (older children cost more). Keeps mock pricing
+ * visibly responsive to occupancy so the dynamic-pricing UX is demoable offline.
+ */
+function occupancyMultiplier(params: HotelSearchParams): number {
+  const adults = Math.max(1, params.adults);
+  const adultFactor = 1 + (adults - 1) * 0.85;
+  const childFactor = (params.childAges ?? []).reduce(
+    (sum, age) => sum + (age <= 2 ? 0.1 : age <= 11 ? 0.45 : 0.85),
+    0
+  );
+  return adultFactor + childFactor;
+}
+
+const MOCK_ROOMS: Array<{ code: string; name: string }> = [
+  { code: "DBL.ST", name: "Classic Double" },
+  { code: "TWN.ST", name: "Twin Room" },
+  { code: "DBL.SU", name: "Superior Double" },
+  { code: "FAM.ST", name: "Family Room" },
+  { code: "SUI.JS", name: "Junior Suite" },
+];
+
+/**
+ * Rich sample content for one mock hotel: a set of hotel photos plus a few
+ * room-tagged photos (keyed to the same room codes mockHotelRates emits), so the
+ * details-page gallery and per-room images render even without a live provider.
+ */
+export function mockHotelContent(
+  code: string,
+  name: string,
+  city: string
+): HotelDetails {
+  const hotelImages = Array.from({ length: 6 }, (_, i) => ({
+    url: mockPhoto(`${code}-h${i}`),
+  }));
+  const roomImages = MOCK_ROOMS.map((room, i) => ({
+    url: mockPhoto(`${code}-${room.code}-${i}`),
+    roomCode: room.code,
+  }));
+  return {
+    code,
+    name,
+    category: undefined,
+    hotelType: "Hotel",
+    description: `${name} is a sample property in ${city || "the city centre"}, shown while live supplier data is unavailable. Photos and amenities are illustrative placeholders.`,
+    address: `Avenue ${name.split(" ")[0] ?? "Central"}, ${city}`,
+    city,
+    country: undefined,
+    postalCode: undefined,
+    phone: undefined,
+    email: undefined,
+    web: undefined,
+    latitude: undefined,
+    longitude: undefined,
+    segments: ["City centre", "Sample data"],
+    facilities: [
+      "Free WiFi",
+      "Swimming pool",
+      "Air conditioning",
+      "24-hour reception",
+      "Restaurant",
+      "Fitness centre",
+      "Family rooms",
+      "Airport shuttle",
+    ],
+    images: [...hotelImages, ...roomImages],
+  };
+}
+
+/** Deterministic room+rate list for one mock hotel, priced for the occupancy. */
+export function mockHotelRates(
+  params: HotelSearchParams & { hotelCode: string }
+): HotelRoomRate[] {
+  const nights = nightsBetween(params.checkIn, params.checkOut);
+  const currency = params.currency ?? "EUR";
+  const occ = occupancyMultiplier(params);
+  const seed = hashString(`${params.hotelCode}-${params.checkIn}-${params.checkOut}`);
+  const rand = mulberry32(seed);
+  const checkIn = new Date(params.checkIn);
+  const deadline = new Date(checkIn.getTime() - 2 * 86400000);
+
+  const rooms: HotelRoomRate[] = [];
+  MOCK_ROOMS.forEach((room, ri) => {
+    const boards = [BOARD_TYPES[0]!, BOARD_TYPES[1 + Math.floor(rand() * 3)]!];
+    boards.forEach((board, bi) => {
+      const base = (60 + ri * 28) * (1 + bi * 0.35) * (0.9 + rand() * 0.3);
+      const perNight = Math.round(base * occ);
+      const refundable = rand() < 0.65;
+      rooms.push({
+        id: `mock-rate-${seed}-${ri}-${bi}`,
+        roomCode: room.code,
+        roomName: room.name,
+        boardType: board,
+        refundable,
+        adults: Math.max(1, params.adults),
+        children: params.childAges?.length ?? 0,
+        priceTotal: perNight * nights,
+        pricePerNight: perNight,
+        nights,
+        currency,
+        cancellationDeadline: refundable ? deadline.toISOString() : undefined,
+      });
+    });
+  });
+  return rooms.sort((a, b) => a.priceTotal - b.priceTotal);
 }

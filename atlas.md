@@ -69,6 +69,8 @@ This is the complete reference. See also `PROJECT.md` (short handbook),
 - **Email delivery (Resend)** — real invite emails, password-reset/verification, proposal acceptance; logs to console + `notification` table when unconfigured.
 - **SaaS billing (Stripe)** — vendor bills agencies via subscriptions; 14-day trial on provision; webhook reconciles status; `requireAgencyUser` gates on a lapsed subscription.
 - **Live travel sourcing** — Duffel flights (airport autocomplete, one-way/round-trip, flight codes, layover airports) and Hotelbeds hotels (destination autocomplete, Booking-style cards with photos, room type, hotel type, board, facilities, room photos, filters); falls back to sample data without keys.
+- **Hotel module** (`/hotels`) — Booking.com-style flow: search bar with dynamic occupancy (rooms/adults/children + per-child ages), filter sidebar (price/stars/type/meal/distance/cancellation/supplier), sort + pagination + compare; details page with gallery, facilities, OpenStreetMap, **occupancy-driven dynamic room pricing**, reviews, and add-to-proposal/booking. Real Hotelbeds photos served via a DB content cache (see below).
+- **Hotel content cache** — Hotelbeds splits photos (Content API) from prices (availability API), each with its own quota. Content is cached in `hotel_content` and served quota-free; reads are cache-first with live self-heal, bulk-filled by `scripts/sync-hotel-content.ts`. Real hotel/room photos show even when the availability quota is exhausted (rates then shown as estimated).
 - **AI assistant** — agency-scoped tools (find clients, bookings summary, create booking).
 - **i18n** — English / French / Arabic with full RTL + Arabic font.
 - **Settings** — language, theme (light/dark/system), profile.
@@ -137,8 +139,8 @@ Capability helpers: `seesAllData`, `canManageTeam`, `canAssignAdmin`,
 `dashboard`, `finance`, `support`, `bookings` (+ `new`, `[id]`, `[id]/edit`,
 `[id]/itinerary`), `clients` (+ `new`, `[id]`, `[id]/edit`), `opportunities`
 (+ `new`, `[id]`, `[id]/edit`), `products` (+ `new`, `[id]`, `[id]/edit`),
-`operations`, `search`, `assistant`, `team`, `billing` (admin-only),
-`settings`, `profile`.
+`operations`, `search`, `hotels` (+ `[code]` details), `assistant`, `team`,
+`billing` (admin-only), `settings`, `profile`.
 
 **Platform** (`platform/`, gated by `requirePlatformAdmin`): `platform`,
 `platform/agencies/new`, `platform/agencies/[id]`.
@@ -173,10 +175,12 @@ Capability helpers: `seesAllData`, `canManageTeam`, `canAssignAdmin`,
 | `booking_traveller`, `booking_item`, `payment`, `booking_day` | via booking | children |
 | `notification` | agencyId | comms log |
 | `activity_log` | agencyId | audit trail |
+| `hotel_content` | (global) | Hotelbeds content cache (photos, facilities, coords) — shared reference data, **not** tenant-scoped; PK is the Hotelbeds hotel code |
 
 **Migrations** (`drizzle/`): `0006` tenancy + backfill, `0007` agency_invite,
 `0008` user.locale, `0009` agency Stripe billing columns, `0010` product
-e-signature columns. Workflow: `db:generate` → `db:migrate` (**never** `db:push`).
+e-signature columns, `0011` hotel_content cache. Workflow: `db:generate` →
+`db:migrate` (**never** `db:push`).
 
 ---
 
@@ -197,8 +201,10 @@ e-signature columns. Workflow: `db:generate` → `db:migrate` (**never** `db:pus
   signature verification** (distinct from `payments/stripe.ts` = traveler payments).
 - `suppliers/` — `index.ts` (per-vertical `getFlightSupplier`/`getHotelSupplier` +
   `safeSearch`), `duffel.ts` (flights + places autocomplete), `hotelbeds.ts`
-  (availability + content: thumbnails, room/hotel type, facilities, room photos),
-  `amadeus.ts` (legacy), `mock.ts`, `types.ts`.
+  (availability + content: thumbnails, room/hotel type, facilities, room photos,
+  per-room rates, occupancy/child-age pricing, content list/page fetch),
+  `content-cache.ts` (DB-backed hotel-content cache: cache-first reads, self-heal,
+  `syncDestinationContent`), `amadeus.ts` (legacy), `mock.ts`, `types.ts`.
 - `documents/proposal-pdf.tsx` + `proposal-data.ts` — proposal PDF rendering.
 
 **`src/lib/actions/`** (server actions, all agency-scoped):
@@ -266,6 +272,11 @@ npx tsx --env-file=.env scripts/seed-demo-data.ts
 
 # Cross-tenant isolation test (seeds 2 agencies, asserts no leak, cleans up)
 npx tsx --env-file=.env scripts/test-tenant-isolation.ts
+
+# Sync Hotelbeds hotel content (photos/facilities/coords) into the cache table.
+# Run occasionally (e.g. weekly); serves real photos quota-free thereafter.
+npx tsx --env-file=.env scripts/sync-hotel-content.ts            # curated destinations
+npx tsx --env-file=.env scripts/sync-hotel-content.ts BCN MAD    # specific codes
 ```
 
 ---
@@ -353,6 +364,8 @@ rich search UX. Plan + manual setup in `specs/phase-1/PLAN.md`.
 | `b3b6d20` | Hotel destination autocomplete |
 | `74e0938` | Booking-style hotel cards with photo thumbnails |
 | `957079b` | Room type, hotel type, facilities, room photos + hotel filters |
+| _pending_ | Hotel module (`/hotels`): search/results/details, dynamic occupancy pricing, proposal integration |
+| _pending_ | Hotel content cache (`hotel_content` + `sync-hotel-content.ts`) — real photos served quota-free |
 
 Started from a single-agency tool; now a deployed multi-tenant, multilingual SaaS
-with live travel sourcing, billing, and e-signature. Migrations: 5 (latest `0010`).
+with live travel sourcing, billing, and e-signature. Migrations: 6 (latest `0011`).
