@@ -134,7 +134,7 @@ function FlightSearch({
   const toItem = (o: FlightOffer): BookingItemInput => ({
     type: "flight",
     title: `${o.airlineName} ${flightCodes(o)}: ${form.origin.toUpperCase()} → ${form.destination.toUpperCase()}`,
-    description: `${o.cabin}, ${o.stops === 0 ? "direct" : `${o.stops} stop`}, ${formatDuration(o.durationMinutes)} (${oneWay ? "one-way" : "round trip"})`,
+    description: `${o.cabin}, ${o.stops === 0 ? "direct" : `${o.stops} stop${o.stops > 1 ? "s" : ""} via ${o.segments.slice(1).map((s) => s.from).join(", ")}`}, ${formatDuration(o.durationMinutes)} (${oneWay ? "one-way" : "round trip"})`,
     supplier: o.airlineName,
     quantity: 1,
     amount: o.priceTotal,
@@ -267,7 +267,12 @@ function FlightSearch({
                       <span>{formatTime(o.segments.at(-1)?.arriveAt)}</span>
                       <span className="text-xs">
                         · {formatDuration(o.durationMinutes)} ·{" "}
-                        {o.stops === 0 ? "Direct" : `${o.stops} stop`}
+                        {o.stops === 0
+                          ? "Direct"
+                          : `${o.stops} stop${o.stops > 1 ? "s" : ""} via ${o.segments
+                              .slice(1)
+                              .map((s) => s.from)
+                              .join(", ")}`}
                       </span>
                     </div>
                   </div>
