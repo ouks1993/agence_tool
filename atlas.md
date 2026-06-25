@@ -44,6 +44,11 @@ This is the complete reference. See also `PROJECT.md` (short handbook),
 | i18n | next-intl 4 (cookie-based, no URL routing) |
 | Charts | recharts 3 (tokenized) |
 | AI | Vercel AI SDK + OpenRouter |
+| Email | Resend (transactional: invites, password reset, proposals) |
+| Billing | Stripe subscriptions (vendor → agency) + webhook |
+| Flights | Duffel (Amadeus self-service kept only as legacy fallback) |
+| Hotels | Hotelbeds (APITUDE: availability + content) |
+| PDF | `@react-pdf/renderer` (server-rendered proposals) |
 | Storage | Vercel Blob (optional) |
 | Hosting | Vercel + GitHub auto-deploy |
 
@@ -60,6 +65,10 @@ This is the complete reference. See also `PROJECT.md` (short handbook),
 - **Analytics** — bookings by country, team performance, status breakdown, monthly trend, finance KPIs, revenue/collection charts.
 - **Bookings lifecycle** — travellers (passports + alerts), items (flights/hotels/etc.), payments (deposits/installments), itineraries, vouchers/invoices, shareable itinerary links.
 - **CRM & pipeline** — clients (+contacts), opportunities across stages, products/proposals with line items.
+- **Proposals & e-signature** — server-rendered PDF proposals; public, tokenized `/p/[token]` link where a client reviews and **e-signs** (signature + IP/UA audit) → flips the product to accepted and the opportunity to won.
+- **Email delivery (Resend)** — real invite emails, password-reset/verification, proposal acceptance; logs to console + `notification` table when unconfigured.
+- **SaaS billing (Stripe)** — vendor bills agencies via subscriptions; 14-day trial on provision; webhook reconciles status; `requireAgencyUser` gates on a lapsed subscription.
+- **Live travel sourcing** — Duffel flights (airport autocomplete, one-way/round-trip, flight codes, layover airports) and Hotelbeds hotels (destination autocomplete, Booking-style cards with photos, room type, hotel type, board, facilities, room photos, filters); falls back to sample data without keys.
 - **AI assistant** — agency-scoped tools (find clients, bookings summary, create booking).
 - **i18n** — English / French / Arabic with full RTL + Arabic font.
 - **Settings** — language, theme (light/dark/system), profile.
@@ -128,7 +137,8 @@ Capability helpers: `seesAllData`, `canManageTeam`, `canAssignAdmin`,
 `dashboard`, `finance`, `support`, `bookings` (+ `new`, `[id]`, `[id]/edit`,
 `[id]/itinerary`), `clients` (+ `new`, `[id]`, `[id]/edit`), `opportunities`
 (+ `new`, `[id]`, `[id]/edit`), `products` (+ `new`, `[id]`, `[id]/edit`),
-`operations`, `search`, `assistant`, `team`, `settings`, `profile`.
+`operations`, `search`, `assistant`, `team`, `billing` (admin-only),
+`settings`, `profile`.
 
 **Platform** (`platform/`, gated by `requirePlatformAdmin`): `platform`,
 `platform/agencies/new`, `platform/agencies/[id]`.
@@ -137,9 +147,12 @@ Capability helpers: `seesAllData`, `canManageTeam`, `canAssignAdmin`,
 `forgot-password`, `reset-password`. **Accept invite:** `invite/[token]`.
 
 **Public / docs:** `i/[token]` (shareable itinerary, unauth),
-`proposal/[id]`, `booking-docs/[id]/voucher`, `booking-docs/[id]/invoice`.
+`p/[token]` (public signable proposal) + `p/[token]/pdf`,
+`proposal/[id]` (internal preview) + `proposal/[id]/pdf`,
+`booking-docs/[id]/voucher`, `booking-docs/[id]/invoice`.
 
-**API:** `api/auth/[...all]` (Better Auth), `api/chat` (AI assistant).
+**API:** `api/auth/[...all]` (Better Auth), `api/chat` (AI assistant),
+`api/stripe/webhook` (subscription reconciliation, raw-body signature check).
 
 ---
 
@@ -149,20 +162,21 @@ Capability helpers: `seesAllData`, `canManageTeam`, `canAssignAdmin`,
 
 | Table | Tenancy | Notes |
 |---|---|---|
-| `agency` | (root) | name, slug, status (active/suspended) |
+| `agency` | (root) | name, slug, status (active/suspended); **Stripe billing**: stripeCustomerId, stripeSubscriptionId, subscriptionStatus, priceId, currentPeriodEnd, trialEndsAt |
 | `agency_invite` | agencyId | email, role, token, status, expiresAt |
 | `user` | agencyId (nullable) | + `isPlatformAdmin`, `role`, `active`, `locale` (Better Auth) |
 | `session`, `account`, `verification` | via user | Better Auth |
 | `client` | agencyId | + `client_contact` (child) |
 | `opportunity` | agencyId | pipeline stage, value, currency |
-| `product` | agencyId | proposal; ref unique per agency; + `product_item` (child) |
+| `product` | agencyId | proposal; ref unique per agency; + `product_item` (child); **e-sign**: shareToken (unique), acceptedAt/declinedAt, signerName/Email, signatureData, signerIp/UserAgent |
 | `booking` | agencyId | ref unique per agency; shareToken |
 | `booking_traveller`, `booking_item`, `payment`, `booking_day` | via booking | children |
 | `notification` | agencyId | comms log |
 | `activity_log` | agencyId | audit trail |
 
 **Migrations** (`drizzle/`): `0006` tenancy + backfill, `0007` agency_invite,
-`0008` user.locale. Workflow: `db:generate` → `db:migrate` (**never** `db:push`).
+`0008` user.locale, `0009` agency Stripe billing columns, `0010` product
+e-signature columns. Workflow: `db:generate` → `db:migrate` (**never** `db:push`).
 
 ---
 
@@ -176,20 +190,31 @@ Capability helpers: `seesAllData`, `canManageTeam`, `canAssignAdmin`,
 - `invites.ts` — create/find/accept invite tokens (7-day TTL).
 - `queries.ts` — shared agency-scoped pickers.
 - `activity.ts` — `logActivity` (agency-scoped audit).
-- `db.ts`, `schema.ts`, `env.ts`, `config.ts`, `format.ts`, `utils.ts`,
-  `itinerary.ts`, `storage.ts`.
+- `db.ts` (validates env via `getServerEnv`), `schema.ts`, `env.ts`, `config.ts`,
+  `format.ts`, `utils.ts`, `itinerary.ts`, `storage.ts`.
+- `notifications/email.ts` (Resend adapter) + `notifications/templates.ts` (HTML).
+- `billing/stripe.ts` — SaaS subscriptions, checkout, portal, **manual webhook
+  signature verification** (distinct from `payments/stripe.ts` = traveler payments).
+- `suppliers/` — `index.ts` (per-vertical `getFlightSupplier`/`getHotelSupplier` +
+  `safeSearch`), `duffel.ts` (flights + places autocomplete), `hotelbeds.ts`
+  (availability + content: thumbnails, room/hotel type, facilities, room photos),
+  `amadeus.ts` (legacy), `mock.ts`, `types.ts`.
+- `documents/proposal-pdf.tsx` + `proposal-data.ts` — proposal PDF rendering.
 
 **`src/lib/actions/`** (server actions, all agency-scoped):
-`clients`, `opportunities`, `products`, `bookings`, `payments`, `notifications`,
-`team`, `invites`, `platform`, `settings`, `search`.
+`clients`, `opportunities`, `products`, `proposals-public` (token-authed accept/
+decline), `bookings`, `payments`, `notifications`, `team`, `invites`, `platform`,
+`billing`, `settings`, `search` (flights/hotels + airport/destination autocomplete
++ hotel details). Prod-safety guard for destructive scripts: `scripts/guard.ts`.
 
 **`src/i18n/`** — `config.ts` (locales, metadata, dir), `request.ts` (next-intl
 request config reading the `locale` cookie). Messages: `messages/{en,fr,ar}.json`.
 
 **`src/components/`** — `app/` (shell, page-header, stat-card, status-badge),
 `charts/` (BarInsight/DonutInsight/AreaInsight), `settings/`, `team/`,
-`platform/`, `auth/`, `bookings/`, `clients/`, `products/`, `opportunities/`,
-`documents/`, `ui/` (shadcn).
+`platform/`, `auth/`, `bookings/`, `clients/`, `products/` (incl. proposal
+share/sign), `opportunities/`, `billing/`, `search/` (airport + hotel-destination
+autocomplete, hotel details dialog), `documents/`, `ui/` (shadcn).
 
 ---
 
@@ -219,7 +244,12 @@ npm run build:ci                  # next build
 
 **Env (`.env`):** required `POSTGRES_URL`, `BETTER_AUTH_SECRET`. Optional
 `OPENROUTER_API_KEY` (AI chat), `BLOB_READ_WRITE_TOKEN` (uploads),
-`GOOGLE_CLIENT_ID`/`SECRET`, `NEXT_PUBLIC_APP_URL`.
+`GOOGLE_CLIENT_ID`/`SECRET`, `NEXT_PUBLIC_APP_URL`,
+`RESEND_API_KEY`/`EMAIL_FROM` (email),
+`STRIPE_SECRET_KEY`/`STRIPE_PRICE_ID`/`STRIPE_WEBHOOK_SECRET` (billing),
+`DUFFEL_API_TOKEN` (flights), `HOTELBEDS_API_KEY`/`HOTELBEDS_SECRET` (hotels).
+All integrations degrade gracefully to sample/logged behaviour when unset.
+`PROTECTED_DB_HOSTS` makes destructive scripts refuse a prod DB (override `ALLOW_PROD=1`).
 
 **Database:** `db:generate` (after schema edits) → `db:migrate`. `db:studio` to browse.
 
@@ -281,12 +311,21 @@ finance / support / agent views → Settings → switch to Français or العر
 
 ## Roadmap / open items
 
-1. **Split prod database** onto a dedicated Neon branch (highest priority before real customers).
-2. **Translate deeper pages** (bookings, clients, finance, support, platform).
-3. **Cross-device locale** — sync `user.locale` → cookie on login.
-4. **Email delivery** for invite links (currently copy-paste; module logs to console).
-5. **Billing / subscriptions** — per-agency plans.
-6. **Traveler portal** — end-customer login to view their trips.
+**Done this phase (Phase 1 "sellable"):** ✅ Email delivery (Resend) · ✅ Stripe
+SaaS billing (subscriptions + webhook + gating; **Connect for traveler payments
+deferred**) · ✅ DB-split safety (env validation + prod-guarded scripts; the
+dedicated Neon branch itself is still a manual ops step) · ✅ PDF proposals ·
+✅ E-signature acceptance · ✅ Live flights (Duffel) + hotels (Hotelbeds) with
+rich search UX. Plan + manual setup in `specs/phase-1/PLAN.md`.
+
+**Open:**
+1. **Provision the dedicated prod Neon branch** (code-side guard is in; the branch is manual).
+2. **Stripe Connect** — traveler payment collection (Phase 1.5).
+3. **Translate deeper pages** (bookings, clients, finance, support, platform).
+4. **Cross-device locale** — sync `user.locale` → cookie on login.
+5. **Traveler portal** — end-customer login to view their trips.
+6. **Real booking** of supplier offers (Duffel orders / Hotelbeds book currently
+   provisional) and persist offers into `bookingItem.details` from the AI tool.
 
 ---
 
@@ -305,6 +344,15 @@ finance / support / agent views → Settings → switch to Français or العر
 | `7fea32e` | Re-runnable demo data seed |
 | `a233d32` | View-as-user + i18n (EN/FR/AR + RTL) + Settings hub |
 | `8d679f4` | DZD currency |
+| `b67cfa0` | Phase 1: email (Resend), Stripe billing, e-sign, PDF, suppliers |
+| `eb467d0` | Switch flights to Duffel (Amadeus self-service sunsetting) |
+| `508472e` | One-way flight option + flight codes |
+| `b7ffa6d` | Connecting airports for multi-stop flights |
+| `78ceb59` | Airport autocomplete (Duffel Places) |
+| `1a92e27` | Hotel details view with photos (Hotelbeds Content) |
+| `b3b6d20` | Hotel destination autocomplete |
+| `74e0938` | Booking-style hotel cards with photo thumbnails |
+| `957079b` | Room type, hotel type, facilities, room photos + hotel filters |
 
 Started from a single-agency tool; now a deployed multi-tenant, multilingual SaaS
-(~14.5k insertions, 3 migrations).
+with live travel sourcing, billing, and e-signature. Migrations: 5 (latest `0010`).
