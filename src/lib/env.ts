@@ -33,7 +33,10 @@ const serverEnvSchema = z.object({
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_PRICE_ID: z.string().optional(),
 
-  // Travel suppliers (flights via Amadeus, hotels via Hotelbeds)
+  // Travel suppliers (flights via Duffel, hotels via Hotelbeds)
+  DUFFEL_API_TOKEN: z.string().optional(),
+  DUFFEL_VERSION: z.string().optional(),
+  // Legacy flights provider (Amadeus self-service is decommissioned 2026-07-17)
   AMADEUS_CLIENT_ID: z.string().optional(),
   AMADEUS_CLIENT_SECRET: z.string().optional(),
   AMADEUS_HOSTNAME: z.string().optional(),
@@ -133,8 +136,8 @@ export function checkEnv(): void {
     warnings.push("STRIPE_SECRET_KEY is not set. SaaS subscription billing is disabled.");
   }
 
-  if (!process.env.AMADEUS_CLIENT_ID || !process.env.AMADEUS_CLIENT_SECRET) {
-    warnings.push("Amadeus keys are not set. Flight search uses sample data.");
+  if (!process.env.DUFFEL_API_TOKEN && !process.env.AMADEUS_CLIENT_ID) {
+    warnings.push("DUFFEL_API_TOKEN is not set. Flight search uses sample data.");
   }
 
   if (!process.env.HOTELBEDS_API_KEY || !process.env.HOTELBEDS_SECRET) {

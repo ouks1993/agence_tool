@@ -37,10 +37,9 @@ export default async function SearchPage() {
           <Info className="mt-0.5 size-4 shrink-0" />
           <p>
             Running on <span className="font-medium">sample data</span>. Add your
-            Amadeus keys (<code>AMADEUS_CLIENT_ID</code> /{" "}
-            <code>AMADEUS_CLIENT_SECRET</code>) for live flights and Hotelbeds keys
-            (<code>HOTELBEDS_API_KEY</code> / <code>HOTELBEDS_SECRET</code>) for
-            live hotels — no code changes needed.
+            Duffel token (<code>DUFFEL_API_TOKEN</code>) for live flights and
+            Hotelbeds keys (<code>HOTELBEDS_API_KEY</code> /{" "}
+            <code>HOTELBEDS_SECRET</code>) for live hotels — no code changes needed.
           </p>
         </div>
       )}

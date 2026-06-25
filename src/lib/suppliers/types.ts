@@ -7,7 +7,7 @@
  * implementation with zero changes to the UI, actions or AI tools.
  */
 
-export type SupplierSource = "mock" | "amadeus" | "hotelbeds";
+export type SupplierSource = "mock" | "amadeus" | "hotelbeds" | "duffel";
 
 // --- Flights ----------------------------------------------------------------
 
