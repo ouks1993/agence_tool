@@ -8,6 +8,7 @@ import {
   type BookingOption,
   type ClientOption,
 } from "@/components/search/add-to-booking-dialog";
+import { AirportInput } from "@/components/search/airport-input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -168,21 +169,17 @@ function FlightSearch({
           </div>
           <form onSubmit={run} className="grid grid-cols-2 gap-3 md:grid-cols-7">
             <Field label="From" className="col-span-1">
-              <Input
+              <AirportInput
                 value={form.origin}
-                onChange={(e) => setForm((f) => ({ ...f, origin: e.target.value }))}
-                placeholder="CDG"
-                maxLength={3}
-                required
+                onChange={(v) => setForm((f) => ({ ...f, origin: v }))}
+                placeholder="City or airport"
               />
             </Field>
             <Field label="To" className="col-span-1">
-              <Input
+              <AirportInput
                 value={form.destination}
-                onChange={(e) => setForm((f) => ({ ...f, destination: e.target.value }))}
-                placeholder="JFK"
-                maxLength={3}
-                required
+                onChange={(v) => setForm((f) => ({ ...f, destination: v }))}
+                placeholder="City or airport"
               />
             </Field>
             <Field label="Depart" className="col-span-1">

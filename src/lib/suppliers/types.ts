@@ -89,6 +89,19 @@ export type HotelOffer = {
   rateKey?: string | undefined;
 };
 
+// --- Airport / place autocomplete -------------------------------------------
+
+export type AirportSuggestion = {
+  /** IATA code used as the search value, e.g. "CDG". */
+  iata: string;
+  /** Airport (or city) name, e.g. "Charles de Gaulle". */
+  name: string;
+  /** City name, e.g. "Paris". */
+  city: string;
+  /** ISO country code, e.g. "FR". */
+  country: string;
+};
+
 // --- Provider ---------------------------------------------------------------
 
 export type BookingConfirmation = {

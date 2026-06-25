@@ -1,4 +1,5 @@
 import type {
+  AirportSuggestion,
   BookingConfirmation,
   CabinClass,
   FlightOffer,
@@ -49,6 +50,34 @@ async function duffel<T>(
     throw new Error(`Duffel ${path} failed (${res.status}): ${text.slice(0, 200)}`);
   }
   return (await res.json()) as T;
+}
+
+type DfPlace = {
+  type: string;
+  name: string;
+  iata_code?: string;
+  iata_country_code?: string;
+  city_name?: string;
+};
+
+/**
+ * Airport/city autocomplete via Duffel's Places API. Returns entries that have
+ * an IATA code (so they're usable as a search origin/destination).
+ */
+export async function searchDuffelPlaces(
+  query: string
+): Promise<AirportSuggestion[]> {
+  const json = await duffel<{ data?: DfPlace[] }>(
+    `/places/suggestions?query=${encodeURIComponent(query)}`
+  );
+  return (json.data ?? [])
+    .filter((p) => p.iata_code)
+    .map((p) => ({
+      iata: p.iata_code as string,
+      name: p.name,
+      city: p.city_name ?? p.name,
+      country: p.iata_country_code ?? "",
+    }));
 }
 
 /** Parse an ISO-8601 duration like "P1DT2H30M" / "PT8H30M" into minutes. */
