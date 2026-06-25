@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plane, BedDouble, Search, Loader2, Star, ArrowRight } from "lucide-react";
+import { Plane, BedDouble, Search, Loader2, Star, ArrowRight, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import {
   AddToBookingDialog,
@@ -416,44 +416,70 @@ function HotelSearch({
             <p className="text-muted-foreground text-sm">No hotels found.</p>
           ) : (
             results.map((o, idx) => (
-              <Card key={o.id}>
-                <CardContent className="flex flex-wrap items-center justify-between gap-4 p-4">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <div
-                      className="hidden size-12 shrink-0 rounded-md sm:block"
-                      style={{ backgroundColor: o.thumbnailColor ?? "#64748b" }}
-                    />
-                    <div className="min-w-0 space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="truncate font-semibold">{o.name}</span>
-                        {idx === 0 && (
-                          <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-xs font-semibold text-green-600 dark:text-green-400">
-                            Best value
-                          </span>
-                        )}
+              <Card key={o.id} className="overflow-hidden">
+                <CardContent className="flex gap-4 p-3">
+                  {/* Photo */}
+                  <div className="bg-muted h-28 w-28 shrink-0 overflow-hidden rounded-md sm:h-32 sm:w-44">
+                    {o.thumbnail ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={o.thumbnail}
+                        alt={o.name}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div
+                        className="flex h-full w-full items-center justify-center"
+                        style={{ backgroundColor: o.thumbnailColor ?? undefined }}
+                      >
+                        <BedDouble className="text-muted-foreground size-6" />
                       </div>
-                      <div className="text-muted-foreground flex items-center gap-2 text-sm">
-                        <span className="flex items-center text-amber-500">
-                          {Array.from({ length: o.stars }).map((_, i) => (
-                            <Star key={i} className="size-3 fill-current" />
-                          ))}
-                        </span>
-                        <span className="text-xs">
-                          {o.boardType} · {o.refundable ? "Refundable" : "Non-refundable"}
-                        </span>
-                      </div>
-                    </div>
+                    )}
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
+
+                  {/* Info */}
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-semibold">{o.name}</span>
+                      <span className="flex items-center text-amber-500">
+                        {Array.from({ length: o.stars }).map((_, i) => (
+                          <Star key={i} className="size-3.5 fill-current" />
+                        ))}
+                      </span>
+                      {idx === 0 && (
+                        <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-xs font-semibold text-green-600 dark:text-green-400">
+                          Best value
+                        </span>
+                      )}
+                    </div>
+                    {o.city && (
+                      <p className="text-muted-foreground mt-0.5 flex items-center gap-1 text-xs">
+                        <MapPin className="size-3" /> {o.city}
+                      </p>
+                    )}
+                    <p className="text-muted-foreground mt-1 text-xs">
+                      {o.boardType ?? "Room only"} ·{" "}
+                      <span className={o.refundable ? "text-green-600 dark:text-green-400" : ""}>
+                        {o.refundable ? "Refundable" : "Non-refundable"}
+                      </span>
+                    </p>
+                    {o.hotelCode && (
+                      <div className="mt-auto pt-2">
+                        <HotelDetailsDialog offer={o} />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Price + book */}
+                  <div className="flex shrink-0 flex-col items-end justify-between gap-2 text-right">
+                    <div>
                       <p className="text-lg font-bold">
                         {formatMoney(o.priceTotal, o.currency)}
                       </p>
                       <p className="text-muted-foreground text-xs">
-                        {formatMoney(o.pricePerNight, o.currency)}/night
+                        {formatMoney(o.pricePerNight, o.currency)}/night · {o.nights}n
                       </p>
                     </div>
-                    {o.hotelCode && <HotelDetailsDialog offer={o} />}
                     <AddToBookingDialog
                       item={toItem(o)}
                       itemSummary={`${o.name} · ${formatMoney(o.priceTotal, o.currency)} (${o.nights}n from ${formatDate(form.checkIn)})`}

@@ -85,6 +85,8 @@ export type HotelOffer = {
   nights: number;
   currency: string;
   thumbnailColor?: string | undefined;
+  /** First photo URL, attached from content for list thumbnails. */
+  thumbnail?: string | undefined;
   /** Opaque rate identifier required to book this exact rate (Hotelbeds). */
   rateKey?: string | undefined;
   /** Provider hotel code, used to fetch rich content (photos, description). */

@@ -142,6 +142,34 @@ type HbAvailability = {
   hotels?: { hotels?: HbHotel[] };
 };
 
+/**
+ * Fetches the first photo for many hotel codes in ONE Content API call. Returns
+ * a map of hotel code → image URL, for list thumbnails.
+ */
+export async function getHotelbedsContentBatch(
+  codes: string[]
+): Promise<Record<string, string>> {
+  if (codes.length === 0) return {};
+  const json = await hotelbeds<{
+    hotels?: Array<{
+      code: number;
+      images?: Array<{ path?: string; order?: number; visualOrder?: number }>;
+    }>;
+  }>(
+    `/hotel-content-api/1.0/hotels?codes=${codes.join(
+      ","
+    )}&language=ENG&fields=images&from=1&to=${codes.length}`
+  );
+  const map: Record<string, string> = {};
+  for (const h of json.hotels ?? []) {
+    const first = (h.images ?? [])
+      .slice()
+      .sort((a, b) => (a.visualOrder ?? a.order ?? 99) - (b.visualOrder ?? b.order ?? 99))[0];
+    if (first?.path) map[String(h.code)] = `${PHOTO_BASE}${first.path}`;
+  }
+  return map;
+}
+
 /** "4 EST" / "4 STARS" → 4. */
 function parseStars(category?: string): number {
   const m = category ? /(\d)/.exec(category) : null;

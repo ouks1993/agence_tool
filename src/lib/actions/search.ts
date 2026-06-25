@@ -7,6 +7,7 @@ import {
   getFlightSupplier,
   getHotelSupplier,
   getHotelbedsContent,
+  getHotelbedsContentBatch,
   isDuffelConfigured,
   isHotelbedsConfigured,
   safeSearch,
@@ -248,5 +249,24 @@ export async function searchHotelsAction(
     (provider) => provider.searchHotels(buildParams),
     (mock) => mock.searchHotels(buildParams)
   );
-  return { ok: true, results, source, degraded };
+
+  // Show a focused page and enrich those with photo thumbnails in one batch call.
+  let top = results.slice(0, 40);
+  if (!degraded && isHotelbedsConfigured()) {
+    const codes = top.map((o) => o.hotelCode).filter(Boolean) as string[];
+    if (codes.length > 0) {
+      try {
+        const thumbs = await getHotelbedsContentBatch(codes);
+        top = top.map((o) =>
+          o.hotelCode && thumbs[o.hotelCode]
+            ? { ...o, thumbnail: thumbs[o.hotelCode] }
+            : o
+        );
+      } catch (error) {
+        console.error("Hotel thumbnail batch failed:", error);
+      }
+    }
+  }
+
+  return { ok: true, results: top, source, degraded };
 }
