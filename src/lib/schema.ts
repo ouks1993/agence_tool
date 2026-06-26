@@ -789,3 +789,43 @@ export const bookingItemRelations = relations(bookingItem, ({ one }) => ({
     references: [booking.id],
   }),
 }));
+
+// ---------------------------------------------------------------------------
+// Hotel content cache (global reference data — NOT tenant-scoped)
+// ---------------------------------------------------------------------------
+
+/**
+ * Cached Hotelbeds Content API data (photos, names, facilities, coordinates).
+ *
+ * Content rarely changes and the photo CDN URLs are public, so we sync this
+ * occasionally (scripts/sync-hotel-content.ts) and serve real hotel photos
+ * without spending the live API quota on every search. This is shared vendor
+ * reference data, like a currency list — intentionally NOT scoped to an agency.
+ * The primary key is the Hotelbeds hotel code (a string), not a UUID.
+ */
+export const hotelContent = pgTable(
+  "hotel_content",
+  {
+    code: text("code").primaryKey(),
+    name: text("name").notNull(),
+    stars: integer("stars").default(0).notNull(),
+    hotelType: text("hotel_type"),
+    description: text("description"),
+    address: text("address"),
+    city: text("city"),
+    country: text("country"),
+    postalCode: text("postal_code"),
+    latitude: numeric("latitude", { precision: 10, scale: 6 }),
+    longitude: numeric("longitude", { precision: 10, scale: 6 }),
+    // Hotelbeds destination code (e.g. "BCN") for list-by-destination lookups.
+    destinationCode: text("destination_code"),
+    // Marketing segment tags, e.g. ["Business hotels"].
+    segments: jsonb("segments"),
+    // Amenity names present at the property.
+    facilities: jsonb("facilities"),
+    // All images: { url: string; roomCode?: string }[].
+    images: jsonb("images"),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [index("hotel_content_destination_idx").on(table.destinationCode)]
+);

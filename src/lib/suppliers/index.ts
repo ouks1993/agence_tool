@@ -15,7 +15,13 @@ import type { SupplierProvider } from "./types";
 
 export * from "./types";
 export { searchDuffelPlaces } from "./duffel";
-export { getHotelbedsContent, getHotelbedsContentBatch } from "./hotelbeds";
+export {
+  getHotelbedsContent,
+  getHotelbedsContentBatch,
+  getHotelbedsRates,
+  searchHotelbedsContentHotels,
+} from "./hotelbeds";
+export { mockHotelRates, mockHotelContent } from "./mock";
 
 /** True when a live Duffel (flights) token is configured. */
 export function isDuffelConfigured(): boolean {

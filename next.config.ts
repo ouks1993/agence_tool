@@ -19,6 +19,20 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "*.public.blob.vercel-storage.com",
       },
+      {
+        // Hotelbeds GIATA photo CDN (live hotel/room images).
+        protocol: "https",
+        hostname: "photos.hotelbeds.com",
+      },
+      {
+        // Sample/placeholder photos used when live supplier data is unavailable.
+        protocol: "https",
+        hostname: "picsum.photos",
+      },
+      {
+        protocol: "https",
+        hostname: "fastly.picsum.photos",
+      },
     ],
   },
 
