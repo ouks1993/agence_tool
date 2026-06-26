@@ -185,7 +185,7 @@ function FlightSearch({
                 placeholder="City or airport"
               />
             </Field>
-            <div className="col-span-2 md:col-span-2">
+            <Field label="Dates" className="col-span-2 md:col-span-2">
               <DateRangePicker
                 startDate={form.departDate}
                 endDate={oneWay ? "" : form.returnDate}
@@ -195,7 +195,7 @@ function FlightSearch({
                 startLabel="Depart"
                 endLabel={oneWay ? undefined : "Return"}
               />
-            </div>
+            </Field>
             <Field label="Pax" className="col-span-1">
               <Input
                 type="number"
@@ -396,7 +396,7 @@ function HotelSearch({
                 placeholder="Start typing a city…"
               />
             </Field>
-            <div className="col-span-2 md:col-span-2">
+            <Field label="Dates" className="col-span-2 md:col-span-2">
               <DateRangePicker
                 startDate={form.checkIn}
                 endDate={form.checkOut}
@@ -406,7 +406,7 @@ function HotelSearch({
                 startLabel="Check-in"
                 endLabel="Check-out"
               />
-            </div>
+            </Field>
             <Field label="Guests" className="col-span-1">
               <Input
                 type="number"

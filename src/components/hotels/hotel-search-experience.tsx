@@ -201,7 +201,7 @@ export function HotelSearchExperience() {
                 placeholder="Start typing a city…"
               />
             </Field>
-            <div className="col-span-2 md:col-span-4">
+            <Field label="Dates" className="col-span-2 md:col-span-4">
               <DateRangePicker
                 startDate={form.checkIn}
                 endDate={form.checkOut}
@@ -211,7 +211,7 @@ export function HotelSearchExperience() {
                 startLabel="Check-in"
                 endLabel="Check-out"
               />
-            </div>
+            </Field>
             <Field label="Guests & rooms" className="col-span-2 md:col-span-3">
               <OccupancyPicker value={occ} onChange={setOcc} />
             </Field>
