@@ -23,6 +23,7 @@ import { HotelDestinationInput } from "@/components/search/hotel-destination-inp
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 import {
   Dialog,
   DialogContent,
@@ -200,22 +201,17 @@ export function HotelSearchExperience() {
                 placeholder="Start typing a city…"
               />
             </Field>
-            <Field label="Check-in" className="col-span-1 md:col-span-2">
-              <Input
-                type="date"
-                value={form.checkIn}
-                onChange={(e) => setForm((f) => ({ ...f, checkIn: e.target.value }))}
-                required
+            <div className="col-span-2 md:col-span-4">
+              <DateRangePicker
+                startDate={form.checkIn}
+                endDate={form.checkOut}
+                onSelect={(start, end) =>
+                  setForm((f) => ({ ...f, checkIn: start, checkOut: end }))
+                }
+                startLabel="Check-in"
+                endLabel="Check-out"
               />
-            </Field>
-            <Field label="Check-out" className="col-span-1 md:col-span-2">
-              <Input
-                type="date"
-                value={form.checkOut}
-                onChange={(e) => setForm((f) => ({ ...f, checkOut: e.target.value }))}
-                required
-              />
-            </Field>
+            </div>
             <Field label="Guests & rooms" className="col-span-2 md:col-span-3">
               <OccupancyPicker value={occ} onChange={setOcc} />
             </Field>

@@ -13,6 +13,7 @@ import { HotelDestinationInput } from "@/components/search/hotel-destination-inp
 import { HotelDetailsDialog } from "@/components/search/hotel-details-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
@@ -184,22 +185,17 @@ function FlightSearch({
                 placeholder="City or airport"
               />
             </Field>
-            <Field label="Depart" className="col-span-1">
-              <Input
-                type="date"
-                value={form.departDate}
-                onChange={(e) => setForm((f) => ({ ...f, departDate: e.target.value }))}
-                required
+            <div className="col-span-2 md:col-span-2">
+              <DateRangePicker
+                startDate={form.departDate}
+                endDate={oneWay ? "" : form.returnDate}
+                onSelect={(start, end) =>
+                  setForm((f) => ({ ...f, departDate: start, returnDate: end }))
+                }
+                startLabel="Depart"
+                endLabel={oneWay ? undefined : "Return"}
               />
-            </Field>
-            <Field label="Return" className="col-span-1">
-              <Input
-                type="date"
-                value={form.returnDate}
-                disabled={oneWay}
-                onChange={(e) => setForm((f) => ({ ...f, returnDate: e.target.value }))}
-              />
-            </Field>
+            </div>
             <Field label="Pax" className="col-span-1">
               <Input
                 type="number"
@@ -400,22 +396,17 @@ function HotelSearch({
                 placeholder="Start typing a city…"
               />
             </Field>
-            <Field label="Check-in" className="col-span-1">
-              <Input
-                type="date"
-                value={form.checkIn}
-                onChange={(e) => setForm((f) => ({ ...f, checkIn: e.target.value }))}
-                required
+            <div className="col-span-2 md:col-span-2">
+              <DateRangePicker
+                startDate={form.checkIn}
+                endDate={form.checkOut}
+                onSelect={(start, end) =>
+                  setForm((f) => ({ ...f, checkIn: start, checkOut: end }))
+                }
+                startLabel="Check-in"
+                endLabel="Check-out"
               />
-            </Field>
-            <Field label="Check-out" className="col-span-1">
-              <Input
-                type="date"
-                value={form.checkOut}
-                onChange={(e) => setForm((f) => ({ ...f, checkOut: e.target.value }))}
-                required
-              />
-            </Field>
+            </div>
             <Field label="Guests" className="col-span-1">
               <Input
                 type="number"
