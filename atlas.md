@@ -322,21 +322,21 @@ finance / support / agent views → Settings → switch to Français or العر
 
 ## Roadmap / open items
 
-**Done this phase (Phase 1 "sellable"):** ✅ Email delivery (Resend) · ✅ Stripe
-SaaS billing (subscriptions + webhook + gating; **Connect for traveler payments
-deferred**) · ✅ DB-split safety (env validation + prod-guarded scripts; the
-dedicated Neon branch itself is still a manual ops step) · ✅ PDF proposals ·
-✅ E-signature acceptance · ✅ Live flights (Duffel) + hotels (Hotelbeds) with
-rich search UX. Plan + manual setup in `specs/phase-1/PLAN.md`.
+**Done — Phase 1 "sellable" + hotel module:** ✅ Email delivery (Resend) · ✅ Stripe
+SaaS billing (subscriptions + webhook + gating) · ✅ DB-split safety (env validation
++ prod-guarded scripts) · ✅ PDF proposals · ✅ E-signature acceptance · ✅ Live
+flights (Duffel: autocomplete, one-way/round-trip, flight codes, connecting airports)
+· ✅ Live hotels (Hotelbeds: Booking.com-style search/results/details, dynamic
+occupancy pricing, filters, add-to-proposal/booking) · ✅ Hotel content cache
+(`hotel_content` table + `sync-hotel-content.ts` — real photos served quota-free).
 
-**Open:**
-1. **Provision the dedicated prod Neon branch** (code-side guard is in; the branch is manual).
-2. **Stripe Connect** — traveler payment collection (Phase 1.5).
-3. **Translate deeper pages** (bookings, clients, finance, support, platform).
-4. **Cross-device locale** — sync `user.locale` → cookie on login.
-5. **Traveler portal** — end-customer login to view their trips.
-6. **Real booking** of supplier offers (Duffel orders / Hotelbeds book currently
-   provisional) and persist offers into `bookingItem.details` from the AI tool.
+**Phase 2 — open:**
+1. **Provision dedicated prod Neon branch** — code-side guard is in place; branch creation is a manual ops step.
+2. **Stripe Connect** — traveler payment collection (separate from SaaS billing; `payment` table already exists).
+3. **Real supplier booking** — Duffel orders + Hotelbeds book API (currently search-only / provisional); persist confirmed offers into `bookingItem.details` and from the AI tool.
+4. **Translate deeper pages** — bookings, clients, finance, support, platform (translation keys just need filling; i18n plumbing is ready).
+5. **Cross-device locale** — sync `user.locale` → cookie on login so a fresh device inherits the user's saved language.
+6. **Traveler portal** — end-customer login to view their own trips (greenfield; new user type + auth flow).
 
 ---
 
@@ -364,8 +364,7 @@ rich search UX. Plan + manual setup in `specs/phase-1/PLAN.md`.
 | `b3b6d20` | Hotel destination autocomplete |
 | `74e0938` | Booking-style hotel cards with photo thumbnails |
 | `957079b` | Room type, hotel type, facilities, room photos + hotel filters |
-| _pending_ | Hotel module (`/hotels`): search/results/details, dynamic occupancy pricing, proposal integration |
-| _pending_ | Hotel content cache (`hotel_content` + `sync-hotel-content.ts`) — real photos served quota-free |
+| `8c1b24e` | Hotel module (`/hotels`): full search/results/details, dynamic occupancy pricing, proposal integration + Hotelbeds content cache |
 
 Started from a single-agency tool; now a deployed multi-tenant, multilingual SaaS
-with live travel sourcing, billing, and e-signature. Migrations: 6 (latest `0011`).
+with live travel sourcing, billing, and e-signature. Migrations: 12 (latest `0011`).
