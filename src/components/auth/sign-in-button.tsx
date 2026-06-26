@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { syncLocaleAfterLogin } from "@/lib/actions/settings"
 import { signIn, useSession } from "@/lib/auth-client"
 
 export function SignInButton() {
@@ -41,6 +42,8 @@ export function SignInButton() {
       if (result.error) {
         setError(result.error.message || "Failed to sign in")
       } else {
+        // Inherit the account's stored language on this device before redirecting.
+        await syncLocaleAfterLogin()
         router.push("/dashboard")
         router.refresh()
       }

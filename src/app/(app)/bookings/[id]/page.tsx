@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { and, asc, desc, eq } from "drizzle-orm";
 import {
   ArrowLeft,
@@ -40,6 +41,7 @@ export default async function BookingWorkspace({
   params: Promise<{ id: string }>;
 }) {
   const user = await requireAgencyUser();
+  const t = await getTranslations("bookings");
   const { id } = await params;
 
   const b = await db.query.booking.findFirst({
@@ -132,7 +134,7 @@ export default async function BookingWorkspace({
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <Users className="size-4" /> Travellers & passports
+                <Users className="size-4" /> {t("travellersTitle")}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -156,7 +158,7 @@ export default async function BookingWorkspace({
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Purchases</CardTitle>
+              <CardTitle className="text-base">{t("purchasesTitle")}</CardTitle>
             </CardHeader>
             <CardContent>
               <BookingItemsManager
@@ -174,6 +176,8 @@ export default async function BookingWorkspace({
                   quantity: i.quantity,
                   amount: i.amount,
                   currency: i.currency,
+                  itemStatus: i.itemStatus,
+                  confirmationNumber: i.confirmationNumber,
                 }))}
               />
             </CardContent>

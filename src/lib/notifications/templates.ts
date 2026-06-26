@@ -43,6 +43,27 @@ export function actionEmailHtml(params: {
   );
 }
 
+/**
+ * Magic-link login email for the client-facing Traveler Portal. Returns both a
+ * ready-to-send subject and HTML body (and a plain-text fallback) so the caller
+ * can pass them straight to `sendEmail`.
+ */
+export function portalMagicLinkEmail(params: {
+  clientName: string;
+  agencyName: string;
+  magicLinkUrl: string;
+}): { subject: string; html: string; text: string } {
+  const subject = `Your login link for ${params.agencyName}`;
+  const html = shell(
+    `<p style="margin:0 0 16px;font-size:16px;font-weight:600;color:#18181b;">Hello, ${params.clientName}</p>
+     <p style="margin:0 0 24px;">Click the button below to access your travel portal for <strong>${params.agencyName}</strong>. This link expires in 15 minutes.</p>
+     <p style="margin:0 0 24px;">${button(params.magicLinkUrl, "Access my trips")}</p>
+     <p style="margin:0;font-size:12px;color:#a1a1aa;">If you didn't request this link, you can safely ignore this email.</p>`
+  );
+  const text = `Hello, ${params.clientName}\n\nAccess your travel portal for ${params.agencyName} using the link below. It expires in 15 minutes.\n\n${params.magicLinkUrl}\n\nIf you didn't request this link, you can safely ignore this email.`;
+  return { subject, html, text };
+}
+
 /** Invitation to join an agency workspace. */
 export function inviteEmailHtml(params: {
   agencyName: string;

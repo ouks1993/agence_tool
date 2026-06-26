@@ -42,6 +42,15 @@ export const agency = pgTable(
     currentPeriodEnd: timestamp("current_period_end"),
     // Trial expiry, if the agency is on a trial.
     trialEndsAt: timestamp("trial_ends_at"),
+    // --- Stripe Connect (traveler → agency payments). The agency's connected
+    // Express account that receives client booking payments (destination
+    // charges), distinct from the SaaS billing customer above. ---
+    // The connected Express account id. NULL until the admin starts onboarding.
+    stripeConnectAccountId: text("stripe_connect_account_id"),
+    // True once the account finished onboarding and charges are enabled.
+    stripeConnectOnboarded: boolean("stripe_connect_onboarded")
+      .default(false)
+      .notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()
@@ -520,6 +529,10 @@ export const payment = pgTable(
     status: text("status").default("completed").notNull(),
     // Stripe id or a manual reference.
     reference: text("reference"),
+    // Stripe Checkout Session id (Connect flow), used to reconcile via webhook.
+    stripeSessionId: text("stripe_session_id"),
+    // The hosted Checkout URL the agent sends to the client.
+    checkoutUrl: text("checkout_url"),
     note: text("note"),
     createdById: text("created_by_id").references(() => user.id, {
       onDelete: "set null",
@@ -663,6 +676,7 @@ export const clientRelations = relations(client, ({ one, many }) => ({
   opportunities: many(opportunity),
   products: many(product),
   bookings: many(booking),
+  portalSessions: many(portalSession),
 }));
 
 export const clientContactRelations = relations(clientContact, ({ one }) => ({
@@ -787,6 +801,43 @@ export const bookingItemRelations = relations(bookingItem, ({ one }) => ({
   booking: one(booking, {
     fields: [bookingItem.bookingId],
     references: [booking.id],
+  }),
+}));
+
+// ---------------------------------------------------------------------------
+// Traveler Portal: client-facing self-service sessions (no BetterAuth)
+// ---------------------------------------------------------------------------
+
+/**
+ * A passwordless session for a client in the self-service Traveler Portal.
+ *
+ * Clients authenticate via an email magic link — entirely separate from the
+ * BetterAuth (staff) session system. A row starts life as a short-lived magic
+ * token (15 min); on verification the token is rotated to a long-lived (7 day)
+ * session token stored in an httpOnly cookie. Scoped to one client (and thus
+ * one agency, via the client's agencyId).
+ */
+export const portalSession = pgTable(
+  "portal_session",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => client.id, { onDelete: "cascade" }),
+    token: text("token").notNull().unique(),
+    expiresAt: timestamp("expires_at").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("portal_session_client_idx").on(table.clientId),
+    index("portal_session_token_idx").on(table.token),
+  ]
+);
+
+export const portalSessionRelations = relations(portalSession, ({ one }) => ({
+  client: one(client, {
+    fields: [portalSession.clientId],
+    references: [client.id],
   }),
 }));
 

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { and, desc, eq } from "drizzle-orm";
 import {
   Wallet,
@@ -47,6 +48,8 @@ export default async function FinancePage() {
   // Access gate: the Finance workspace is for finance, admin and manager roles.
   // Anyone else is sent to their own role's landing page.
   if (!canViewFinance(user.role)) redirect(roleHome(user.role));
+
+  const t = await getTranslations("finance");
 
   // --- Bookings (agency-scoped via booking.agencyId) ----------------------
   // Pull every booking for the agency with its payments + client name. We
@@ -246,10 +249,7 @@ export default async function FinancePage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8 sm:px-6">
-      <PageHeader
-        title="Finance"
-        description="Payments, accounts receivable and revenue across the agency."
-      />
+      <PageHeader title={t("title")} description={t("description")} />
 
       {/* KPIs */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { and, desc, eq } from "drizzle-orm";
 import { ClipboardList } from "lucide-react";
 import { EmptyState } from "@/components/app/empty-state";
@@ -24,6 +25,7 @@ const COLUMNS: BookingStatus[] = [...BOOKING_LIFECYCLE, "cancelled"];
 
 export default async function OperationsPage() {
   const user = await requireAgencyUser();
+  const t = await getTranslations("operations");
   const canSeeAll = seesAllData(user.role);
 
   // Agency scope ALWAYS applies; full-visibility roles see the whole agency,
@@ -46,15 +48,12 @@ export default async function OperationsPage() {
 
   return (
     <div className="mx-auto w-full max-w-[100rem] space-y-6 px-4 py-8 sm:px-6">
-      <PageHeader
-        title="Operations"
-        description="Track every booking through confirmation, ticketing and completion."
-      />
+      <PageHeader title={t("title")} description={t("description")} />
 
       {bookings.length === 0 ? (
         <EmptyState
           icon={ClipboardList}
-          title="Nothing in operations yet"
+          title={t("noOperations")}
           description="Bookings appear here as they move through the workflow."
           action={
             <Button asChild>

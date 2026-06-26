@@ -62,5 +62,256 @@
     "teamActivity": "نشاط الفريق",
     "yourActivity": "نشاطك",
     "newBooking": "حجز جديد"
+  },
+  "bookings": {
+    "title": "الحجوزات",
+    "description": "كل ملف حجز: المسافرون والرحلات والفنادق والإضافات.",
+    "newBooking": "حجز جديد",
+    "status": {
+      "draft": "مسودة",
+      "confirmed": "مؤكد",
+      "paid": "مدفوع",
+      "cancelled": "ملغى",
+      "pending": "قيد الانتظار"
+    },
+    "filters": {
+      "all": "الكل",
+      "search": "البحث في الحجوزات…"
+    },
+    "table": {
+      "reference": "المرجع",
+      "client": "العميل",
+      "destination": "الوجهة",
+      "dates": "تواريخ السفر",
+      "total": "الإجمالي",
+      "status": "الحالة"
+    },
+    "addFlight": "إضافة رحلة",
+    "addHotel": "إضافة فندق",
+    "addExtra": "إضافة خدمة",
+    "addTraveller": "إضافة مسافر",
+    "noItems": "لا توجد مشتريات بعد.",
+    "noTravellers": "لا يوجد مسافرون بعد.",
+    "itemTypes": {
+      "flight": "رحلة طيران",
+      "hotel": "فندق",
+      "transfer": "نقل",
+      "excursion": "جولة",
+      "insurance": "تأمين",
+      "fee": "رسوم",
+      "other": "أخرى"
+    },
+    "purchasesTitle": "المشتريات",
+    "travellersTitle": "المسافرون وجوازات السفر",
+    "confirm": "تأكيد",
+    "confirmItem": "تأكيد العنصر",
+    "confirming": "جارٍ التأكيد…",
+    "confirmed": "تم التأكيد",
+    "noBookings": "لا توجد حجوزات بعد",
+    "viewBooking": "عرض الحجز",
+    "editBooking": "تعديل الحجز",
+    "deleteBooking": "حذف الحجز",
+    "bookingCreated": "تم إنشاء الحجز",
+    "bookingDeleted": "تم حذف الحجز"
+  },
+  "clients": {
+    "title": "العملاء",
+    "description": "عملاء السفر والحسابات الخاصة بك.",
+    "newClient": "عميل جديد",
+    "type": {
+      "individual": "فرد",
+      "corporate": "شركة"
+    },
+    "status": {
+      "lead": "عميل محتمل",
+      "active": "نشط",
+      "inactive": "غير نشط"
+    },
+    "table": {
+      "name": "الاسم",
+      "email": "البريد الإلكتروني",
+      "phone": "الهاتف",
+      "type": "النوع",
+      "bookings": "الحجوزات",
+      "status": "الحالة"
+    },
+    "noClients": "لا يوجد عملاء بعد",
+    "viewClient": "عرض العميل",
+    "editClient": "تعديل العميل",
+    "deleteClient": "حذف العميل",
+    "details": "التفاصيل",
+    "bookingHistory": "سجل الحجوزات",
+    "passport": {
+      "number": "رقم جواز السفر",
+      "expiry": "انتهاء صلاحية الجواز",
+      "nationality": "الجنسية",
+      "expiringSoon": "ينتهي قريبًا",
+      "expired": "منتهي الصلاحية",
+      "missing": "مفقود"
+    }
+  },
+  "finance": {
+    "title": "المالية",
+    "description": "المدفوعات والذمم المدينة والإيرادات على مستوى الوكالة.",
+    "revenue": "الإيرادات",
+    "expenses": "المصروفات",
+    "netProfit": "صافي الربح",
+    "pending": "قيد الانتظار",
+    "collected": "المحصّل",
+    "payments": "المدفوعات",
+    "invoices": "الفواتير",
+    "paymentKinds": {
+      "deposit": "عربون",
+      "installment": "قسط",
+      "payment": "دفعة",
+      "refund": "استرداد"
+    },
+    "paymentMethods": {
+      "manual": "يدوي",
+      "card": "بطاقة",
+      "transfer": "تحويل",
+      "cash": "نقدًا",
+      "stripe": "سترايب"
+    },
+    "paymentStatuses": {
+      "pending": "قيد الانتظار",
+      "completed": "مكتمل",
+      "failed": "فشل",
+      "refunded": "تم الاسترداد"
+    },
+    "requestPayment": "طلب الدفع",
+    "paymentLink": "رابط الدفع",
+    "copyLink": "نسخ الرابط",
+    "linkCopied": "تم نسخ الرابط",
+    "noPayments": "لا توجد مدفوعات بعد",
+    "revenueTrend": "اتجاه الإيرادات",
+    "revenueByMonth": "الإيرادات حسب الشهر"
+  },
+  "support": {
+    "title": "مساحة الدعم",
+    "description": "قائمة المهام اليومية — الحجوزات المطلوب معالجتها والعملاء والرحلات القادمة.",
+    "upcomingTrips": "الرحلات القادمة",
+    "passportAlerts": "تنبيهات الجوازات",
+    "clientRequests": "طلبات العملاء",
+    "needsAction": "يتطلب إجراءً",
+    "noAlerts": "لا توجد تنبيهات",
+    "noUpcomingTrips": "لا توجد رحلات قادمة",
+    "dayCount": "{days} أيام",
+    "alerts": {
+      "passportExpiry": "جواز السفر على وشك الانتهاء",
+      "passportMissing": "جواز السفر مفقود",
+      "needsInfo": "مطلوب معلومات"
+    },
+    "tripIn": "رحلة خلال {days} أيام",
+    "tripToday": "رحلة اليوم",
+    "tripTomorrow": "رحلة غدًا"
+  },
+  "billing": {
+    "title": "الفوترة",
+    "description": "إدارة اشتراك وكالتك.",
+    "plan": {
+      "free": "مجاني",
+      "starter": "مبتدئ",
+      "pro": "احترافي",
+      "enterprise": "مؤسسات"
+    },
+    "status": {
+      "active": "نشط",
+      "trialing": "فترة تجريبية",
+      "past_due": "متأخر السداد",
+      "canceled": "ملغى",
+      "unpaid": "غير مدفوع"
+    },
+    "currentPlan": "الخطة الحالية",
+    "renewsOn": "يتجدد في",
+    "trialEndsOn": "تنتهي الفترة التجريبية في",
+    "upgradePlan": "ترقية الخطة",
+    "manageBilling": "إدارة الفوترة",
+    "subscriptionActive": "اشتراكك نشط.",
+    "noSubscription": "لا يوجد اشتراك",
+    "connectStripe": "ربط سترايب",
+    "stripeConnected": "تم ربط سترايب",
+    "completeSetup": "إكمال الإعداد"
+  },
+  "operations": {
+    "title": "العمليات",
+    "description": "تتبّع كل حجز من التأكيد إلى إصدار التذاكر والإكمال.",
+    "upcomingDepartures": "المغادرات القادمة",
+    "activeBookings": "الحجوزات النشطة",
+    "pendingConfirmations": "التأكيدات المعلّقة",
+    "noOperations": "لا توجد عمليات بعد",
+    "departureIn": "المغادرة خلال",
+    "today": "اليوم",
+    "tomorrow": "غدًا"
+  },
+  "search": {
+    "title": "البحث والتزويد",
+    "flights": "الرحلات",
+    "hotels": "الفنادق",
+    "passengers": "المسافرون",
+    "origin": "المغادرة من",
+    "destination": "الوجهة",
+    "departDate": "تاريخ المغادرة",
+    "returnDate": "تاريخ العودة",
+    "checkIn": "تسجيل الوصول",
+    "checkOut": "تسجيل المغادرة",
+    "roomsGuests": "الغرف والضيوف",
+    "adults": "البالغون",
+    "children": "الأطفال",
+    "rooms": "الغرف",
+    "search": "بحث",
+    "searching": "جارٍ البحث…",
+    "results": {
+      "found": "النتائج التي تم العثور عليها",
+      "noResults": "لم يتم العثور على نتائج",
+      "degraded": "عرض نتائج تجريبية"
+    },
+    "addToBooking": "إضافة إلى الحجز",
+    "addToProposal": "إضافة إلى العرض",
+    "oneWay": "ذهاب فقط",
+    "roundTrip": "ذهاب وعودة",
+    "cabin": {
+      "economy": "الدرجة السياحية",
+      "premium_economy": "السياحية المميزة",
+      "business": "درجة رجال الأعمال",
+      "first": "الدرجة الأولى"
+    }
+  },
+  "public": {
+    "itinerary": {
+      "title": "برنامج رحلتك",
+      "yourTrip": "رحلتك إلى {destination}",
+      "day": "اليوم",
+      "services": "الخدمات",
+      "otherServices": "خدمات أخرى",
+      "confirmedBy": "تم التأكيد بواسطة",
+      "poweredBy": "مدعوم من"
+    },
+    "proposal": {
+      "title": "العرض",
+      "whatsIncluded": "ما يشمله العرض",
+      "perPerson": "للشخص الواحد",
+      "total": "الإجمالي",
+      "downloadPdf": "تنزيل PDF",
+      "acceptProposal": "قبول العرض",
+      "declineProposal": "رفض العرض",
+      "accepted": "مقبول",
+      "acceptedOn": "تم القبول في {date}",
+      "declined": "مرفوض",
+      "expired": "منتهي الصلاحية",
+      "signHere": "وقّع هنا",
+      "typeSignature": "اكتب توقيعك",
+      "drawSignature": "ارسم توقيعك",
+      "submitSignature": "إرسال التوقيع",
+      "signedBy": "موقّع من {name}",
+      "termsNote": "الأسعار حسب الباقة وتخضع للتوفر وقت الحجز."
+    }
+  },
+  "errors": {
+    "notFound": "الصفحة غير موجودة",
+    "notFoundDesc": "الصفحة التي تبحث عنها غير موجودة.",
+    "backHome": "العودة إلى الرئيسية",
+    "somethingWrong": "حدث خطأ ما",
+    "tryAgain": "أعد المحاولة"
   }
 }

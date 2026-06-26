@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { and, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
 import { Plus, Users, Building2, User as UserIcon } from "lucide-react";
 import { EmptyState } from "@/components/app/empty-state";
@@ -35,6 +36,7 @@ export default async function ClientsPage({
   searchParams: SearchParams;
 }) {
   const user = await requireAgencyUser();
+  const t = await getTranslations("clients");
   const sp = await searchParams;
   const team = await listTeamMembers(user.agencyId);
 
@@ -73,11 +75,11 @@ export default async function ClientsPage({
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8 sm:px-6">
-      <PageHeader title="Clients" description="Your travel clients and accounts.">
+      <PageHeader title={t("title")} description={t("description")}>
         <Button asChild>
           <Link href="/clients/new">
             <Plus className="mr-2 size-4" />
-            New client
+            {t("newClient")}
           </Link>
         </Button>
       </PageHeader>
@@ -91,10 +93,10 @@ export default async function ClientsPage({
           className="sm:max-w-xs"
         />
         <Select name="status" defaultValue={sp.status ?? ""} className="sm:max-w-[160px]">
-          <option value="">All statuses</option>
-          <option value="lead">Lead</option>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
+          <option value="">{t("table.status")}</option>
+          <option value="lead">{t("status.lead")}</option>
+          <option value="active">{t("status.active")}</option>
+          <option value="inactive">{t("status.inactive")}</option>
         </Select>
         <Select name="owner" defaultValue={sp.owner ?? ""} className="sm:max-w-[180px]">
           <option value="">All owners</option>
@@ -117,7 +119,7 @@ export default async function ClientsPage({
       {clients.length === 0 ? (
         <EmptyState
           icon={Users}
-          title={hasFilters ? "No clients match your filters" : "No clients yet"}
+          title={hasFilters ? "No clients match your filters" : t("noClients")}
           description={
             hasFilters
               ? "Try clearing the filters."
@@ -128,7 +130,7 @@ export default async function ClientsPage({
               <Button asChild>
                 <Link href="/clients/new">
                   <Plus className="mr-2 size-4" />
-                  New client
+                  {t("newClient")}
                 </Link>
               </Button>
             )
@@ -139,9 +141,9 @@ export default async function ClientsPage({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>{t("table.name")}</TableHead>
+                <TableHead>{t("table.type")}</TableHead>
+                <TableHead>{t("table.status")}</TableHead>
                 <TableHead>Location</TableHead>
                 <TableHead>Owner</TableHead>
                 <TableHead className="text-right">Opps</TableHead>

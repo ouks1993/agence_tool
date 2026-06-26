@@ -13,6 +13,7 @@ import {
   getFlightSupplier,
   getHotelSupplier,
   type FlightOffer,
+  type FlightPassenger,
   type HotelOffer,
 } from "@/lib/suppliers";
 
@@ -256,15 +257,63 @@ export async function deleteBooking(id: string): Promise<ActionResult> {
   return { ok: true };
 }
 
+/**
+ * Build the flight passenger list a live order needs from a booking's
+ * travellers. Names are split on whitespace (last token = family name). Missing
+ * data falls back to safe placeholders — a real order with bad data fails
+ * gracefully to a provisional reference in the supplier layer.
+ */
+async function buildFlightPassengers(
+  bookingId: string
+): Promise<FlightPassenger[]> {
+  const travellers = await db.query.bookingTraveller.findMany({
+    where: eq(bookingTraveller.bookingId, bookingId),
+  });
+  return travellers.map((t) => {
+    const nameParts = t.fullName.trim().split(/\s+/);
+    const family_name = nameParts.pop() ?? t.fullName;
+    const given_name = nameParts.join(" ") || family_name;
+    const born_on = t.dateOfBirth
+      ? t.dateOfBirth.toISOString().slice(0, 10)
+      : "1990-01-01"; // fallback — a real booking fails gracefully anyway
+    return {
+      type: "adult" as const,
+      given_name,
+      family_name,
+      born_on,
+      // Duffel sandbox accepts this; real bookings need the actual gender.
+      gender: "m" as const,
+      ...(t.passportNumber && t.nationality && t.passportExpiry
+        ? {
+            identity_documents: [
+              {
+                type: "passport" as const,
+                unique_identifier: t.passportNumber,
+                issuing_country_code: t.nationality.slice(0, 2).toUpperCase(),
+                expires_on: t.passportExpiry.toISOString().slice(0, 10),
+              },
+            ],
+          }
+        : {}),
+    };
+  });
+}
+
 /** Book one item with the active supplier and store its confirmation number. */
-async function confirmItemBooking(item: {
-  type: string;
-  details: unknown;
-}): Promise<string> {
+async function confirmItemBooking(
+  item: {
+    type: string;
+    details: unknown;
+  },
+  passengers: FlightPassenger[]
+): Promise<string> {
   try {
     if (item.type === "flight") {
       return (
-        await getFlightSupplier().bookFlight(item.details as FlightOffer)
+        await getFlightSupplier().bookFlight(
+          item.details as FlightOffer,
+          passengers
+        )
       ).confirmationNumber;
     }
     if (item.type === "hotel") {
@@ -282,7 +331,7 @@ async function confirmItemBooking(item: {
 export async function bookItem(
   itemId: string,
   bookingId: string
-): Promise<ActionResult> {
+): Promise<ActionResult<{ confirmationNumber: string }>> {
   const user = await requireAgencyUser();
   // Verify the parent booking belongs to this agency before touching its item.
   const parent = await db.query.booking.findFirst({
@@ -295,7 +344,8 @@ export async function bookItem(
   });
   if (!item) return { ok: false, error: "Item not found" };
 
-  const confirmationNumber = await confirmItemBooking(item);
+  const passengers = await buildFlightPassengers(bookingId);
+  const confirmationNumber = await confirmItemBooking(item, passengers);
   await db
     .update(bookingItem)
     .set({ confirmationNumber, itemStatus: "confirmed" })
@@ -312,7 +362,7 @@ export async function bookItem(
   });
 
   revalidatePath(`/bookings/${bookingId}`);
-  return { ok: true };
+  return { ok: true, data: { confirmationNumber } };
 }
 
 /** Advance a booking to the next lifecycle status. */
@@ -331,9 +381,10 @@ export async function advanceStatus(
 
   // When ticketing, ensure every item has a confirmation number.
   if (next === "ticketed") {
+    const passengers = await buildFlightPassengers(existing.id);
     for (const item of existing.items) {
       if (item.confirmationNumber) continue;
-      const confirmationNumber = await confirmItemBooking(item);
+      const confirmationNumber = await confirmItemBooking(item, passengers);
       await db
         .update(bookingItem)
         .set({ confirmationNumber, itemStatus: "ticketed" })

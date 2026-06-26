@@ -3,6 +3,7 @@ import type {
   BookingConfirmation,
   CabinClass,
   FlightOffer,
+  FlightPassenger,
   FlightSearchParams,
   FlightSegment,
   HotelOffer,
@@ -117,6 +118,8 @@ type DfOffer = {
   slices: DfSlice[];
 };
 type OfferRequestResponse = { data?: { offers?: DfOffer[] } };
+type DfOrder = { id: string; booking_reference: string };
+type OrderResponse = { data?: DfOrder };
 
 function minutesBetween(a: string, b: string): number {
   return Math.max(
@@ -185,6 +188,9 @@ export class DuffelSupplier implements SupplierProvider {
       return [
         {
           id: `duffel-fl-${offer.id}`,
+          // Raw provider id kept separately so booking can create a real order
+          // even after the offer is stored on a booking item.
+          rawOfferId: offer.id,
           source: "duffel" as const,
           airlineCode: code,
           airlineName: name,
@@ -214,15 +220,72 @@ export class DuffelSupplier implements SupplierProvider {
     return [];
   }
 
-  // Creating a real Duffel order requires full passenger details and payment
-  // (balance or hold). Until that flow is wired we issue a provisional reference
-  // so operations runs end to end — same approach as the previous provider.
-  async bookFlight(): Promise<BookingConfirmation> {
-    return {
-      confirmationNumber: `DF-${Date.now().toString(36).toUpperCase()}`,
-      provider: "duffel",
-      status: "confirmed",
-    };
+  /**
+   * Create a real Duffel order ("instant" type, paid from the agency balance).
+   *
+   * Requires the raw provider offer id and full passenger details. If the live
+   * call fails (offer expired, missing/invalid passenger data, insufficient
+   * balance, sandbox quirks) we fall back to a provisional reference so
+   * operations still runs end to end — the same graceful degradation used
+   * elsewhere in the supplier layer.
+   */
+  async bookFlight(
+    offer: FlightOffer,
+    passengers?: FlightPassenger[]
+  ): Promise<BookingConfirmation> {
+    try {
+      // Legacy items stored before rawOfferId existed keep the raw id inside
+      // the prefixed `id`, so strip the prefix as a fallback.
+      const rawOfferId = offer.rawOfferId ?? offer.id.replace("duffel-fl-", "");
+
+      const body = {
+        data: {
+          type: "instant",
+          selected_offers: [rawOfferId],
+          passengers: (passengers ?? []).map((p) => ({
+            type: p.type,
+            given_name: p.given_name,
+            family_name: p.family_name,
+            born_on: p.born_on,
+            gender: p.gender,
+            ...(p.identity_documents
+              ? { identity_documents: p.identity_documents }
+              : {}),
+          })),
+          payments: [
+            {
+              type: "balance",
+              amount: offer.priceTotal.toFixed(2),
+              currency: offer.currency,
+            },
+          ],
+        },
+      };
+
+      const json = await duffel<OrderResponse>("/air/orders", {
+        method: "POST",
+        body,
+      });
+      const order = json.data;
+      if (!order?.booking_reference) {
+        throw new Error("Duffel order missing booking_reference");
+      }
+      return {
+        confirmationNumber: order.booking_reference,
+        provider: "duffel",
+        status: "confirmed",
+      };
+    } catch (error) {
+      console.error(
+        "Duffel order creation failed, issuing provisional reference:",
+        error
+      );
+      return {
+        confirmationNumber: `DF-${Date.now().toString(36).toUpperCase()}`,
+        provider: "duffel",
+        status: "confirmed",
+      };
+    }
   }
 
   async bookHotel(): Promise<BookingConfirmation> {

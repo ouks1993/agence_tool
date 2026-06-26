@@ -39,6 +39,34 @@ export async function setLocale(locale: string): Promise<ActionResult> {
   return { ok: true };
 }
 
+/**
+ * After a successful login, copies the user's stored account locale into the
+ * `locale` cookie so a fresh device inherits their chosen language without
+ * having to visit Settings. Best-effort and fire-and-forget: any failure is
+ * swallowed so it can never block the sign-in flow.
+ */
+export async function syncLocaleAfterLogin(): Promise<void> {
+  try {
+    const me = await requireUser();
+    const row = await db.query.user.findFirst({
+      where: eq(user.id, me.id),
+      columns: { locale: true },
+    });
+
+    if (!isLocale(row?.locale)) return;
+
+    (await cookies()).set(LOCALE_COOKIE, row.locale, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: ONE_YEAR,
+    });
+  } catch {
+    // Not signed in or DB hiccup — the cookie/default locale still applies.
+  }
+}
+
 /** Updates the signed-in user's display name. */
 export async function updateProfile(input: { name: string }): Promise<ActionResult> {
   const me = await requireUser();

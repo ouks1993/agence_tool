@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { asc, eq } from "drizzle-orm";
 import { Compass, MapPin, CalendarDays } from "lucide-react";
 import { APP_NAME, APP_TAGLINE } from "@/lib/config";
@@ -16,6 +17,7 @@ export default async function PublicItinerary({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
+  const t = await getTranslations("public.itinerary");
 
   const b = await db.query.booking.findFirst({
     where: eq(booking.shareToken, token),
@@ -47,7 +49,7 @@ export default async function PublicItinerary({
   const allDays = [
     ...days,
     ...(unscheduled.length
-      ? [{ dayIndex: -1, date: null, title: "Other services", notes: null, items: unscheduled }]
+      ? [{ dayIndex: -1, date: null, title: t("otherServices"), notes: null, items: unscheduled }]
       : []),
   ];
 
@@ -67,7 +69,7 @@ export default async function PublicItinerary({
 
         <div className="bg-card rounded-lg border p-6 shadow-sm sm:p-8">
           <h1 className="text-2xl font-bold">
-            {b.destination ? `Your trip to ${b.destination}` : "Your itinerary"}
+            {b.destination ? t("yourTrip", { destination: b.destination }) : t("title")}
           </h1>
           <div className="text-muted-foreground mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
             {b.client?.name && <span>{b.client.name}</span>}
@@ -84,7 +86,7 @@ export default async function PublicItinerary({
               <div key={day.dayIndex} className="relative border-l-2 pl-5">
                 <span className="bg-primary absolute top-1 -left-[7px] size-3 rounded-full" />
                 <p className="text-sm font-semibold">
-                  {day.dayIndex >= 0 ? `Day ${day.dayIndex + 1}` : day.title}
+                  {day.dayIndex >= 0 ? `${t("day")} ${day.dayIndex + 1}` : day.title}
                   {day.date && (
                     <span className="text-muted-foreground font-normal">
                       {" "}

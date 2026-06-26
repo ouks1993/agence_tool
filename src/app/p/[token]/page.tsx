@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { asc, eq } from "drizzle-orm";
 import { CheckCircle2, Compass, Download, XCircle } from "lucide-react";
 import { ProposalSignForm } from "@/components/products/proposal-sign-form";
@@ -24,6 +25,7 @@ export default async function PublicProposal({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
+  const t = await getTranslations("public.proposal");
 
   const p = await db.query.product.findFirst({
     where: eq(product.shareToken, token),
@@ -44,7 +46,7 @@ export default async function PublicProposal({
         <div className="mb-4 flex justify-end">
           <Button asChild variant="outline" size="sm">
             <Link href={`/p/${token}/pdf`} target="_blank">
-              <Download className="mr-1 size-4" /> Download PDF
+              <Download className="mr-1 size-4" /> {t("downloadPdf")}
             </Link>
           </Button>
         </div>
@@ -117,7 +119,7 @@ export default async function PublicProposal({
           {/* Items */}
           <div className="py-6">
             <h2 className="mb-3 text-sm font-semibold tracking-wide uppercase">
-              What&apos;s included
+              {t("whatsIncluded")}
             </h2>
             {p.items.length === 0 ? (
               <p className="text-muted-foreground text-sm">No items yet.</p>
@@ -150,7 +152,7 @@ export default async function PublicProposal({
 
           {/* Total */}
           <div className="flex items-center justify-between border-t pt-5">
-            <span className="text-lg font-semibold">Total</span>
+            <span className="text-lg font-semibold">{t("total")}</span>
             <span className="text-2xl font-bold">
               {formatMoney(totalPrice, p.currency)}
             </span>

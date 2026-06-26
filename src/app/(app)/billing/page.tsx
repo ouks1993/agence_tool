@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { eq } from "drizzle-orm";
 import { CreditCard } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
@@ -51,6 +52,7 @@ export default async function BillingPage() {
   });
   if (!ag) redirect("/dashboard");
 
+  const t = await getTranslations("billing");
   const configured = isBillingConfigured();
   const status = ag.subscriptionStatus;
   const onTrial = status === "trialing";
@@ -58,10 +60,7 @@ export default async function BillingPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mx-auto max-w-2xl space-y-8">
-        <PageHeader
-          title="Billing"
-          description="Manage your agency's subscription."
-        />
+        <PageHeader title={t("title")} description={t("description")} />
 
         <Card>
           <CardHeader>

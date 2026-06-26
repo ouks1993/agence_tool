@@ -33,6 +33,10 @@ const serverEnvSchema = z.object({
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_PRICE_ID: z.string().optional(),
 
+  // Payments (Stripe Connect — traveler → agency, with a platform fee)
+  STRIPE_CONNECT_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_PLATFORM_FEE_PERCENT: z.coerce.number().default(5),
+
   // Travel suppliers (flights via Duffel, hotels via Hotelbeds)
   DUFFEL_API_TOKEN: z.string().optional(),
   DUFFEL_VERSION: z.string().optional(),

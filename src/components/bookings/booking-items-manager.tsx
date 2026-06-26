@@ -26,7 +26,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
-import { addBookingItem, removeBookingItem } from "@/lib/actions/bookings";
+import { addBookingItem, bookItem, removeBookingItem } from "@/lib/actions/bookings";
 import {
   BOOKING_ITEM_TYPE_META,
   TRAVEL_ITEM_TYPES,
@@ -57,6 +57,8 @@ export type BookingItemRow = {
   quantity: number;
   amount: string;
   currency: string;
+  itemStatus: string | null;
+  confirmationNumber: string | null;
 };
 
 export function BookingItemsManager({
@@ -123,6 +125,19 @@ export function BookingItemsManager({
     });
   };
 
+  // Book a pending item with the supplier and store its confirmation number.
+  const confirmItem = (id: string) => {
+    startTransition(async () => {
+      const res = await bookItem(id, bookingId);
+      if (res.ok) {
+        toast.success(`Confirmed: ${res.data?.confirmationNumber ?? ""}`);
+        router.refresh();
+      } else {
+        toast.error(res.error);
+      }
+    });
+  };
+
   const save = () => {
     startTransition(async () => {
       const res = await addBookingItem(bookingId, {
@@ -155,7 +170,9 @@ export function BookingItemsManager({
         title="Flights & hotels"
         items={travel}
         currency={currency}
+        bookingId={bookingId}
         onRemove={remove}
+        onConfirm={confirmItem}
         onAdd={() => openDialog(TRAVEL_ITEM_TYPES)}
         addLabel="Add flight / hotel"
         pending={pending}
@@ -166,7 +183,9 @@ export function BookingItemsManager({
         title="Extras & fees"
         items={extras}
         currency={currency}
+        bookingId={bookingId}
         onRemove={remove}
+        onConfirm={confirmItem}
         onAdd={() => openDialog(EXTRA_ITEM_TYPES)}
         addLabel="Add extra"
         pending={pending}
@@ -304,7 +323,9 @@ function ItemSection({
   title,
   items,
   currency,
+  bookingId: _bookingId,
   onRemove,
+  onConfirm,
   onAdd,
   addLabel,
   pending,
@@ -313,7 +334,9 @@ function ItemSection({
   title: string;
   items: BookingItemRow[];
   currency: string;
+  bookingId: string;
   onRemove: (id: string) => void;
+  onConfirm: (id: string) => void;
   onAdd: () => void;
   addLabel: string;
   pending: boolean;
@@ -359,6 +382,21 @@ function ItemSection({
                 <span className="shrink-0 font-semibold">
                   {formatMoney(line, item.currency)}
                 </span>
+                {item.itemStatus === "confirmed" || item.confirmationNumber ? (
+                  <span className="shrink-0 self-center text-xs text-green-600 dark:text-green-400">
+                    {item.confirmationNumber}
+                  </span>
+                ) : item.itemStatus === "pending" &&
+                  (item.type === "flight" || item.type === "hotel") ? (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => onConfirm(item.id)}
+                    disabled={pending}
+                  >
+                    Confirm
+                  </Button>
+                ) : null}
                 <Button
                   variant="ghost"
                   size="icon"

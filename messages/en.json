@@ -62,5 +62,256 @@
     "teamActivity": "Team activity",
     "yourActivity": "Your activity",
     "newBooking": "New booking"
+  },
+  "bookings": {
+    "title": "Bookings",
+    "description": "Each booking file: travellers, flights & hotels, and extras.",
+    "newBooking": "New booking",
+    "status": {
+      "draft": "Draft",
+      "confirmed": "Confirmed",
+      "paid": "Paid",
+      "cancelled": "Cancelled",
+      "pending": "Pending"
+    },
+    "filters": {
+      "all": "All",
+      "search": "Search bookings…"
+    },
+    "table": {
+      "reference": "Reference",
+      "client": "Client",
+      "destination": "Destination",
+      "dates": "Travel dates",
+      "total": "Total",
+      "status": "Status"
+    },
+    "addFlight": "Add flight",
+    "addHotel": "Add hotel",
+    "addExtra": "Add extra",
+    "addTraveller": "Add traveller",
+    "noItems": "No purchases yet.",
+    "noTravellers": "No travellers yet.",
+    "itemTypes": {
+      "flight": "Flight",
+      "hotel": "Hotel",
+      "transfer": "Transfer",
+      "excursion": "Excursion",
+      "insurance": "Insurance",
+      "fee": "Fee",
+      "other": "Other"
+    },
+    "purchasesTitle": "Purchases",
+    "travellersTitle": "Travellers & passports",
+    "confirm": "Confirm",
+    "confirmItem": "Confirm item",
+    "confirming": "Confirming…",
+    "confirmed": "Confirmed",
+    "noBookings": "No bookings yet",
+    "viewBooking": "View booking",
+    "editBooking": "Edit booking",
+    "deleteBooking": "Delete booking",
+    "bookingCreated": "Booking created",
+    "bookingDeleted": "Booking deleted"
+  },
+  "clients": {
+    "title": "Clients",
+    "description": "Your travel clients and accounts.",
+    "newClient": "New client",
+    "type": {
+      "individual": "Individual",
+      "corporate": "Corporate"
+    },
+    "status": {
+      "lead": "Lead",
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "table": {
+      "name": "Name",
+      "email": "Email",
+      "phone": "Phone",
+      "type": "Type",
+      "bookings": "Bookings",
+      "status": "Status"
+    },
+    "noClients": "No clients yet",
+    "viewClient": "View client",
+    "editClient": "Edit client",
+    "deleteClient": "Delete client",
+    "details": "Details",
+    "bookingHistory": "Booking history",
+    "passport": {
+      "number": "Passport number",
+      "expiry": "Passport expiry",
+      "nationality": "Nationality",
+      "expiringSoon": "Expiring soon",
+      "expired": "Expired",
+      "missing": "Missing"
+    }
+  },
+  "finance": {
+    "title": "Finance",
+    "description": "Payments, accounts receivable and revenue across the agency.",
+    "revenue": "Revenue",
+    "expenses": "Expenses",
+    "netProfit": "Net profit",
+    "pending": "Pending",
+    "collected": "Collected",
+    "payments": "Payments",
+    "invoices": "Invoices",
+    "paymentKinds": {
+      "deposit": "Deposit",
+      "installment": "Installment",
+      "payment": "Payment",
+      "refund": "Refund"
+    },
+    "paymentMethods": {
+      "manual": "Manual",
+      "card": "Card",
+      "transfer": "Transfer",
+      "cash": "Cash",
+      "stripe": "Stripe"
+    },
+    "paymentStatuses": {
+      "pending": "Pending",
+      "completed": "Completed",
+      "failed": "Failed",
+      "refunded": "Refunded"
+    },
+    "requestPayment": "Request payment",
+    "paymentLink": "Payment link",
+    "copyLink": "Copy link",
+    "linkCopied": "Link copied",
+    "noPayments": "No payments yet",
+    "revenueTrend": "Revenue trend",
+    "revenueByMonth": "Revenue by month"
+  },
+  "support": {
+    "title": "Support workspace",
+    "description": "The day-to-day queue — bookings to handle, clients and upcoming trips.",
+    "upcomingTrips": "Upcoming trips",
+    "passportAlerts": "Passport alerts",
+    "clientRequests": "Client requests",
+    "needsAction": "Needs action",
+    "noAlerts": "No alerts",
+    "noUpcomingTrips": "No upcoming trips",
+    "dayCount": "{days} days",
+    "alerts": {
+      "passportExpiry": "Passport expiring",
+      "passportMissing": "Passport missing",
+      "needsInfo": "Needs information"
+    },
+    "tripIn": "Trip in {days} days",
+    "tripToday": "Trip today",
+    "tripTomorrow": "Trip tomorrow"
+  },
+  "billing": {
+    "title": "Billing",
+    "description": "Manage your agency's subscription.",
+    "plan": {
+      "free": "Free",
+      "starter": "Starter",
+      "pro": "Pro",
+      "enterprise": "Enterprise"
+    },
+    "status": {
+      "active": "Active",
+      "trialing": "Trialing",
+      "past_due": "Past due",
+      "canceled": "Canceled",
+      "unpaid": "Unpaid"
+    },
+    "currentPlan": "Current plan",
+    "renewsOn": "Renews on",
+    "trialEndsOn": "Trial ends on",
+    "upgradePlan": "Upgrade plan",
+    "manageBilling": "Manage billing",
+    "subscriptionActive": "Your subscription is active.",
+    "noSubscription": "No subscription",
+    "connectStripe": "Connect Stripe",
+    "stripeConnected": "Stripe connected",
+    "completeSetup": "Complete setup"
+  },
+  "operations": {
+    "title": "Operations",
+    "description": "Track every booking through confirmation, ticketing and completion.",
+    "upcomingDepartures": "Upcoming departures",
+    "activeBookings": "Active bookings",
+    "pendingConfirmations": "Pending confirmations",
+    "noOperations": "Nothing in operations yet",
+    "departureIn": "Departure in",
+    "today": "Today",
+    "tomorrow": "Tomorrow"
+  },
+  "search": {
+    "title": "Search & sourcing",
+    "flights": "Flights",
+    "hotels": "Hotels",
+    "passengers": "Passengers",
+    "origin": "Origin",
+    "destination": "Destination",
+    "departDate": "Departure date",
+    "returnDate": "Return date",
+    "checkIn": "Check-in",
+    "checkOut": "Check-out",
+    "roomsGuests": "Rooms & guests",
+    "adults": "Adults",
+    "children": "Children",
+    "rooms": "Rooms",
+    "search": "Search",
+    "searching": "Searching…",
+    "results": {
+      "found": "Results found",
+      "noResults": "No results found",
+      "degraded": "Showing sample results"
+    },
+    "addToBooking": "Add to booking",
+    "addToProposal": "Add to proposal",
+    "oneWay": "One way",
+    "roundTrip": "Round trip",
+    "cabin": {
+      "economy": "Economy",
+      "premium_economy": "Premium economy",
+      "business": "Business",
+      "first": "First"
+    }
+  },
+  "public": {
+    "itinerary": {
+      "title": "Your itinerary",
+      "yourTrip": "Your trip to {destination}",
+      "day": "Day",
+      "services": "Services",
+      "otherServices": "Other services",
+      "confirmedBy": "Confirmed by",
+      "poweredBy": "Powered by"
+    },
+    "proposal": {
+      "title": "Proposal",
+      "whatsIncluded": "What's included",
+      "perPerson": "Per person",
+      "total": "Total",
+      "downloadPdf": "Download PDF",
+      "acceptProposal": "Accept proposal",
+      "declineProposal": "Decline proposal",
+      "accepted": "Accepted",
+      "acceptedOn": "Accepted on {date}",
+      "declined": "Declined",
+      "expired": "Expired",
+      "signHere": "Sign here",
+      "typeSignature": "Type your signature",
+      "drawSignature": "Draw your signature",
+      "submitSignature": "Submit signature",
+      "signedBy": "Signed by {name}",
+      "termsNote": "Prices are per the package and subject to availability at the time of booking."
+    }
+  },
+  "errors": {
+    "notFound": "Page not found",
+    "notFoundDesc": "The page you're looking for doesn't exist.",
+    "backHome": "Go back home",
+    "somethingWrong": "Something went wrong",
+    "tryAgain": "Try again"
   }
 }

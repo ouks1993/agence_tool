@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { Info } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { SearchWorkspace } from "@/components/search/search-workspace";
@@ -13,6 +14,7 @@ export const metadata = { title: "Search" };
 
 export default async function SearchPage() {
   const user = await requireAgencyUser();
+  const t = await getTranslations("search");
   const [clients, bookings] = await Promise.all([
     listClientOptions(user.agencyId),
     listOpenBookings(user.agencyId),
@@ -28,7 +30,7 @@ export default async function SearchPage() {
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-8 sm:px-6">
       <PageHeader
-        title="Search & sourcing"
+        title={t("title")}
         description="Find flights and hotels, compare prices, and add them to a booking."
       />
 

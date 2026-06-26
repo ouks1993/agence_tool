@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { desc, eq, inArray, sql } from "drizzle-orm";
 import { Plus, Briefcase, Users } from "lucide-react";
 import { EmptyState } from "@/components/app/empty-state";
@@ -23,6 +24,7 @@ export const metadata = { title: "Bookings" };
 
 export default async function BookingsPage() {
   const user = await requireAgencyUser();
+  const t = await getTranslations("bookings");
 
   const bookings = await db.query.booking.findMany({
     where: eq(booking.agencyId, user.agencyId),
@@ -48,14 +50,11 @@ export default async function BookingsPage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8 sm:px-6">
-      <PageHeader
-        title="Bookings"
-        description="Each booking file: travellers, flights & hotels, and extras."
-      >
+      <PageHeader title={t("title")} description={t("description")}>
         <Button asChild>
           <Link href="/bookings/new">
             <Plus className="mr-2 size-4" />
-            New booking
+            {t("newBooking")}
           </Link>
         </Button>
       </PageHeader>
@@ -63,13 +62,13 @@ export default async function BookingsPage() {
       {bookings.length === 0 ? (
         <EmptyState
           icon={Briefcase}
-          title="No bookings yet"
+          title={t("noBookings")}
           description="Create a booking, add the travellers' passport details, then add their flights, hotels and extras."
           action={
             <Button asChild>
               <Link href="/bookings/new">
                 <Plus className="mr-2 size-4" />
-                New booking
+                {t("newBooking")}
               </Link>
             </Button>
           }
@@ -79,13 +78,13 @@ export default async function BookingsPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Reference</TableHead>
-                <TableHead>Client</TableHead>
-                <TableHead>Destination</TableHead>
-                <TableHead>Travel dates</TableHead>
+                <TableHead>{t("table.reference")}</TableHead>
+                <TableHead>{t("table.client")}</TableHead>
+                <TableHead>{t("table.destination")}</TableHead>
+                <TableHead>{t("table.dates")}</TableHead>
                 <TableHead className="text-right">Pax</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Total</TableHead>
+                <TableHead>{t("table.status")}</TableHead>
+                <TableHead className="text-right">{t("table.total")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

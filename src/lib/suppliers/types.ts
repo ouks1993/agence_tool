@@ -52,6 +52,32 @@ export type FlightOffer = {
   segments: FlightSegment[];
   /** Present for round trips. */
   returnSegments?: FlightSegment[] | undefined;
+  /**
+   * Raw provider offer id (e.g. Duffel `ofr_...`), without the internal
+   * `duffel-fl-` prefix applied to `id`. Required to create a real order.
+   */
+  rawOfferId?: string | undefined;
+};
+
+/**
+ * A passenger on a flight order. Mirrors the subset of Duffel's order-passenger
+ * shape the booking flow needs; ignored by suppliers that don't book live.
+ */
+export type FlightPassenger = {
+  type: "adult";
+  given_name: string;
+  family_name: string;
+  /** Date of birth, YYYY-MM-DD. */
+  born_on: string;
+  gender: "m" | "f";
+  identity_documents?: Array<{
+    type: "passport";
+    unique_identifier: string;
+    /** 2-letter ISO issuing country code. */
+    issuing_country_code: string;
+    /** Passport expiry, YYYY-MM-DD. */
+    expires_on: string;
+  }>;
 };
 
 // --- Hotels -----------------------------------------------------------------
@@ -191,8 +217,15 @@ export interface SupplierProvider {
   readonly label: string;
   searchFlights(params: FlightSearchParams): Promise<FlightOffer[]>;
   searchHotels(params: HotelSearchParams): Promise<HotelOffer[]>;
-  /** Book a previously-found offer. Returns a supplier confirmation number. */
-  bookFlight(offer: FlightOffer): Promise<BookingConfirmation>;
+  /**
+   * Book a previously-found offer. Returns a supplier confirmation number.
+   * `passengers` is required by live providers (Duffel) to create a real order;
+   * mock/legacy providers ignore it.
+   */
+  bookFlight(
+    offer: FlightOffer,
+    passengers?: FlightPassenger[]
+  ): Promise<BookingConfirmation>;
   bookHotel(offer: HotelOffer): Promise<BookingConfirmation>;
   /** Cancel a booking by its confirmation number. */
   cancel(confirmationNumber: string): Promise<{ cancelled: boolean }>;

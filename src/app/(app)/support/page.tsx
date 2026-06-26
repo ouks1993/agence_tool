@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { desc, eq, sql } from "drizzle-orm";
 import {
   Briefcase,
@@ -55,6 +56,8 @@ export default async function SupportPage() {
   if (!canViewSupport(user.role)) {
     redirect(roleHome(user.role));
   }
+
+  const t = await getTranslations("support");
 
   // Single agency-scoped booking read; every queue below is derived in code.
   // Children (travellers, payments) carry no agencyId, so scoping the parent
@@ -182,10 +185,7 @@ export default async function SupportPage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8 sm:px-6">
-      <PageHeader
-        title="Support workspace"
-        description="The day-to-day queue — bookings to handle, clients and upcoming trips."
-      >
+      <PageHeader title={t("title")} description={t("description")}>
         <Button asChild>
           <Link href="/bookings">All bookings</Link>
         </Button>
@@ -200,7 +200,7 @@ export default async function SupportPage() {
           icon={Briefcase}
         />
         <StatCard
-          label="Upcoming trips"
+          label={t("upcomingTrips")}
           value={upcoming.length}
           hint={`Departing in ${UPCOMING_WINDOW_DAYS} days`}
           icon={Plane}
@@ -212,7 +212,7 @@ export default async function SupportPage() {
           icon={Wallet}
         />
         <StatCard
-          label="Passport alerts"
+          label={t("passportAlerts")}
           value={passportAlertCount}
           hint={passportAlertCount ? "Need attention" : "All clear"}
           icon={ShieldAlert}

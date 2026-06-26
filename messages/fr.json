@@ -62,5 +62,256 @@
     "teamActivity": "Activité de l'équipe",
     "yourActivity": "Votre activité",
     "newBooking": "Nouvelle réservation"
+  },
+  "bookings": {
+    "title": "Réservations",
+    "description": "Chaque dossier de réservation : voyageurs, vols et hôtels, et extras.",
+    "newBooking": "Nouvelle réservation",
+    "status": {
+      "draft": "Brouillon",
+      "confirmed": "Confirmée",
+      "paid": "Payée",
+      "cancelled": "Annulée",
+      "pending": "En attente"
+    },
+    "filters": {
+      "all": "Toutes",
+      "search": "Rechercher des réservations…"
+    },
+    "table": {
+      "reference": "Référence",
+      "client": "Client",
+      "destination": "Destination",
+      "dates": "Dates de voyage",
+      "total": "Total",
+      "status": "Statut"
+    },
+    "addFlight": "Ajouter un vol",
+    "addHotel": "Ajouter un hôtel",
+    "addExtra": "Ajouter un extra",
+    "addTraveller": "Ajouter un voyageur",
+    "noItems": "Aucun achat pour le moment.",
+    "noTravellers": "Aucun voyageur pour le moment.",
+    "itemTypes": {
+      "flight": "Vol",
+      "hotel": "Hôtel",
+      "transfer": "Transfert",
+      "excursion": "Excursion",
+      "insurance": "Assurance",
+      "fee": "Frais",
+      "other": "Autre"
+    },
+    "purchasesTitle": "Achats",
+    "travellersTitle": "Voyageurs et passeports",
+    "confirm": "Confirmer",
+    "confirmItem": "Confirmer l'élément",
+    "confirming": "Confirmation…",
+    "confirmed": "Confirmé",
+    "noBookings": "Aucune réservation pour le moment",
+    "viewBooking": "Voir la réservation",
+    "editBooking": "Modifier la réservation",
+    "deleteBooking": "Supprimer la réservation",
+    "bookingCreated": "Réservation créée",
+    "bookingDeleted": "Réservation supprimée"
+  },
+  "clients": {
+    "title": "Clients",
+    "description": "Vos clients de voyage et vos comptes.",
+    "newClient": "Nouveau client",
+    "type": {
+      "individual": "Particulier",
+      "corporate": "Entreprise"
+    },
+    "status": {
+      "lead": "Prospect",
+      "active": "Actif",
+      "inactive": "Inactif"
+    },
+    "table": {
+      "name": "Nom",
+      "email": "E-mail",
+      "phone": "Téléphone",
+      "type": "Type",
+      "bookings": "Réservations",
+      "status": "Statut"
+    },
+    "noClients": "Aucun client pour le moment",
+    "viewClient": "Voir le client",
+    "editClient": "Modifier le client",
+    "deleteClient": "Supprimer le client",
+    "details": "Détails",
+    "bookingHistory": "Historique des réservations",
+    "passport": {
+      "number": "Numéro de passeport",
+      "expiry": "Expiration du passeport",
+      "nationality": "Nationalité",
+      "expiringSoon": "Expire bientôt",
+      "expired": "Expiré",
+      "missing": "Manquant"
+    }
+  },
+  "finance": {
+    "title": "Finance",
+    "description": "Paiements, comptes clients et revenus de l'agence.",
+    "revenue": "Revenus",
+    "expenses": "Dépenses",
+    "netProfit": "Bénéfice net",
+    "pending": "En attente",
+    "collected": "Encaissé",
+    "payments": "Paiements",
+    "invoices": "Factures",
+    "paymentKinds": {
+      "deposit": "Acompte",
+      "installment": "Versement",
+      "payment": "Paiement",
+      "refund": "Remboursement"
+    },
+    "paymentMethods": {
+      "manual": "Manuel",
+      "card": "Carte",
+      "transfer": "Virement",
+      "cash": "Espèces",
+      "stripe": "Stripe"
+    },
+    "paymentStatuses": {
+      "pending": "En attente",
+      "completed": "Terminé",
+      "failed": "Échoué",
+      "refunded": "Remboursé"
+    },
+    "requestPayment": "Demander un paiement",
+    "paymentLink": "Lien de paiement",
+    "copyLink": "Copier le lien",
+    "linkCopied": "Lien copié",
+    "noPayments": "Aucun paiement pour le moment",
+    "revenueTrend": "Tendance des revenus",
+    "revenueByMonth": "Revenus par mois"
+  },
+  "support": {
+    "title": "Espace support",
+    "description": "La file quotidienne — réservations à traiter, clients et voyages à venir.",
+    "upcomingTrips": "Voyages à venir",
+    "passportAlerts": "Alertes passeport",
+    "clientRequests": "Demandes des clients",
+    "needsAction": "Action requise",
+    "noAlerts": "Aucune alerte",
+    "noUpcomingTrips": "Aucun voyage à venir",
+    "dayCount": "{days} jours",
+    "alerts": {
+      "passportExpiry": "Passeport bientôt expiré",
+      "passportMissing": "Passeport manquant",
+      "needsInfo": "Informations requises"
+    },
+    "tripIn": "Voyage dans {days} jours",
+    "tripToday": "Voyage aujourd'hui",
+    "tripTomorrow": "Voyage demain"
+  },
+  "billing": {
+    "title": "Facturation",
+    "description": "Gérez l'abonnement de votre agence.",
+    "plan": {
+      "free": "Gratuit",
+      "starter": "Débutant",
+      "pro": "Pro",
+      "enterprise": "Entreprise"
+    },
+    "status": {
+      "active": "Actif",
+      "trialing": "Période d'essai",
+      "past_due": "En retard",
+      "canceled": "Annulé",
+      "unpaid": "Impayé"
+    },
+    "currentPlan": "Forfait actuel",
+    "renewsOn": "Renouvellement le",
+    "trialEndsOn": "Fin de l'essai le",
+    "upgradePlan": "Améliorer le forfait",
+    "manageBilling": "Gérer la facturation",
+    "subscriptionActive": "Votre abonnement est actif.",
+    "noSubscription": "Aucun abonnement",
+    "connectStripe": "Connecter Stripe",
+    "stripeConnected": "Stripe connecté",
+    "completeSetup": "Terminer la configuration"
+  },
+  "operations": {
+    "title": "Opérations",
+    "description": "Suivez chaque réservation de la confirmation à l'émission et à l'achèvement.",
+    "upcomingDepartures": "Départs à venir",
+    "activeBookings": "Réservations actives",
+    "pendingConfirmations": "Confirmations en attente",
+    "noOperations": "Aucune opération pour le moment",
+    "departureIn": "Départ dans",
+    "today": "Aujourd'hui",
+    "tomorrow": "Demain"
+  },
+  "search": {
+    "title": "Recherche et approvisionnement",
+    "flights": "Vols",
+    "hotels": "Hôtels",
+    "passengers": "Passagers",
+    "origin": "Origine",
+    "destination": "Destination",
+    "departDate": "Date de départ",
+    "returnDate": "Date de retour",
+    "checkIn": "Arrivée",
+    "checkOut": "Départ",
+    "roomsGuests": "Chambres et voyageurs",
+    "adults": "Adultes",
+    "children": "Enfants",
+    "rooms": "Chambres",
+    "search": "Rechercher",
+    "searching": "Recherche…",
+    "results": {
+      "found": "Résultats trouvés",
+      "noResults": "Aucun résultat trouvé",
+      "degraded": "Affichage de résultats d'exemple"
+    },
+    "addToBooking": "Ajouter à la réservation",
+    "addToProposal": "Ajouter à la proposition",
+    "oneWay": "Aller simple",
+    "roundTrip": "Aller-retour",
+    "cabin": {
+      "economy": "Économique",
+      "premium_economy": "Économique premium",
+      "business": "Affaires",
+      "first": "Première"
+    }
+  },
+  "public": {
+    "itinerary": {
+      "title": "Votre itinéraire",
+      "yourTrip": "Votre voyage à {destination}",
+      "day": "Jour",
+      "services": "Services",
+      "otherServices": "Autres services",
+      "confirmedBy": "Confirmé par",
+      "poweredBy": "Propulsé par"
+    },
+    "proposal": {
+      "title": "Proposition",
+      "whatsIncluded": "Ce qui est inclus",
+      "perPerson": "Par personne",
+      "total": "Total",
+      "downloadPdf": "Télécharger le PDF",
+      "acceptProposal": "Accepter la proposition",
+      "declineProposal": "Refuser la proposition",
+      "accepted": "Acceptée",
+      "acceptedOn": "Acceptée le {date}",
+      "declined": "Refusée",
+      "expired": "Expirée",
+      "signHere": "Signez ici",
+      "typeSignature": "Saisissez votre signature",
+      "drawSignature": "Dessinez votre signature",
+      "submitSignature": "Envoyer la signature",
+      "signedBy": "Signée par {name}",
+      "termsNote": "Les prix correspondent au forfait et sont soumis à disponibilité au moment de la réservation."
+    }
+  },
+  "errors": {
+    "notFound": "Page introuvable",
+    "notFoundDesc": "La page que vous recherchez n'existe pas.",
+    "backHome": "Retour à l'accueil",
+    "somethingWrong": "Une erreur s'est produite",
+    "tryAgain": "Réessayer"
   }
 }
