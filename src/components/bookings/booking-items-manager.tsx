@@ -14,6 +14,7 @@ import {
   Plus,
 } from "lucide-react";
 import { toast } from "sonner";
+import { BookingSearchPanel } from "@/components/bookings/booking-search-panel";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -70,6 +71,7 @@ export function BookingItemsManager({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [dialogTypes, setDialogTypes] = useState<BookingItemType[] | null>(null);
+  const [tab, setTab] = useState<"search" | "manual">("search");
   const [form, setForm] = useState({
     type: "flight" as BookingItemType,
     title: "",
@@ -99,7 +101,14 @@ export function BookingItemsManager({
       startDate: "",
       endDate: "",
     });
+    setTab("search");
     setDialogTypes(types);
+  };
+
+  // Called by the embedded search panel after an offer is added to this booking.
+  const onSearchAdded = () => {
+    setDialogTypes(null);
+    router.refresh();
   };
 
   const remove = (id: string) => {
@@ -165,10 +174,40 @@ export function BookingItemsManager({
       />
 
       <Dialog open={dialogTypes !== null} onOpenChange={(o) => !o && setDialogTypes(null)}>
-        <DialogContent>
+        <DialogContent className={isTravelDialog ? "sm:max-w-2xl" : undefined}>
           <DialogHeader>
             <DialogTitle>{isTravelDialog ? "Add flight / hotel" : "Add extra"}</DialogTitle>
           </DialogHeader>
+
+          {isTravelDialog && (
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={tab === "search" ? "default" : "outline"}
+                onClick={() => setTab("search")}
+              >
+                Search
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={tab === "manual" ? "default" : "outline"}
+                onClick={() => setTab("manual")}
+              >
+                Manual
+              </Button>
+            </div>
+          )}
+
+          {isTravelDialog && tab === "search" ? (
+            <BookingSearchPanel
+              bookingId={bookingId}
+              currency={currency}
+              onAdded={onSearchAdded}
+            />
+          ) : (
+            <>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="bi-type">Type</Label>
@@ -253,6 +292,8 @@ export function BookingItemsManager({
               {pending ? "Adding…" : "Add"}
             </Button>
           </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>
