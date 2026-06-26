@@ -26,9 +26,29 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
+/** True when a DB error is a Postgres unique-constraint violation (code 23505). */
+function isUniqueViolation(e: unknown): boolean {
+  const code = (e as { code?: string })?.code;
+  const causeCode = (e as { cause?: { code?: string } })?.cause?.code;
+  return code === "23505" || causeCode === "23505";
+}
+
+/**
+ * Next per-agency booking reference. Derived from the highest existing
+ * reference number (NOT the row count) so deleting a booking can never produce
+ * a colliding reference. Callers retry on the rare concurrent-insert collision.
+ */
 async function nextReference(agencyId: string): Promise<string> {
-  const count = await db.$count(booking, eq(booking.agencyId, agencyId));
-  return `BKG-${1001 + count}`;
+  const rows = await db
+    .select({ reference: booking.reference })
+    .from(booking)
+    .where(eq(booking.agencyId, agencyId));
+  let max = 1000;
+  for (const r of rows) {
+    const n = Number.parseInt(r.reference.replace(/\D/g, ""), 10);
+    if (Number.isFinite(n) && n > max) max = n;
+  }
+  return `BKG-${max + 1}`;
 }
 
 async function recalcTotal(bookingId: string): Promise<void> {
@@ -78,22 +98,33 @@ export async function createBooking(
     if (!c) return { ok: false, error: "Client not found" };
   }
 
-  const reference = await nextReference(user.agencyId);
-
-  const [row] = await db
-    .insert(booking)
-    .values({
-      agencyId: user.agencyId,
-      reference,
-      clientId: d.clientId || null,
-      destination: d.destination || null,
-      departDate: toDate(d.departDate),
-      returnDate: toDate(d.returnDate),
-      currency: d.currency,
-      notes: d.notes || null,
-      createdById: user.id,
-    })
-    .returning({ id: booking.id });
+  // Generate a reference and insert, retrying on the rare reference collision
+  // (two bookings created at the same instant resolving the same max+1).
+  let reference = "";
+  let row: { id: string } | undefined;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    reference = await nextReference(user.agencyId);
+    try {
+      [row] = await db
+        .insert(booking)
+        .values({
+          agencyId: user.agencyId,
+          reference,
+          clientId: d.clientId || null,
+          destination: d.destination || null,
+          departDate: toDate(d.departDate),
+          returnDate: toDate(d.returnDate),
+          currency: d.currency,
+          notes: d.notes || null,
+          createdById: user.id,
+        })
+        .returning({ id: booking.id });
+      break;
+    } catch (e) {
+      if (isUniqueViolation(e) && attempt < 4) continue;
+      throw e;
+    }
+  }
 
   if (!row) return { ok: false, error: "Failed to create booking" };
 

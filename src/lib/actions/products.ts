@@ -20,10 +20,29 @@ function toDate(value?: string | null): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+/** True when a DB error is a Postgres unique-constraint violation (code 23505). */
+function isUniqueViolation(e: unknown): boolean {
+  const code = (e as { code?: string })?.code;
+  const causeCode = (e as { cause?: { code?: string } })?.cause?.code;
+  return code === "23505" || causeCode === "23505";
+}
+
+/**
+ * Next per-agency product reference. Derived from the highest existing reference
+ * number (NOT the row count) so deleting a product can never produce a colliding
+ * reference. Callers retry on the rare concurrent-insert collision.
+ */
 async function nextReference(agencyId: string): Promise<string> {
-  // References are unique per agency, so the running count must be scoped.
-  const count = await db.$count(product, eq(product.agencyId, agencyId));
-  return `PRD-${1001 + count}`;
+  const rows = await db
+    .select({ reference: product.reference })
+    .from(product)
+    .where(eq(product.agencyId, agencyId));
+  let max = 1000;
+  for (const r of rows) {
+    const n = Number.parseInt(r.reference.replace(/\D/g, ""), 10);
+    if (Number.isFinite(n) && n > max) max = n;
+  }
+  return `PRD-${max + 1}`;
 }
 
 /** Recompute per-item client prices and product totals from item costs + markup. */
@@ -100,27 +119,38 @@ export async function createProduct(
     if (!ok) return { ok: false, error: "Not found" };
   }
 
-  const reference = await nextReference(user.agencyId);
-
-  const [row] = await db
-    .insert(product)
-    .values({
-      agencyId: user.agencyId,
-      reference,
-      title: d.title,
-      clientId: d.clientId || null,
-      opportunityId: d.opportunityId || null,
-      destination: d.destination || null,
-      startDate: toDate(d.startDate),
-      endDate: toDate(d.endDate),
-      paxCount: d.paxCount,
-      currency: d.currency,
-      markupPercent: String(d.markupPercent),
-      summary: d.summary || null,
-      validUntil: toDate(d.validUntil),
-      createdById: user.id,
-    })
-    .returning({ id: product.id });
+  // Generate a reference and insert, retrying on the rare reference collision
+  // (two proposals created at the same instant resolving the same max+1).
+  let reference = "";
+  let row: { id: string } | undefined;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    reference = await nextReference(user.agencyId);
+    try {
+      [row] = await db
+        .insert(product)
+        .values({
+          agencyId: user.agencyId,
+          reference,
+          title: d.title,
+          clientId: d.clientId || null,
+          opportunityId: d.opportunityId || null,
+          destination: d.destination || null,
+          startDate: toDate(d.startDate),
+          endDate: toDate(d.endDate),
+          paxCount: d.paxCount,
+          currency: d.currency,
+          markupPercent: String(d.markupPercent),
+          summary: d.summary || null,
+          validUntil: toDate(d.validUntil),
+          createdById: user.id,
+        })
+        .returning({ id: product.id });
+      break;
+    } catch (e) {
+      if (isUniqueViolation(e) && attempt < 4) continue;
+      throw e;
+    }
+  }
 
   if (!row) return { ok: false, error: "Failed to create proposal" };
 
