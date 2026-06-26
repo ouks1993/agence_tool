@@ -11,14 +11,22 @@ import { agency } from "@/lib/schema";
  * `req.json()`), which is why this route can't use the Next.js body parser.
  */
 
+type StripeSubscriptionItem = {
+  price?: { id?: string };
+  // As of the Stripe Basil API (2025-03-31) the billing period lives on the
+  // subscription item, not the subscription. Kept optional so older API
+  // versions (which only populate the subscription-level fields) still work.
+  current_period_end?: number;
+};
+
 type StripeSubscription = {
   id: string;
   status: string;
   customer: string;
-  current_period_end?: number;
+  current_period_end?: number; // legacy (pre-Basil) location
   trial_end?: number | null;
   metadata?: { agencyId?: string };
-  items?: { data?: Array<{ price?: { id?: string } }> };
+  items?: { data?: Array<StripeSubscriptionItem> };
 };
 
 const unixToDate = (s?: number | null): Date | null =>
@@ -48,13 +56,17 @@ export async function POST(req: Request): Promise<Response> {
     event.type === "customer.subscription.deleted"
   ) {
     const sub = event.data.object as unknown as StripeSubscription;
-    const priceId = sub.items?.data?.[0]?.price?.id ?? null;
+    const firstItem = sub.items?.data?.[0];
+    const priceId = firstItem?.price?.id ?? null;
+    // Basil moved current_period_end onto the item; fall back to the legacy
+    // subscription-level field for older API versions.
+    const periodEnd = firstItem?.current_period_end ?? sub.current_period_end;
 
     const values = {
       stripeSubscriptionId: sub.id,
       subscriptionStatus: sub.status,
       priceId,
-      currentPeriodEnd: unixToDate(sub.current_period_end),
+      currentPeriodEnd: unixToDate(periodEnd),
       trialEndsAt: unixToDate(sub.trial_end),
     };
 

@@ -366,10 +366,12 @@ export async function searchHotelsAction(
   let estimatedPricing = false;
 
   // Availability (prices) and Content (photos) are separate Hotelbeds APIs with
-  // separate quotas. If availability degraded to mock but Hotelbeds is
+  // separate quotas. If availability degraded to mock — OR it succeeded but
+  // returned zero hotels (no inventory for these dates) — and Hotelbeds is
   // configured, fall back to REAL hotels from the Content API — real names and
-  // real photos — with estimated rates, instead of fully synthetic mock hotels.
-  if (degraded && isHotelbedsConfigured()) {
+  // real photos — with estimated rates, instead of an empty list or fully
+  // synthetic mock hotels.
+  if ((degraded || results.length === 0) && isHotelbedsConfigured()) {
     try {
       // Cache-first (quota-free); fall back to a live Content call on a miss.
       let real = await listHotelOffersCached(buildParams);
