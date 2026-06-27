@@ -82,18 +82,28 @@ export function BookingForm({
         <CardContent className="grid grid-cols-1 gap-4 p-6 md:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="clientId">Client</Label>
-            <Select
-              id="clientId"
-              value={form.clientId}
-              onChange={(e) => set("clientId", e.target.value)}
-            >
-              <option value="">No client linked</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
+            {clients.length === 0 ? (
+              <p className="text-muted-foreground text-sm">
+                No clients yet.{" "}
+                <a href="/clients/new" className="text-primary underline underline-offset-2">
+                  Add a client first
+                </a>{" "}
+                before creating a booking.
+              </p>
+            ) : (
+              <Select
+                id="clientId"
+                value={form.clientId}
+                onChange={(e) => set("clientId", e.target.value)}
+              >
+                <option value="">No client linked</option>
+                {clients.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </Select>
+            )}
           </div>
 
           <div className="space-y-2">

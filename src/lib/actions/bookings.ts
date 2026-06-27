@@ -9,7 +9,7 @@ import { logActivity } from "@/lib/activity";
 import { db } from "@/lib/db";
 import { canDeleteRecords, nextBookingStatus } from "@/lib/domain";
 import { requireAgencyUser } from "@/lib/permissions";
-import { booking, bookingTraveller, bookingItem, bookingDay, client } from "@/lib/schema";
+import { booking, bookingTraveller, bookingItem, bookingDay, client, product } from "@/lib/schema";
 import {
   getFlightSupplier,
   getHotelSupplier,
@@ -731,4 +731,91 @@ export async function addItemToBooking(input: {
 
   revalidatePath(`/bookings/${bookingId}`);
   return { ok: true, data: { bookingId } };
+}
+
+// --- Proposal → Booking conversion ------------------------------------------
+
+/**
+ * Maps a product (proposal) item type to its booking item-type equivalent.
+ * The two enums overlap except for "activity", which a booking calls
+ * "excursion". Unknown types fall back to "other".
+ */
+function productItemTypeToBookingItemType(
+  type: string
+): BookingItemInput["type"] {
+  switch (type) {
+    case "flight":
+    case "hotel":
+    case "transfer":
+    case "insurance":
+    case "other":
+      return type;
+    case "activity":
+      return "excursion";
+    default:
+      return "other";
+  }
+}
+
+/**
+ * Converts an accepted proposal into a new booking, pre-filled with the
+ * proposal's client, destination and line items. Only accepted proposals can
+ * be converted.
+ */
+export async function convertProposalToBooking(
+  productId: string
+): Promise<ActionResult<{ id: string }>> {
+  const user = await requireAgencyUser();
+
+  const p = await db.query.product.findFirst({
+    where: and(eq(product.id, productId), eq(product.agencyId, user.agencyId)),
+    with: { items: true },
+  });
+  if (!p) return { ok: false, error: "Proposal not found" };
+  if (p.status !== "accepted") {
+    return { ok: false, error: "Only accepted proposals can be converted" };
+  }
+
+  const created = await createBooking({
+    clientId: p.clientId ?? undefined,
+    destination: p.destination ?? undefined,
+    currency: p.currency,
+    notes: p.summary ?? undefined,
+  });
+  if (!created.ok || !created.data) {
+    return {
+      ok: false,
+      error: created.ok ? "Failed to create booking" : created.error,
+    };
+  }
+  const bookingId = created.data.id;
+
+  // Carry each proposal line item over to the booking. The client price
+  // (unitPrice) becomes the booking item amount.
+  for (const item of p.items) {
+    const res = await addBookingItem(bookingId, {
+      type: productItemTypeToBookingItemType(item.type),
+      title: item.title,
+      supplier: item.supplier ?? undefined,
+      quantity: item.quantity,
+      amount: item.unitPrice,
+      currency: item.currency,
+      description: item.description ?? undefined,
+    });
+    if (!res.ok) return { ok: false, error: res.error };
+  }
+
+  await logActivity({
+    agencyId: user.agencyId,
+    userId: user.id,
+    action: "created",
+    entityType: "booking",
+    entityId: bookingId,
+    entityLabel: p.title,
+    metadata: { convertedFromProposal: p.reference },
+  });
+
+  revalidatePath("/bookings");
+  revalidatePath(`/products/${productId}`);
+  return { ok: true, data: { id: bookingId } };
 }

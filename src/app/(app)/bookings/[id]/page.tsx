@@ -26,6 +26,7 @@ import { DeleteBookingButton } from "@/components/bookings/delete-booking-button
 import { PaymentsManager } from "@/components/bookings/payments-manager";
 import { TravellersManager } from "@/components/bookings/travellers-manager";
 import { VisaAssistant } from "@/components/bookings/visa-assistant";
+import { PortalInviteButton } from "@/components/clients/portal-invite-button";
 import { CommissionsManager } from "@/components/commissions/commissions-manager";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -91,7 +92,12 @@ export default async function BookingWorkspace({
       </Button>
 
       <PageHeader title={b.client?.name ?? b.destination ?? "Booking"} description={b.reference}>
-        <BookingStatusControl id={b.id} status={b.status} />
+        <BookingStatusControl
+          id={b.id}
+          status={b.status}
+          hasItems={b.items.length > 0}
+          hasBalance={balance > 0}
+        />
         <Button asChild variant="outline" size="sm">
           <Link href={`/bookings/${b.id}/itinerary`}>
             <MapIcon className="mr-2 size-4" />
@@ -116,6 +122,12 @@ export default async function BookingWorkspace({
             Edit trip
           </Link>
         </Button>
+        {b.client && (
+          <PortalInviteButton
+            clientId={b.client.id}
+            clientEmail={b.client.email ?? null}
+          />
+        )}
         <DeleteBookingButton id={b.id} label={b.reference} />
       </PageHeader>
 
@@ -150,6 +162,11 @@ export default async function BookingWorkspace({
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Users className="size-4" /> {t("travellersTitle")}
+                {b.travellers.length === 0 && (
+                  <span className="ml-auto text-xs font-normal text-amber-600 dark:text-amber-400">
+                    Add travellers first
+                  </span>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -173,7 +190,14 @@ export default async function BookingWorkspace({
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">{t("purchasesTitle")}</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-base">
+                {t("purchasesTitle")}
+                {b.items.length === 0 && (
+                  <span className="ml-auto text-xs font-normal text-muted-foreground">
+                    No trip services yet
+                  </span>
+                )}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <BookingItemsManager

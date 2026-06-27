@@ -4,7 +4,6 @@ import { and, asc, eq } from "drizzle-orm";
 import {
   ArrowLeft,
   Pencil,
-  Eye,
   MapPin,
   Users,
   Calendar,
@@ -12,6 +11,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusBadge } from "@/components/app/status-badge";
+import { ConvertToBookingButton } from "@/components/products/convert-to-booking-button";
 import { DeleteProductButton } from "@/components/products/delete-product-button";
 import { ItemsManager } from "@/components/products/items-manager";
 import { ProductStatusControl } from "@/components/products/product-status-control";
@@ -62,13 +62,10 @@ export default async function ProductDetailPage({
 
       <PageHeader title={p.title} description={p.reference}>
         <ProductStatusControl id={p.id} status={p.status} />
-        <Button asChild variant="outline" size="sm">
-          <Link href={`/proposal/${p.id}`} target="_blank">
-            <Eye className="mr-2 size-4" />
-            Client view
-          </Link>
-        </Button>
         <ProposalShareControl productId={p.id} shareToken={p.shareToken} />
+        {p.status === "accepted" && (
+          <ConvertToBookingButton productId={p.id} />
+        )}
         <Button asChild variant="outline" size="sm">
           <Link href={`/products/${p.id}/edit`}>
             <Pencil className="mr-2 size-4" />
