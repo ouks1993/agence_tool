@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import {
   ArrowLeft,
   Pencil,
@@ -15,6 +15,10 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusBadge } from "@/components/app/status-badge";
+import {
+  ClientTimeline,
+  type TimelineEvent,
+} from "@/components/clients/client-timeline";
 import { ContactsManager } from "@/components/clients/contacts-manager";
 import { DeleteClientButton } from "@/components/clients/delete-client-button";
 import { PortalInviteButton } from "@/components/clients/portal-invite-button";
@@ -31,9 +35,16 @@ import {
   type OpportunityStage,
   type ProductStatus,
 } from "@/lib/domain";
+import { describeActivity } from "@/lib/activity-format";
 import { formatDate, formatMoney } from "@/lib/format";
 import { requireAgencyUser } from "@/lib/permissions";
-import { client, opportunity, product } from "@/lib/schema";
+import {
+  activityLog,
+  client,
+  notification,
+  opportunity,
+  product,
+} from "@/lib/schema";
 
 export default async function ClientDetailPage({
   params,
@@ -50,6 +61,7 @@ export default async function ClientDetailPage({
       contacts: { orderBy: (t, { desc }) => [desc(t.isPrimary)] },
       bookings: {
         orderBy: (t) => [desc(t.createdAt)],
+        with: { payments: true },
       },
     },
   });
@@ -75,6 +87,93 @@ export default async function ClientDetailPage({
       limit: 10,
     }),
   ]);
+
+  // ---------------------------------------------------------------------------
+  // Unified activity timeline: activity log + notifications + payments.
+  // ---------------------------------------------------------------------------
+  const bookingIds = c.bookings.map((b) => b.id);
+  const opportunityIds = opportunities.map((o) => o.id);
+  const productIds = proposals.map((p) => p.id);
+
+  // All entity ids whose activity should surface on this client's timeline.
+  const timelineEntityIds = [
+    c.id,
+    ...bookingIds,
+    ...opportunityIds,
+    ...productIds,
+  ];
+
+  const [activities, notifications] = await Promise.all([
+    db.query.activityLog.findMany({
+      where: and(
+        eq(activityLog.agencyId, user.agencyId),
+        inArray(activityLog.entityId, timelineEntityIds)
+      ),
+      orderBy: (t) => [desc(t.createdAt)],
+      limit: 30,
+    }),
+    bookingIds.length > 0
+      ? db.query.notification.findMany({
+          where: and(
+            eq(notification.agencyId, user.agencyId),
+            inArray(notification.bookingId, bookingIds)
+          ),
+          orderBy: (t) => [desc(t.createdAt)],
+          limit: 30,
+        })
+      : Promise.resolve([]),
+  ]);
+
+  // Resolve an activity entity to the record it links to, if any.
+  const hrefForEntity = (entityType: string, entityId: string | null) => {
+    if (!entityId) return undefined;
+    switch (entityType) {
+      case "client":
+        return `/clients/${entityId}`;
+      case "opportunity":
+        return `/opportunities/${entityId}`;
+      case "product":
+        return `/products/${entityId}`;
+      case "booking":
+        return `/bookings/${entityId}`;
+      default:
+        return undefined;
+    }
+  };
+
+  const timelineEvents: TimelineEvent[] = [
+    ...activities.map(
+      (a): TimelineEvent => ({
+        id: `activity-${a.id}`,
+        date: a.createdAt,
+        label: describeActivity(a),
+        kind: "activity",
+        entityHref: hrefForEntity(a.entityType, a.entityId),
+      })
+    ),
+    ...notifications.map(
+      (n): TimelineEvent => ({
+        id: `notification-${n.id}`,
+        date: n.createdAt,
+        label: n.subject ?? n.kind,
+        kind: "notification",
+        entityHref: n.bookingId ? `/bookings/${n.bookingId}` : undefined,
+      })
+    ),
+    ...c.bookings.flatMap((b) =>
+      b.payments.map(
+        (p): TimelineEvent => ({
+          id: `payment-${p.id}`,
+          date: p.createdAt,
+          label: `Payment received: ${formatMoney(p.amount, p.currency)}`,
+          kind: "payment",
+          entityHref: `/bookings/${b.id}`,
+        })
+      )
+    ),
+  ]
+    .sort((a, b) => b.date.getTime() - a.date.getTime())
+    .slice(0, 30);
 
   const statusMeta = CLIENT_STATUS_META[c.status as ClientStatus];
 
@@ -314,6 +413,9 @@ export default async function ClientDetailPage({
           )}
         </div>
       </div>
+
+      {/* Full-width unified activity timeline. */}
+      <ClientTimeline events={timelineEvents} />
     </div>
   );
 }

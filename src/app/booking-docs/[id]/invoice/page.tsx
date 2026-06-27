@@ -28,6 +28,15 @@ export default async function InvoicePage({
   });
   if (!b) notFound();
 
+  // Hard prerequisite: a document is meaningless without trip services.
+  if (b.items.length === 0) {
+    return (
+      <div className="text-muted-foreground mx-auto max-w-md py-16 text-center text-sm">
+        Cannot generate document: booking has no trip services.
+      </div>
+    );
+  }
+
   const total = parseFloat(b.totalAmount || "0");
   const { paid, balance } = paymentSummary(b.payments, total);
 

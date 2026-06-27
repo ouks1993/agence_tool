@@ -27,6 +27,15 @@ export default async function VoucherPage({
   });
   if (!b) notFound();
 
+  // Hard prerequisite: a document is meaningless without trip services.
+  if (b.items.length === 0) {
+    return (
+      <div className="text-muted-foreground mx-auto max-w-md py-16 text-center text-sm">
+        Cannot generate document: booking has no trip services.
+      </div>
+    );
+  }
+
   return (
     <DocShell docType="Voucher" reference={b.reference} date={b.createdAt}>
       <div className="grid grid-cols-2 gap-6 py-6 text-sm">

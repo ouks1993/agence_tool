@@ -43,7 +43,7 @@ import {
 } from "@/lib/format";
 import { paymentSummary } from "@/lib/payments/summary";
 import { requireAgencyUser } from "@/lib/permissions";
-import { booking, activityLog, opportunity, product, client as clientTable, user as userTable } from "@/lib/schema";
+import { booking, activityLog, opportunity, product, client as clientTable, user as userTable, agency } from "@/lib/schema";
 import { GettingStartedCard } from "@/components/app/getting-started-card";
 
 export const metadata = { title: "Dashboard" };
@@ -59,14 +59,17 @@ export default async function DashboardPage() {
 
   const canSeeAll = seesAllData(user.role);
 
-  // Quick counts for the getting-started checklist (admin/manager only).
-  const [clientCount, opportunityCount, productCount] = canSeeAll
+  // Quick counts + dismissed state for the getting-started checklist (admin/manager only).
+  const [clientCount, opportunityCount, productCount, agencyRow] = canSeeAll
     ? await Promise.all([
         db.select({ id: clientTable.id }).from(clientTable).where(eq(clientTable.agencyId, user.agencyId)).then((r) => r.length),
         db.select({ id: opportunity.id }).from(opportunity).where(eq(opportunity.agencyId, user.agencyId)).then((r) => r.length),
         db.select({ id: product.id }).from(product).where(eq(product.agencyId, user.agencyId)).then((r) => r.length),
+        db.query.agency.findFirst({ where: eq(agency.id, user.agencyId), columns: { onboardingDismissedAt: true } }),
       ])
-    : [1, 1, 1]; // agents skip the checklist
+    : [1, 1, 1, null]; // agents skip the checklist
+
+  const onboardingDismissed = Boolean((agencyRow as { onboardingDismissedAt: Date | null } | null | undefined)?.onboardingDismissedAt);
 
   // Bookings (agency-scoped ALWAYS; full-visibility roles see the whole agency,
   // agents see only the bookings they created within their agency).
@@ -299,6 +302,7 @@ export default async function DashboardPage() {
       {/* Getting started checklist — shown to admin/manager on a fresh agency */}
       {canSeeAll && (
         <GettingStartedCard
+          initialDismissed={onboardingDismissed}
           steps={[
             {
               label: "Add your first client",

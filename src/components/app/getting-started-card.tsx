@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { CheckCircle2, Circle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { dismissOnboarding } from "@/lib/actions/onboarding";
 import { cn } from "@/lib/utils";
-
-const DISMISSED_KEY = "atlas_getting_started_dismissed";
 
 type Step = {
   label: string;
@@ -16,21 +15,26 @@ type Step = {
   done: boolean;
 };
 
-export function GettingStartedCard({ steps }: { steps: Step[] }) {
-  const [dismissed, setDismissed] = useState(true); // start true to avoid flash
-
-  useEffect(() => {
-    setDismissed(localStorage.getItem(DISMISSED_KEY) === "1");
-  }, []);
-
+export function GettingStartedCard({
+  steps,
+  initialDismissed,
+}: {
+  steps: Step[];
+  /** True when the agency has already dismissed this in the DB. */
+  initialDismissed: boolean;
+}) {
+  const [dismissed, setDismissed] = useState(initialDismissed);
+  const [pending, startTransition] = useTransition();
   const allDone = steps.every((s) => s.done);
 
-  // Auto-dismiss once everything is complete.
-  useEffect(() => {
-    if (allDone) localStorage.setItem(DISMISSED_KEY, "1");
-  }, [allDone]);
-
   if (dismissed || allDone) return null;
+
+  const dismiss = () => {
+    setDismissed(true);
+    startTransition(async () => {
+      await dismissOnboarding();
+    });
+  };
 
   return (
     <Card className="border-primary/20 bg-primary/5">
@@ -41,10 +45,8 @@ export function GettingStartedCard({ steps }: { steps: Step[] }) {
             variant="ghost"
             size="icon"
             className="size-7"
-            onClick={() => {
-              localStorage.setItem(DISMISSED_KEY, "1");
-              setDismissed(true);
-            }}
+            onClick={dismiss}
+            disabled={pending}
             aria-label="Dismiss"
           >
             <X className="size-4" />

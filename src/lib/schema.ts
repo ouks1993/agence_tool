@@ -51,6 +51,9 @@ export const agency = pgTable(
     stripeConnectOnboarded: boolean("stripe_connect_onboarded")
       .default(false)
       .notNull(),
+    // Timestamp when an admin dismissed the getting-started checklist.
+    // NULL = checklist is still active for this agency.
+    onboardingDismissedAt: timestamp("onboarding_dismissed_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()

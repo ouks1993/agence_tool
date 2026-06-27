@@ -8,8 +8,10 @@ import type { ActionResult } from "@/lib/actions/types";
 import { logActivity } from "@/lib/activity";
 import { db } from "@/lib/db";
 import { canDeleteRecords, nextBookingStatus } from "@/lib/domain";
+import { formatMoney } from "@/lib/format";
+import { paymentSummary } from "@/lib/payments/summary";
 import { requireAgencyUser } from "@/lib/permissions";
-import { booking, bookingTraveller, bookingItem, bookingDay, client, product } from "@/lib/schema";
+import { booking, bookingTraveller, bookingItem, bookingDay, client, product, payment } from "@/lib/schema";
 import {
   getFlightSupplier,
   getHotelSupplier,
@@ -66,6 +68,26 @@ async function recalcTotal(bookingId: string): Promise<void> {
     .update(booking)
     .set({ totalAmount: String(round2(total)) })
     .where(eq(booking.id, bookingId));
+}
+
+/**
+ * Outstanding balance for a booking (total minus completed payments, refunds
+ * subtracted). Used to hard-gate status transitions that require full payment.
+ */
+async function bookingBalance(
+  bookingId: string,
+  totalAmount: string | null
+): Promise<number> {
+  const payments = await db
+    .select({
+      amount: payment.amount,
+      kind: payment.kind,
+      status: payment.status,
+    })
+    .from(payment)
+    .where(eq(payment.bookingId, bookingId));
+  const { balance } = paymentSummary(payments, parseFloat(totalAmount || "0"));
+  return balance;
 }
 
 // --- Booking CRUD -----------------------------------------------------------
@@ -208,8 +230,26 @@ export async function setBookingStatus(
   const user = await requireAgencyUser();
   const existing = await db.query.booking.findFirst({
     where: and(eq(booking.id, id), eq(booking.agencyId, user.agencyId)),
+    with: { items: true },
   });
   if (!existing) return { ok: false, error: "Booking not found" };
+
+  // Hard prerequisite: a booking cannot be confirmed without trip services.
+  if (status === "confirmed" && existing.items.length === 0) {
+    return { ok: false, error: "Add at least one trip service before confirming." };
+  }
+
+  // Hard prerequisite: confirming or marking paid requires a settled balance
+  // (>0.01 tolerates floating-point drift).
+  if (status === "confirmed" || status === "paid") {
+    const balance = await bookingBalance(existing.id, existing.totalAmount);
+    if (balance > 0.01) {
+      return {
+        ok: false,
+        error: `Balance of ${formatMoney(balance, existing.currency)} is still due.`,
+      };
+    }
+  }
 
   await db
     .update(booking)
@@ -383,6 +423,23 @@ export async function advanceStatus(
 
   const next = nextBookingStatus(existing.status);
   if (!next) return { ok: false, error: "Booking is already at the final status" };
+
+  // Hard prerequisite: a booking cannot be confirmed without trip services.
+  if (next === "confirmed" && existing.items.length === 0) {
+    return { ok: false, error: "Add at least one trip service before confirming." };
+  }
+
+  // Hard prerequisite: confirming clears the booking out of awaiting_payment,
+  // so the balance must be fully settled first (>0.01 tolerates float drift).
+  if (next === "confirmed") {
+    const balance = await bookingBalance(existing.id, existing.totalAmount);
+    if (balance > 0.01) {
+      return {
+        ok: false,
+        error: `Balance of ${formatMoney(balance, existing.currency)} is still due.`,
+      };
+    }
+  }
 
   // When ticketing, ensure every item has a confirmation number.
   if (next === "ticketed") {
