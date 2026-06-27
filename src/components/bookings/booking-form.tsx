@@ -41,7 +41,7 @@ export function BookingForm({
     destination: initial?.destination ?? "",
     departDate: initial?.departDate ?? "",
     returnDate: initial?.returnDate ?? "",
-    currency: initial?.currency ?? "EUR",
+    currency: initial?.currency ?? "DZD",
     leadTravellerName: initial?.leadTravellerName ?? "",
     notes: initial?.notes ?? "",
   });

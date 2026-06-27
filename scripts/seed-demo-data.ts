@@ -132,7 +132,7 @@ async function main() {
     { title: "Business trip — Dubai expo", stage: "qualified", value: 3800, dest: "Dubai, UAE", pax: 3, prob: 50 },
     { title: "Cultural tour — Japan", stage: "lead", value: 14500, dest: "Tokyo, Japan", pax: 2, prob: 15 },
   ];
-  const currencies = ["EUR", "EUR", "EUR", "USD", "GBP", "EUR"];
+  const currencies = ["DZD", "DZD", "DZD", "DZD", "DZD", "DZD"];
   for (let i = 0; i < oppSpecs.length; i++) {
     const o = oppSpecs[i]!;
     await db.insert(opportunity).values({
@@ -176,7 +176,7 @@ async function main() {
       startDate: d(30 + i * 14),
       endDate: d(37 + i * 14),
       paxCount: 2 + (i % 4),
-      currency: "EUR",
+      currency: "DZD",
       markupPercent: "18.00",
       totalCost: money(p.cost),
       totalPrice: money(p.price),
@@ -200,7 +200,7 @@ async function main() {
         quantity: 1,
         unitCost: money(it.unit),
         unitPrice: money(it.unit * 1.18),
-        currency: "EUR",
+        currency: "DZD",
         startDate: d(30 + i * 14),
         endDate: d(35 + i * 14),
         sortOrder: j,
@@ -248,7 +248,7 @@ async function main() {
       destination: b.dest,
       departDate: d(b.depart),
       returnDate: d(b.depart + 6),
-      currency: "EUR",
+      currency: "DZD",
       notes: i % 3 === 0 ? "VIP client — confirm airport transfer." : null,
       totalAmount: money(total),
       shareToken: `demo-share-${bk}-${i}`,
@@ -285,7 +285,7 @@ async function main() {
         endDate: d(b.depart + 5),
         quantity: it.qty,
         amount: money(it.amount),
-        currency: "EUR",
+        currency: "DZD",
         itemStatus: b.status === "ticketed" || b.status === "completed" ? "ticketed" : b.status === "confirmed" ? "confirmed" : "pending",
         confirmationNumber: b.status === "ticketed" || b.status === "completed" ? `CNF${100000 + i * 7 + j}` : null,
         sortOrder: j,
@@ -298,7 +298,7 @@ async function main() {
       await db.insert(payment).values({
         bookingId,
         amount: money(paid),
-        currency: "EUR",
+        currency: "DZD",
         kind: b.deposit >= 1 ? "payment" : "deposit",
         method: b.payMethod,
         status: "completed",
@@ -312,7 +312,7 @@ async function main() {
         await db.insert(payment).values({
           bookingId,
           amount: money(Math.round(total * 0.3 * 100) / 100),
-          currency: "EUR",
+          currency: "DZD",
           kind: "installment",
           method: b.payMethod,
           status: "completed",

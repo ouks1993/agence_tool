@@ -50,7 +50,7 @@ export function ProductForm({
     startDate: initial?.startDate ?? "",
     endDate: initial?.endDate ?? "",
     paxCount: initial?.paxCount ?? "1",
-    currency: initial?.currency ?? "EUR",
+    currency: initial?.currency ?? "DZD",
     markupPercent: initial?.markupPercent ?? "0",
     validUntil: initial?.validUntil ?? "",
     summary: initial?.summary ?? "",

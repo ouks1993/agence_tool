@@ -31,7 +31,7 @@ export function AiQuoteBuilder({
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [brief, setBrief] = useState("");
-  const [currency, setCurrency] = useState("EUR");
+  const [currency, setCurrency] = useState("DZD");
   const [paxCount, setPaxCount] = useState("2");
   const [result, setResult] = useState<QuoteResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +39,7 @@ export function AiQuoteBuilder({
 
   const reset = () => {
     setBrief("");
-    setCurrency("EUR");
+    setCurrency("DZD");
     setPaxCount("2");
     setResult(null);
     setError(null);

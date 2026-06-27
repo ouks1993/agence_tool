@@ -117,7 +117,7 @@ function FlightSearch({
     returnDate: "",
     adults: "1",
     cabin: "economy",
-    currency: "EUR",
+    currency: "DZD",
     tripType: "round" as "round" | "oneway",
   });
   const oneWay = form.tripType === "oneway";
@@ -333,7 +333,7 @@ function HotelSearch({
     checkOut: "",
     adults: "2",
     rooms: "1",
-    currency: "EUR",
+    currency: "DZD",
   });
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<HotelOffer[] | null>(null);

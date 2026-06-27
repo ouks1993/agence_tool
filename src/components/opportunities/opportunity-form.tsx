@@ -58,7 +58,7 @@ export function OpportunityForm({
     clientId: initial?.clientId ?? "",
     stage: initial?.stage ?? "lead",
     value: initial?.value ?? "",
-    currency: initial?.currency ?? "EUR",
+    currency: initial?.currency ?? "DZD",
     probability: initial?.probability ?? "",
     destination: initial?.destination ?? "",
     travelStartDate: initial?.travelStartDate ?? "",

@@ -70,7 +70,7 @@ export function BarInsight({
   height = 240,
   color = "var(--chart-1)",
   format = "number",
-  currency = "EUR",
+  currency = "DZD",
 }: {
   data: Point[];
   height?: number;
@@ -112,7 +112,7 @@ export function DonutInsight({
   data,
   height = 240,
   format = "number",
-  currency = "EUR",
+  currency = "DZD",
 }: {
   data: Point[];
   height?: number;
@@ -170,7 +170,7 @@ export function AreaInsight({
   height = 240,
   color = "var(--chart-2)",
   format = "number",
-  currency = "EUR",
+  currency = "DZD",
 }: {
   data: Point[];
   height?: number;

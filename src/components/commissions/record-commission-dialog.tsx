@@ -36,7 +36,7 @@ function emptyForm(presetBookingId: string | null) {
     type: "supplier_to_agency" as CommissionType,
     bookingRef: "",
     amount: "",
-    currency: "EUR" as (typeof SUPPORTED_CURRENCIES)[number],
+    currency: "DZD" as (typeof SUPPORTED_CURRENCIES)[number],
     basis: "percent" as CommissionBasis,
     rate: "",
     baseAmount: "",

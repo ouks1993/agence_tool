@@ -308,9 +308,9 @@ export const EXTRA_ITEM_TYPES: BookingItemType[] = [
 
 // --- Currencies -------------------------------------------------------------
 
-export const SUPPORTED_CURRENCIES = ["EUR", "USD", "GBP", "DZD", "MAD", "AED", "CHF"] as const;
+export const SUPPORTED_CURRENCIES = ["DZD", "EUR", "USD"] as const;
 export type Currency = (typeof SUPPORTED_CURRENCIES)[number];
-export const DEFAULT_CURRENCY: Currency = "EUR";
+export const DEFAULT_CURRENCY: Currency = "DZD";
 
 // --- Suppliers --------------------------------------------------------------
 

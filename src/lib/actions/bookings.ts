@@ -97,7 +97,7 @@ const bookingInput = z.object({
   destination: z.string().trim().max(200).optional(),
   departDate: z.string().optional(),
   returnDate: z.string().optional(),
-  currency: z.string().trim().min(1).max(8).default("EUR"),
+  currency: z.string().trim().min(1).max(8).default("DZD"),
   notes: z.string().trim().max(5000).optional(),
   leadTravellerName: z.string().trim().max(200).optional(),
 });
@@ -683,7 +683,7 @@ const itemInput = z.object({
   endDate: z.string().optional(),
   quantity: z.coerce.number().int().min(1).default(1),
   amount: z.coerce.number().min(0).default(0),
-  currency: z.string().trim().min(1).max(8).default("EUR"),
+  currency: z.string().trim().min(1).max(8).default("DZD"),
   details: z.unknown().optional(),
 });
 

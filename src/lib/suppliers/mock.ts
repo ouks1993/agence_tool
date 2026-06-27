@@ -125,7 +125,7 @@ export class MockSupplier implements SupplierProvider {
     const origin = params.origin.toUpperCase().slice(0, 3);
     const destination = params.destination.toUpperCase().slice(0, 3);
     const cabin = params.cabin ?? "economy";
-    const currency = params.currency ?? "EUR";
+    const currency = params.currency ?? "DZD";
     const count = Math.min(params.maxResults ?? 6, 12);
     const seed = hashString(
       `${origin}-${destination}-${params.departDate}-${params.returnDate ?? ""}-${cabin}`
@@ -182,7 +182,7 @@ export class MockSupplier implements SupplierProvider {
 
   async searchHotels(params: HotelSearchParams): Promise<HotelOffer[]> {
     const city = params.city.trim();
-    const currency = params.currency ?? "EUR";
+    const currency = params.currency ?? "DZD";
     const nights = nightsBetween(params.checkIn, params.checkOut);
     const rooms = Math.max(1, params.rooms ?? 1);
     const occ = occupancyMultiplier(params);
@@ -313,7 +313,7 @@ export function mockHotelRates(
   params: HotelSearchParams & { hotelCode: string }
 ): HotelRoomRate[] {
   const nights = nightsBetween(params.checkIn, params.checkOut);
-  const currency = params.currency ?? "EUR";
+  const currency = params.currency ?? "DZD";
   const occ = occupancyMultiplier(params);
   const seed = hashString(`${params.hotelCode}-${params.checkIn}-${params.checkOut}`);
   const rand = mulberry32(seed);

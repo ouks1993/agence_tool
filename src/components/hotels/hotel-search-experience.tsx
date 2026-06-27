@@ -42,7 +42,7 @@ const PAGE_SIZE = 8;
 
 type Sort = "recommended" | "price" | "rating" | "distance";
 
-type Form = { city: string; cityCode: string; checkIn: string; checkOut: string };
+type Form = { city: string; cityCode: string; checkIn: string; checkOut: string; hotelName: string };
 
 /** Stable pseudo distance-from-centre (km) so the filter/sort are deterministic. */
 function distanceKm(o: HotelOffer): number {
@@ -73,6 +73,7 @@ export function HotelSearchExperience() {
     cityCode: "",
     checkIn: "",
     checkOut: "",
+    hotelName: "",
   });
   const [occ, setOcc] = useState<Occupancy>(DEFAULT_OCCUPANCY);
   const [loading, setLoading] = useState(false);
@@ -108,6 +109,7 @@ export function HotelSearchExperience() {
       adults: occ.adults,
       rooms: occ.rooms,
       childAges: occ.childAges,
+      hotelName: form.hotelName || undefined,
     });
     setLoading(false);
     if (!res.ok) {
@@ -192,38 +194,47 @@ export function HotelSearchExperience() {
       {/* Search bar */}
       <Card>
         <CardContent className="p-4">
-          <form onSubmit={run} className="grid grid-cols-2 gap-3 md:grid-cols-12">
-            <Field label="Destination" className="col-span-2 md:col-span-4">
-              <HotelDestinationInput
-                value={form.city}
-                onChange={(v) => setForm((f) => ({ ...f, city: v, cityCode: "" }))}
-                onSelect={(d) => setForm((f) => ({ ...f, city: d.name, cityCode: d.iata }))}
-                placeholder="Start typing a city…"
-              />
-            </Field>
-            <Field label="Dates" className="col-span-2 md:col-span-4">
-              <DateRangePicker
-                startDate={form.checkIn}
-                endDate={form.checkOut}
-                onSelect={(start, end) =>
-                  setForm((f) => ({ ...f, checkIn: start, checkOut: end }))
-                }
-                startLabel="Check-in"
-                endLabel="Check-out"
-              />
-            </Field>
-            <Field label="Guests & rooms" className="col-span-2 md:col-span-3">
-              <OccupancyPicker value={occ} onChange={setOcc} />
-            </Field>
-            <div className="col-span-2 flex items-end md:col-span-1">
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <Search className="size-4" />
-                )}
-              </Button>
+          <form onSubmit={run} className="space-y-3">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-12">
+              <Field label="Destination" className="col-span-2 md:col-span-4">
+                <HotelDestinationInput
+                  value={form.city}
+                  onChange={(v) => setForm((f) => ({ ...f, city: v, cityCode: "" }))}
+                  onSelect={(d) => setForm((f) => ({ ...f, city: d.name, cityCode: d.iata }))}
+                  placeholder="Start typing a city…"
+                />
+              </Field>
+              <Field label="Dates" className="col-span-2 md:col-span-4">
+                <DateRangePicker
+                  startDate={form.checkIn}
+                  endDate={form.checkOut}
+                  onSelect={(start, end) =>
+                    setForm((f) => ({ ...f, checkIn: start, checkOut: end }))
+                  }
+                  startLabel="Check-in"
+                  endLabel="Check-out"
+                />
+              </Field>
+              <Field label="Guests & rooms" className="col-span-2 md:col-span-3">
+                <OccupancyPicker value={occ} onChange={setOcc} />
+              </Field>
+              <div className="col-span-2 flex items-end md:col-span-1">
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Search className="size-4" />
+                  )}
+                </Button>
+              </div>
             </div>
+            <Field label="Hotel name (optional)" className="max-w-sm">
+              <Input
+                value={form.hotelName}
+                onChange={(e) => setForm((f) => ({ ...f, hotelName: e.target.value }))}
+                placeholder="e.g. Hilton, Marriott…"
+              />
+            </Field>
           </form>
         </CardContent>
       </Card>

@@ -14,6 +14,7 @@ import {
   safeSearch,
   searchDuffelPlaces,
   searchHotelbedsContentHotels,
+  searchHotelbedsHotelsByName,
   type AirportSuggestion,
   type FlightOffer,
   type HotelDetails,
@@ -84,11 +85,11 @@ const flightSchema = z.object({
   returnDate: z.string().optional(),
   adults: z.coerce.number().int().min(1).max(9).default(1),
   cabin: z.enum(["economy", "premium", "business", "first"]).default("economy"),
-  currency: z.string().default("EUR"),
+  currency: z.string().default("DZD"),
 });
 
 const hotelSchema = z.object({
-  city: z.string().trim().min(2, "City required"),
+  city: z.string().trim().default(""),
   cityCode: z.string().trim().optional(),
   checkIn: z.string().min(1, "Check-in required"),
   checkOut: z.string().min(1, "Check-out required"),
@@ -97,8 +98,13 @@ const hotelSchema = z.object({
   /** Ages of each child (0–17). Length is the child count sent to the supplier. */
   childAges: z.array(z.coerce.number().int().min(0).max(17)).max(9).default([]),
   minStars: z.coerce.number().int().min(0).max(5).optional(),
-  currency: z.string().default("EUR"),
-});
+  currency: z.string().default("DZD"),
+  /** Free-text hotel name — when set, search by name (destination becomes optional). */
+  hotelName: z.string().trim().optional(),
+}).refine(
+  (d) => d.hotelName || d.city.length >= 2,
+  { message: "Enter a destination or hotel name", path: ["city"] }
+);
 
 export type FlightSearchResult = {
   ok: boolean;
@@ -281,7 +287,7 @@ const roomsSchema = z.object({
   adults: z.coerce.number().int().min(1).max(9).default(2),
   rooms: z.coerce.number().int().min(1).max(9).default(1),
   childAges: z.array(z.coerce.number().int().min(0).max(17)).max(9).default([]),
-  currency: z.string().default("EUR"),
+  currency: z.string().default("DZD"),
 });
 
 export type HotelRoomsResult = {
@@ -357,7 +363,36 @@ export async function searchHotelsAction(
     childAges: p.childAges,
     minStars: p.minStars,
     currency: p.currency,
+    hotelName: p.hotelName || undefined,
   };
+
+  // Name-search path: bypass the destination-based availability call.
+  if (p.hotelName && isHotelbedsConfigured()) {
+    try {
+      const results = await searchHotelbedsHotelsByName({
+        ...buildParams,
+        hotelName: p.hotelName,
+      });
+      const hasEstimated = results.some((r) => r.estimated);
+      return {
+        ok: true,
+        results,
+        source: "Hotelbeds (name search)",
+        degraded: false,
+        estimatedPricing: hasEstimated,
+      };
+    } catch (error) {
+      console.error("Hotel name search failed:", error);
+      return {
+        ok: false,
+        error: "Hotel name search failed. Try searching by destination instead.",
+        results: [],
+        source: "Hotelbeds",
+        degraded: false,
+      };
+    }
+  }
+
   let { results, source, degraded } = await safeSearch<HotelOffer>(
     getHotelSupplier,
     (provider) => provider.searchHotels(buildParams),

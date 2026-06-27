@@ -401,6 +401,136 @@ export async function searchHotelbedsContentHotels(
   return offers.sort((a, b) => b.stars - a.stars);
 }
 
+/**
+ * Searches the Hotelbeds Content API by hotel name (free-text), optionally
+ * scoped to a destination. Returns real hotel offers with live availability
+ * when possible, falling back to estimated rates from content data.
+ */
+export async function searchHotelbedsHotelsByName(
+  params: HotelSearchParams & { hotelName: string }
+): Promise<HotelOffer[]> {
+  const name = params.hotelName.trim();
+  if (!name) return [];
+
+  const destinationCode = params.cityCode || params.city;
+  const max = Math.min(params.maxResults ?? 20, 40);
+
+  const destParam = destinationCode
+    ? `&destinationCode=${encodeURIComponent(destinationCode.toUpperCase())}`
+    : "";
+
+  const json = await hotelbeds<{ hotels?: HbContentListHotel[] }>(
+    `/hotel-content-api/1.0/hotels?name=${encodeURIComponent(name)}${destParam}` +
+      `&language=ENG&fields=name,categoryCode,accommodationType,address,city,coordinates,images` +
+      `&from=1&to=${max}`
+  );
+
+  const contentHotels = json.hotels ?? [];
+  if (contentHotels.length === 0) return [];
+
+  const nights = nightsBetween(params.checkIn, params.checkOut);
+  const rooms = Math.max(1, params.rooms ?? 1);
+
+  // Try live availability for the matching hotel codes.
+  const codes = contentHotels.map((h) => h.code);
+  let liveRates: Record<number, { net: number; room: HbRoom; rate: HbRate; currency: string }> = {};
+
+  try {
+    const availability = await hotelbeds<HbAvailability>("/hotel-api/1.0/hotels", {
+      method: "POST",
+      body: {
+        stay: { checkIn: params.checkIn, checkOut: params.checkOut },
+        occupancies: [
+          {
+            rooms,
+            adults: Math.max(1, params.adults),
+            children: (params.childAges ?? []).length,
+            ...((params.childAges ?? []).length
+              ? { paxes: (params.childAges ?? []).map((age) => ({ type: "CH", age })) }
+              : {}),
+          },
+        ],
+        hotels: { hotel: codes },
+      },
+    });
+
+    for (const h of availability.hotels?.hotels ?? []) {
+      let best: { net: number; room: HbRoom; rate: HbRate } | null = null;
+      for (const room of h.rooms ?? []) {
+        for (const rate of room.rates ?? []) {
+          const net = parseFloat(rate.net ?? "0");
+          if (net > 0 && (!best || net < best.net)) best = { net, room, rate };
+        }
+      }
+      if (best) liveRates[h.code] = { ...best, currency: h.currency ?? params.currency ?? "EUR" };
+    }
+  } catch {
+    // Availability unavailable — fall through to estimated rates.
+  }
+
+  const offers: HotelOffer[] = [];
+  for (const h of contentHotels) {
+    const first = (h.images ?? [])
+      .slice()
+      .sort((a, b) => (a.visualOrder ?? a.order ?? 99) - (b.visualOrder ?? b.order ?? 99))[0];
+    if (!first?.path) continue;
+
+    const stars = parseStars(h.categoryCode);
+    const live = liveRates[h.code];
+
+    if (live) {
+      const total = live.net;
+      offers.push({
+        id: `hotelbeds-ht-${h.code}`,
+        source: "hotelbeds",
+        name: h.name?.content ?? `Hotel ${h.code}`,
+        stars,
+        city: h.city?.content ?? (params.city || ""),
+        address: h.address?.content,
+        boardType: live.rate.boardName,
+        roomName: live.room.name,
+        roomCode: live.room.code,
+        refundable: live.rate.rateClass !== "NRF",
+        pricePerNight: Math.round((total / nights) * 100) / 100,
+        priceTotal: total,
+        nights,
+        currency: live.currency,
+        rateKey: live.rate.rateKey,
+        hotelCode: String(h.code),
+        thumbnail: `${PHOTO_BASE}${first.path}`,
+        hotelType: h.accommodationType?.typeDescription,
+        latitude: h.coordinates?.latitude,
+        longitude: h.coordinates?.longitude,
+        reviewScore: estimatedReviewScore(stars, h.code),
+      });
+    } else {
+      const perNight = estimatedNightly(stars, h.code) * rooms;
+      offers.push({
+        id: `hotelbeds-ct-${h.code}`,
+        source: "hotelbeds",
+        name: h.name?.content ?? `Hotel ${h.code}`,
+        stars,
+        city: h.city?.content ?? (params.city || ""),
+        address: h.address?.content,
+        refundable: true,
+        pricePerNight: perNight,
+        priceTotal: perNight * nights,
+        nights,
+        currency: params.currency ?? "EUR",
+        thumbnail: `${PHOTO_BASE}${first.path}`,
+        hotelType: h.accommodationType?.typeDescription,
+        hotelCode: String(h.code),
+        latitude: h.coordinates?.latitude,
+        longitude: h.coordinates?.longitude,
+        reviewScore: estimatedReviewScore(stars, h.code),
+        estimated: !live,
+      });
+    }
+  }
+
+  return offers.sort((a, b) => a.priceTotal - b.priceTotal);
+}
+
 export class HotelbedsSupplier implements SupplierProvider {
   readonly source = "hotelbeds" as const;
   readonly label = "Hotelbeds (live)";

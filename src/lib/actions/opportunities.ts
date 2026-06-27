@@ -20,7 +20,7 @@ const oppInput = z.object({
   clientId: z.string().min(1, "Client is required"),
   stage: z.enum(OPPORTUNITY_STAGES),
   value: z.coerce.number().min(0).default(0),
-  currency: z.string().trim().min(1).max(8).default("EUR"),
+  currency: z.string().trim().min(1).max(8).default("DZD"),
   probability: z.coerce.number().min(0).max(100).optional(),
   destination: z.string().trim().max(200).optional(),
   travelStartDate: z.string().optional(),

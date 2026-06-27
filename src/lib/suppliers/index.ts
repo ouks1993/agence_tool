@@ -20,6 +20,7 @@ export {
   getHotelbedsContentBatch,
   getHotelbedsRates,
   searchHotelbedsContentHotels,
+  searchHotelbedsHotelsByName,
 } from "./hotelbeds";
 export { mockHotelRates, mockHotelContent } from "./mock";
 

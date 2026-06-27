@@ -99,6 +99,8 @@ export type HotelSearchParams = {
   maxResults?: number | undefined;
   /** Restrict availability to a single hotel code (used by the details page). */
   hotelCode?: string | undefined;
+  /** Free-text hotel name filter — when set, search by name instead of destination. */
+  hotelName?: string | undefined;
 };
 
 export type HotelOffer = {
