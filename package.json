@@ -32,6 +32,7 @@
     "@radix-ui/react-slot": "^1.2.4",
     "@react-pdf/renderer": "^4.5.1",
     "@vercel/blob": "^2.3.3",
+    "@vercel/speed-insights": "^2.0.0",
     "ai": "^5.0.188",
     "better-auth": "^1.6.11",
     "class-variance-authority": "^0.7.1",
