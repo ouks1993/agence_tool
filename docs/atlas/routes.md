@@ -3,11 +3,20 @@
 ← Back to [Atlas index](../../atlas.md)
 
 **Authenticated app** (`(app)/`, gated by `requireAgencyUser`):
-`dashboard`, `finance`, `support`, `bookings` (+ `new`, `[id]`, `[id]/edit`,
-`[id]/itinerary`), `clients` (+ `new`, `[id]`, `[id]/edit`), `opportunities`
-(+ `new`, `[id]`, `[id]/edit`), `products` (+ `new`, `[id]`, `[id]/edit`),
-`operations`, `search`, `hotels` (+ `[code]` details), `assistant`, `team`,
-`billing` (admin-only), `settings`, `profile`.
+`dashboard`, `finance`, `commissions` (canViewFinance), `support`,
+`bookings` (+ `new`, `[id]`, `[id]/edit`, `[id]/itinerary`),
+`clients` (+ `new`, `[id]`, `[id]/edit`),
+`opportunities` (+ `new`, `[id]`, `[id]/edit`),
+`products` (+ `new`, `[id]`, `[id]/edit`),
+`suppliers` (+ `new`, `[id]`, `[id]/edit`) (canManageTeam),
+`operations` (Pipeline board),
+`search`, `hotels` (+ `[code]` details), `assistant`,
+`team` (canManageTeam), `billing` (admin-only), `settings`, `profile`.
+
+**Client portal** (`portal/`, gated by `requirePortalSession`):
+`portal` (trip list), `portal/bookings/[id]` (detail + pay),
+`portal/proposals` (list), `portal/proposals/[id]` (view + sign),
+`portal/login`.
 
 **Platform** (`platform/`, gated by `requirePlatformAdmin`): `platform`,
 `platform/agencies/new`, `platform/agencies/[id]`.
@@ -21,4 +30,6 @@
 `booking-docs/[id]/voucher`, `booking-docs/[id]/invoice`.
 
 **API:** `api/auth/[...all]` (Better Auth), `api/chat` (AI assistant),
-`api/stripe/webhook` (subscription reconciliation, raw-body signature check).
+`api/stripe/webhook` (subscription reconciliation),
+`api/stripe/connect-webhook` (Connect payment reconciliation),
+`api/portal/auth/request` · `verify` · `signout` (portal magic-link flow).

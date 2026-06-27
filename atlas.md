@@ -35,12 +35,16 @@ under [`docs/atlas/`](docs/atlas/). See also `PROJECT.md` (short handbook),
 
 - **Stack:** Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 +
   shadcn/ui · PostgreSQL (Neon) + Drizzle · Better Auth · next-intl ·
-  Stripe · Resend · Duffel (flights) · Hotelbeds (hotels) · Vercel.
+  Stripe + Stripe Connect · Resend · Duffel (flights) · Hotelbeds (hotels) ·
+  Vercel AI SDK + OpenRouter · Vercel.
 - **Tenancy:** every business row is scoped to an `agencyId`; enforced via
   `requireAgencyUser()`. Vendor platform admin sits above all tenants.
 - **Roles:** admin · manager · finance · support · agent — each with a tailored
   landing and nav.
 - **Deploy:** push to `main` → Vercel auto-deploys production.
+- **DBs:** dev `ep-dawn-voice-ai8d6q3o` · prod `ep-misty-thunder-aixz34vy`.
+  Run `POSTGRES_URL=<prod-url> npx drizzle-kit migrate` after each schema change.
 
-Started from a single-agency tool; now a deployed multi-tenant, multilingual SaaS
-with live travel sourcing, billing, and e-signature. Migrations: 12 (latest `0011`).
+Phases 1–3 complete. Multi-tenant SaaS with live travel sourcing, billing,
+client portal, supplier/commission management, and inline AI features.
+Migrations: 16 (latest `0016`).
