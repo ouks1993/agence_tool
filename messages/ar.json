@@ -14,7 +14,7 @@
     "commissions": "العمولات",
     "support": "الدعم",
     "bookings": "الحجوزات",
-    "operations": "العمليات",
+    "operations": "خط الأعمال",
     "clients": "العملاء",
     "search": "بحث",
     "hotels": "الفنادق",
@@ -92,7 +92,7 @@
     "addHotel": "إضافة فندق",
     "addExtra": "إضافة خدمة",
     "addTraveller": "إضافة مسافر",
-    "noItems": "لا توجد مشتريات بعد.",
+    "noItems": "لا توجد خدمات سفر بعد.",
     "noTravellers": "لا يوجد مسافرون بعد.",
     "itemTypes": {
       "flight": "رحلة طيران",
@@ -103,7 +103,7 @@
       "fee": "رسوم",
       "other": "أخرى"
     },
-    "purchasesTitle": "المشتريات",
+    "purchasesTitle": "خدمات الرحلة",
     "travellersTitle": "المسافرون وجوازات السفر",
     "confirm": "تأكيد",
     "confirmItem": "تأكيد العنصر",
@@ -236,7 +236,7 @@
     "completeSetup": "إكمال الإعداد"
   },
   "operations": {
-    "title": "العمليات",
+    "title": "خط الأعمال",
     "description": "تتبّع كل حجز من التأكيد إلى إصدار التذاكر والإكمال.",
     "upcomingDepartures": "المغادرات القادمة",
     "activeBookings": "الحجوزات النشطة",

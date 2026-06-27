@@ -269,12 +269,21 @@ export default async function DashboardPage() {
         }
         description={canSeeAll ? t("overview") : t("yourWork")}
       >
-        <Button asChild>
-          <Link href="/bookings/new">
-            <Plus className="mr-2 size-4" />
-            {t("newBooking")}
-          </Link>
-        </Button>
+        {bookings.length === 0 ? (
+          <Button asChild>
+            <Link href="/clients/new">
+              <Plus className="mr-2 size-4" />
+              Add your first client
+            </Link>
+          </Button>
+        ) : (
+          <Button asChild>
+            <Link href="/bookings/new">
+              <Plus className="mr-2 size-4" />
+              {t("newBooking")}
+            </Link>
+          </Button>
+        )}
       </PageHeader>
 
       {/* KPIs */}
@@ -471,44 +480,46 @@ export default async function DashboardPage() {
             />
           </div>
 
-          {/* Charts */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Bookings by destination</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <BarInsight data={insights.byDestination} />
-              </CardContent>
-            </Card>
+          {/* Charts — only shown when there is data to display */}
+          {bookings.length > 0 && (
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Bookings by destination</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <BarInsight data={insights.byDestination} />
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Bookings by status</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <DonutInsight data={insights.byStatus} />
-              </CardContent>
-            </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Bookings by status</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <DonutInsight data={insights.byStatus} />
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Team performance</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <BarInsight data={insights.teamPerformance} color="var(--chart-3)" />
-              </CardContent>
-            </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Team performance</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <BarInsight data={insights.teamPerformance} color="var(--chart-3)" />
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Monthly bookings</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <AreaInsight data={insights.monthly} />
-              </CardContent>
-            </Card>
-          </div>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Monthly bookings</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <AreaInsight data={insights.monthly} />
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </section>
       )}
     </div>

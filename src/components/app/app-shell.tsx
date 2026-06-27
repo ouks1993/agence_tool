@@ -96,7 +96,8 @@ export function AppShell({
   const tNav = useTranslations("nav");
   const tCommon = useTranslations("common");
 
-  const items = NAV.filter((i) => !i.show || i.show(user.role));
+  const visibleItems = NAV.filter((i) => !i.show || i.show(user.role));
+  const lockedItems = NAV.filter((i) => i.show && !i.show(user.role));
 
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(`${href}/`);
@@ -122,7 +123,7 @@ export function AppShell({
 
       {/* Nav */}
       <nav className="flex-1 space-y-1 overflow-y-auto p-3" aria-label="Primary">
-        {items.map((item) => {
+        {visibleItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.href);
           return (
@@ -143,6 +144,23 @@ export function AppShell({
             </Link>
           );
         })}
+        {lockedItems.length > 0 && (
+          <div className="mt-2 border-t pt-2">
+            {lockedItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <div
+                  key={item.href}
+                  title="Not available for your role"
+                  className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium opacity-35 cursor-not-allowed select-none"
+                >
+                  <Icon className="size-4 shrink-0" />
+                  {tNav(item.labelKey)}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </nav>
 
       {/* User footer */}

@@ -242,7 +242,7 @@ export default async function BookingWorkspace({
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <Mail className="size-4" /> Communications
+                <Mail className="size-4" /> Messages
               </CardTitle>
             </CardHeader>
             <CardContent>

@@ -14,7 +14,7 @@
     "commissions": "Commissions",
     "support": "Support",
     "bookings": "Réservations",
-    "operations": "Opérations",
+    "operations": "Pipeline",
     "clients": "Clients",
     "search": "Recherche",
     "hotels": "Hôtels",
@@ -92,7 +92,7 @@
     "addHotel": "Ajouter un hôtel",
     "addExtra": "Ajouter un extra",
     "addTraveller": "Ajouter un voyageur",
-    "noItems": "Aucun achat pour le moment.",
+    "noItems": "Aucun service de voyage pour le moment.",
     "noTravellers": "Aucun voyageur pour le moment.",
     "itemTypes": {
       "flight": "Vol",
@@ -103,7 +103,7 @@
       "fee": "Frais",
       "other": "Autre"
     },
-    "purchasesTitle": "Achats",
+    "purchasesTitle": "Services du voyage",
     "travellersTitle": "Voyageurs et passeports",
     "confirm": "Confirmer",
     "confirmItem": "Confirmer l'élément",
@@ -236,7 +236,7 @@
     "completeSetup": "Terminer la configuration"
   },
   "operations": {
-    "title": "Opérations",
+    "title": "Pipeline",
     "description": "Suivez chaque réservation de la confirmation à l'émission et à l'achèvement.",
     "upcomingDepartures": "Départs à venir",
     "activeBookings": "Réservations actives",
