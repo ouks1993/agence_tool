@@ -24,6 +24,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
+import { CountryCombobox } from "@/components/reference/country-combobox";
 import {
   addTraveller,
   updateTraveller,
@@ -240,10 +241,11 @@ export function TravellersManager({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="t-nat">Nationality</Label>
-              <Input
+              <CountryCombobox
                 id="t-nat"
+                mode="nationality"
                 value={form.nationality}
-                onChange={(e) => setForm((f) => ({ ...f, nationality: e.target.value }))}
+                onChange={(v) => setForm((f) => ({ ...f, nationality: v }))}
               />
             </div>
             <div className="space-y-1.5">

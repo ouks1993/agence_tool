@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { CityInput } from "@/components/reference/city-input";
+import { CountryCombobox } from "@/components/reference/country-combobox";
 import { createClient, updateClient, type ClientInput } from "@/lib/actions/clients";
 import {
   INDUSTRIES,
@@ -140,20 +142,12 @@ export function ClientForm({ mode, clientId, teamMembers, initial }: Props) {
 
           <div className="space-y-2">
             <Label htmlFor="city">City</Label>
-            <Input
-              id="city"
-              value={form.city}
-              onChange={(e) => set("city", e.target.value)}
-            />
+            <CityInput id="city" value={form.city ?? ""} onChange={(v) => set("city", v)} />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="country">Country</Label>
-            <Input
-              id="country"
-              value={form.country}
-              onChange={(e) => set("country", e.target.value)}
-            />
+            <CountryCombobox id="country" value={form.country ?? ""} onChange={(v) => set("country", v)} />
           </div>
 
           <div className="space-y-2 md:col-span-2">

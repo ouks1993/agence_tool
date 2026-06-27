@@ -196,7 +196,7 @@ async function main() {
   ];
   const intlCities: [string, string][] = [
     ["Paris", "France"], ["Lyon", "France"], ["Marseille", "France"], ["Montreal", "Canada"],
-    ["London", "United Kingdom"], ["Istanbul", "Turkey"], ["Dubai", "UAE"], ["Tunis", "Tunisia"],
+    ["London", "United Kingdom"], ["Istanbul", "Türkiye"], ["Dubai", "United Arab Emirates"], ["Tunis", "Tunisia"],
   ];
   const companies = [
     "Atlas Tech SARL", "Sahara Logistics", "Médina Hospitality", "Le Comptoir du Voyage",

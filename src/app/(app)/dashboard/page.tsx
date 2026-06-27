@@ -18,6 +18,7 @@ import {
   Users,
   Tag,
   MapPin,
+  Globe,
 } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/app/page-header";
@@ -37,9 +38,11 @@ import { describeActivity } from "@/lib/activity-format";
 import { db } from "@/lib/db";
 import {
   BOOKING_STATUS_META,
+  LEAD_SOURCE_LABEL,
   roleHome,
   seesAllData,
   type BookingStatus,
+  type LeadSource,
 } from "@/lib/domain";
 import {
   formatMoney,
@@ -164,6 +167,7 @@ export default async function DashboardPage() {
     revenueMonthly: Point[];
     topClients: Point[];
     leadSources: Point[];
+    sourceMarkets: Point[];
     totalRevenue: number;
     collected: number;
     outstanding: number;
@@ -216,14 +220,17 @@ export default async function DashboardPage() {
     // 6) Lead-source breakdown (by client count). Uses free-text source today;
     // becomes clean once Phase 2 makes it an enum.
     const sourceRows = await db
-      .select({ source: clientTable.source })
+      .select({ source: clientTable.source, country: clientTable.country })
       .from(clientTable)
       .where(eq(clientTable.agencyId, user.agencyId));
     const leadSources = countBy(
       sourceRows,
-      (r) => (r.source?.trim() ? r.source.trim() : "Unknown"),
+      (r) => (r.source ? LEAD_SOURCE_LABEL[r.source as LeadSource] ?? r.source : "Unknown"),
       6
     );
+    // Top source markets — clients grouped by country (clean now that country
+    // is picked from the ISO list).
+    const sourceMarkets = countBy(sourceRows, (r) => r.country, 8);
 
     // Finance KPIs.
     const totalRevenue = dzdActive
@@ -267,6 +274,7 @@ export default async function DashboardPage() {
       revenueMonthly,
       topClients,
       leadSources,
+      sourceMarkets,
       totalRevenue,
       collected,
       outstanding,
@@ -625,6 +633,17 @@ export default async function DashboardPage() {
                 </CardHeader>
                 <CardContent>
                   <DonutInsight data={insights.leadSources} />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Globe className="size-4" /> Top source markets
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <HBarInsight data={insights.sourceMarkets} color="var(--chart-5)" />
                 </CardContent>
               </Card>
             </div>
