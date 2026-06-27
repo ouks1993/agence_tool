@@ -18,6 +18,7 @@ import { ProductStatusControl } from "@/components/products/product-status-contr
 import { ProposalShareControl } from "@/components/products/proposal-share-control";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getSuppliersForPicker } from "@/lib/actions/suppliers";
 import { db } from "@/lib/db";
 import { PRODUCT_STATUS_META, type ProductStatus } from "@/lib/domain";
 import { formatDate, formatMoney } from "@/lib/format";
@@ -32,14 +33,17 @@ export default async function ProductDetailPage({
   const user = await requireAgencyUser();
   const { id } = await params;
 
-  const p = await db.query.product.findFirst({
-    where: and(eq(product.id, id), eq(product.agencyId, user.agencyId)),
-    with: {
-      client: { columns: { id: true, name: true } },
-      opportunity: { columns: { id: true, title: true } },
-      items: { orderBy: (t) => [asc(t.sortOrder)] },
-    },
-  });
+  const [p, suppliers] = await Promise.all([
+    db.query.product.findFirst({
+      where: and(eq(product.id, id), eq(product.agencyId, user.agencyId)),
+      with: {
+        client: { columns: { id: true, name: true } },
+        opportunity: { columns: { id: true, title: true } },
+        items: { orderBy: (t) => [asc(t.sortOrder)] },
+      },
+    }),
+    getSuppliersForPicker(),
+  ]);
   if (!p) notFound();
 
   const meta = PRODUCT_STATUS_META[p.status as ProductStatus];
@@ -96,6 +100,7 @@ export default async function ProductDetailPage({
               <ItemsManager
                 productId={p.id}
                 currency={p.currency}
+                suppliers={suppliers}
                 items={p.items.map((i) => ({
                   id: i.id,
                   type: i.type,

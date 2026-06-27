@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, eq } from "drizzle-orm";
+import { CheckCircle2 } from "lucide-react";
+import { PayNowButton } from "@/components/portal/pay-now-button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/lib/db";
@@ -14,14 +16,17 @@ import {
 } from "@/lib/domain";
 import { formatMoney, formatDate } from "@/lib/format";
 import { requirePortalSession } from "@/lib/portal-session";
-import { booking } from "@/lib/schema";
+import { agency, booking } from "@/lib/schema";
 
 export default async function PortalBookingPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ paid?: string }>;
 }) {
   const { id } = await params;
+  const { paid } = await searchParams;
   const session = await requirePortalSession();
 
   // Strict ownership check: id + clientId + agencyId must all match.
@@ -38,6 +43,13 @@ export default async function PortalBookingPage({
   });
 
   if (!b) notFound();
+
+  // Online self-pay is only offered once the agency has finished Stripe Connect.
+  const ag = await db.query.agency.findFirst({
+    where: eq(agency.id, session.client.agencyId),
+    columns: { stripeConnectOnboarded: true },
+  });
+  const canPayOnline = ag?.stripeConnectOnboarded === true;
 
   const statusMeta = BOOKING_STATUS_META[b.status as BookingStatus];
 
@@ -69,6 +81,13 @@ export default async function PortalBookingPage({
           <Badge variant="secondary">{b.status}</Badge>
         )}
       </div>
+
+      {paid === "1" && (
+        <div className="flex items-center gap-2 rounded-lg border border-green-500/30 bg-green-500/10 p-4 text-sm text-green-700 dark:text-green-400">
+          <CheckCircle2 className="size-5 shrink-0" />
+          <span>Payment received — thank you!</span>
+        </div>
+      )}
 
       {/* Itinerary items */}
       <Card>
@@ -153,6 +172,11 @@ export default async function PortalBookingPage({
               <span className="capitalize">{p.status}</span>
             </div>
           ))}
+          {balance > 0 && canPayOnline && (
+            <div className="border-t pt-4">
+              <PayNowButton bookingId={b.id} amount={balance} />
+            </div>
+          )}
         </CardContent>
       </Card>
 

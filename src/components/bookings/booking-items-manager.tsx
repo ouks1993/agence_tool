@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { BookingSearchPanel } from "@/components/bookings/booking-search-panel";
+import { SupplierPicker, type SupplierOption } from "@/components/suppliers/supplier-picker";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -65,10 +66,12 @@ export function BookingItemsManager({
   bookingId,
   currency,
   items,
+  suppliers = [],
 }: {
   bookingId: string;
   currency: string;
   items: BookingItemRow[];
+  suppliers?: SupplierOption[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -78,6 +81,7 @@ export function BookingItemsManager({
     type: "flight" as BookingItemType,
     title: "",
     supplier: "",
+    supplierId: null as string | null,
     bookingRef: "",
     amount: "",
     quantity: "1",
@@ -97,6 +101,7 @@ export function BookingItemsManager({
       type: types[0]!,
       title: "",
       supplier: "",
+      supplierId: null,
       bookingRef: "",
       amount: "",
       quantity: "1",
@@ -143,7 +148,8 @@ export function BookingItemsManager({
       const res = await addBookingItem(bookingId, {
         type: form.type,
         title: form.title,
-        supplier: form.supplier,
+        supplier: form.supplier || undefined,
+        supplierId: form.supplierId ?? undefined,
         bookingRef: form.bookingRef,
         amount: form.amount === "" ? 0 : Number(form.amount),
         quantity: form.quantity === "" ? 1 : Number(form.quantity),
@@ -266,10 +272,14 @@ export function BookingItemsManager({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="bi-supplier">Supplier</Label>
-              <Input
+              <SupplierPicker
                 id="bi-supplier"
+                suppliers={suppliers}
                 value={form.supplier}
-                onChange={(e) => setForm((f) => ({ ...f, supplier: e.target.value }))}
+                supplierId={form.supplierId}
+                onChange={(name, id) =>
+                  setForm((f) => ({ ...f, supplier: name, supplierId: id }))
+                }
               />
             </div>
             <div className="space-y-1.5">

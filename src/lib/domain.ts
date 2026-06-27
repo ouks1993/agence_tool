@@ -311,3 +311,88 @@ export const EXTRA_ITEM_TYPES: BookingItemType[] = [
 export const SUPPORTED_CURRENCIES = ["EUR", "USD", "GBP", "DZD", "MAD", "AED", "CHF"] as const;
 export type Currency = (typeof SUPPORTED_CURRENCIES)[number];
 export const DEFAULT_CURRENCY: Currency = "EUR";
+
+// --- Suppliers --------------------------------------------------------------
+
+export const SUPPLIER_TYPES = [
+  "hotel",
+  "airline",
+  "car_rental",
+  "transfer",
+  "dmc",
+  "insurance",
+  "other",
+] as const;
+export type SupplierType = (typeof SUPPLIER_TYPES)[number];
+
+export const SUPPLIER_TYPE_META: Record<
+  SupplierType,
+  { label: string; icon: string }
+> = {
+  hotel: { label: "Hotel", icon: "BedDouble" },
+  airline: { label: "Airline", icon: "Plane" },
+  car_rental: { label: "Car Rental", icon: "Car" },
+  transfer: { label: "Transfer", icon: "Bus" },
+  dmc: { label: "DMC", icon: "Globe" },
+  insurance: { label: "Insurance", icon: "ShieldCheck" },
+  other: { label: "Other", icon: "Package" },
+};
+
+export const SUPPLIER_STATUSES = ["active", "inactive"] as const;
+export type SupplierStatus = (typeof SUPPLIER_STATUSES)[number];
+
+export const SUPPLIER_STATUS_META: Record<
+  SupplierStatus,
+  { label: string; className: string }
+> = {
+  active: { label: "Active", className: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" },
+  inactive: { label: "Inactive", className: "bg-muted text-muted-foreground" },
+};
+
+export const CONTRACT_BASES = ["percent", "fixed", "net"] as const;
+export type ContractBasis = (typeof CONTRACT_BASES)[number];
+
+export const CONTRACT_BASIS_LABEL: Record<ContractBasis, string> = {
+  percent: "Percentage",
+  fixed: "Fixed amount",
+  net: "Net rate",
+};
+
+export const CONTRACT_STATUSES = ["active", "expired", "draft"] as const;
+export type ContractStatus = (typeof CONTRACT_STATUSES)[number];
+
+export const CONTRACT_STATUS_META: Record<
+  ContractStatus,
+  { label: string; className: string }
+> = {
+  active: { label: "Active", className: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" },
+  expired: { label: "Expired", className: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400" },
+  draft: { label: "Draft", className: "bg-muted text-muted-foreground" },
+};
+
+// --- Commissions ------------------------------------------------------------
+
+export const COMMISSION_TYPES = ["supplier_to_agency", "agency_to_agent"] as const;
+export type CommissionType = (typeof COMMISSION_TYPES)[number];
+
+export const COMMISSION_TYPE_LABEL: Record<CommissionType, string> = {
+  supplier_to_agency: "Supplier → Agency",
+  agency_to_agent: "Agency → Agent",
+};
+
+export const COMMISSION_BASES = ["percent", "fixed"] as const;
+export type CommissionBasis = (typeof COMMISSION_BASES)[number];
+
+export const COMMISSION_STATUSES = ["pending", "earned", "invoiced", "paid", "void"] as const;
+export type CommissionStatus = (typeof COMMISSION_STATUSES)[number];
+
+export const COMMISSION_STATUS_META: Record<
+  CommissionStatus,
+  { label: string; className: string }
+> = {
+  pending:  { label: "Pending",  className: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400" },
+  earned:   { label: "Earned",   className: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" },
+  invoiced: { label: "Invoiced", className: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" },
+  paid:     { label: "Paid",     className: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" },
+  void:     { label: "Void",     className: "bg-muted text-muted-foreground" },
+};

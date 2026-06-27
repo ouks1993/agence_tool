@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getTranslations } from "next-intl/server";
 import { and, asc, desc, eq } from "drizzle-orm";
 import {
   ArrowLeft,
@@ -14,8 +13,10 @@ import {
   FileText,
   Receipt,
   Mail,
+  BadgePercent,
   Map as MapIcon,
 } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusBadge } from "@/components/app/status-badge";
 import { BookingItemsManager } from "@/components/bookings/booking-items-manager";
@@ -24,10 +25,14 @@ import { CommunicationsManager } from "@/components/bookings/communications-mana
 import { DeleteBookingButton } from "@/components/bookings/delete-booking-button";
 import { PaymentsManager } from "@/components/bookings/payments-manager";
 import { TravellersManager } from "@/components/bookings/travellers-manager";
+import { VisaAssistant } from "@/components/bookings/visa-assistant";
+import { CommissionsManager } from "@/components/commissions/commissions-manager";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getCommissionsByBooking } from "@/lib/actions/commissions";
+import { getSuppliersForPicker } from "@/lib/actions/suppliers";
 import { db } from "@/lib/db";
-import { BOOKING_STATUS_META, type BookingStatus } from "@/lib/domain";
+import { BOOKING_STATUS_META, canViewFinance, type BookingStatus } from "@/lib/domain";
 import { formatDate, formatMoney, passportExpiryStatus } from "@/lib/format";
 import { isEmailConfigured } from "@/lib/notifications/email";
 import { isStripeConfigured } from "@/lib/payments/stripe";
@@ -44,17 +49,27 @@ export default async function BookingWorkspace({
   const t = await getTranslations("bookings");
   const { id } = await params;
 
-  const b = await db.query.booking.findFirst({
-    where: and(eq(booking.id, id), eq(booking.agencyId, user.agencyId)),
-    with: {
-      client: { columns: { id: true, name: true, email: true } },
-      travellers: { orderBy: (t) => [asc(t.sortOrder)] },
-      items: { orderBy: (t) => [asc(t.sortOrder)] },
-      payments: { orderBy: (t) => [desc(t.createdAt)] },
-      notifications: { orderBy: (t) => [desc(t.createdAt)] },
-    },
-  });
+  const [b, suppliers] = await Promise.all([
+    db.query.booking.findFirst({
+      where: and(eq(booking.id, id), eq(booking.agencyId, user.agencyId)),
+      with: {
+        client: { columns: { id: true, name: true, email: true } },
+        travellers: { orderBy: (t) => [asc(t.sortOrder)] },
+        items: { orderBy: (t) => [asc(t.sortOrder)] },
+        payments: { orderBy: (t) => [desc(t.createdAt)] },
+        notifications: { orderBy: (t) => [desc(t.createdAt)] },
+      },
+    }),
+    getSuppliersForPicker(),
+  ]);
   if (!b) notFound();
+
+  // Commissions are part of the finance workspace; only fetch them for roles
+  // that can view finance so we never do the extra query for everyone else.
+  const showCommissions = canViewFinance(user.role);
+  const commissions = showCommissions
+    ? await getCommissionsByBooking(b.id)
+    : [];
 
   const meta = BOOKING_STATUS_META[b.status as BookingStatus];
   const travelDate = b.departDate;
@@ -164,6 +179,7 @@ export default async function BookingWorkspace({
               <BookingItemsManager
                 bookingId={b.id}
                 currency={b.currency}
+                suppliers={suppliers}
                 items={b.items.map((i) => ({
                   id: i.id,
                   type: i.type,
@@ -209,6 +225,19 @@ export default async function BookingWorkspace({
               />
             </CardContent>
           </Card>
+
+          {showCommissions && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <BadgePercent className="size-4" /> Commissions
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CommissionsManager commissions={commissions} bookingId={b.id} />
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>
@@ -286,6 +315,8 @@ export default async function BookingWorkspace({
               <Detail icon={Users} label="Travellers" value={String(b.travellers.length)} />
             </CardContent>
           </Card>
+
+          <VisaAssistant bookingId={b.id} />
 
           {b.notes && (
             <Card>

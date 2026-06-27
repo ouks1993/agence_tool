@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Mail, Send, Check, AlertCircle, FileClock } from "lucide-react";
 import { toast } from "sonner";
+import { AiEmailDraftButton } from "@/components/bookings/ai-email-draft-button";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -103,13 +104,22 @@ export function CommunicationsManager({
         </ul>
       )}
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogTrigger asChild>
-          <Button variant="outline" size="sm">
-            <Send className="mr-2 size-4" />
-            Send email
-          </Button>
-        </DialogTrigger>
+      <div className="flex flex-wrap items-center gap-2">
+        <AiEmailDraftButton
+          bookingId={bookingId}
+          onDraft={(subject, body) => {
+            // A custom kind makes the subject/body fields visible in the compose form.
+            setForm((f) => ({ ...f, kind: "custom", subject, body }));
+            setOpen(true);
+          }}
+        />
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm">
+              <Send className="mr-2 size-4" />
+              Send email
+            </Button>
+          </DialogTrigger>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Send email to client</DialogTitle>
@@ -168,8 +178,9 @@ export function CommunicationsManager({
               {pending ? "Sending…" : "Send"}
             </Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </DialogContent>
+        </Dialog>
+      </div>
     </div>
   );
 }

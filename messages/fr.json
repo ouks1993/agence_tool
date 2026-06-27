@@ -11,6 +11,7 @@
   "nav": {
     "dashboard": "Tableau de bord",
     "finance": "Finance",
+    "commissions": "Commissions",
     "support": "Support",
     "bookings": "Réservations",
     "operations": "Opérations",
@@ -18,6 +19,7 @@
     "search": "Recherche",
     "hotels": "Hôtels",
     "assistant": "Assistant IA",
+    "suppliers": "Fournisseurs",
     "team": "Équipe",
     "billing": "Facturation",
     "settings": "Paramètres",

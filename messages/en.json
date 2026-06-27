@@ -11,6 +11,7 @@
   "nav": {
     "dashboard": "Dashboard",
     "finance": "Finance",
+    "commissions": "Commissions",
     "support": "Support",
     "bookings": "Bookings",
     "operations": "Operations",
@@ -18,6 +19,7 @@
     "search": "Search",
     "hotels": "Hotels",
     "assistant": "AI Assistant",
+    "suppliers": "Suppliers",
     "team": "Team",
     "billing": "Billing",
     "settings": "Settings",

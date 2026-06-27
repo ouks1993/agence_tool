@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getTranslations } from "next-intl/server";
 import { and, desc, eq } from "drizzle-orm";
 import {
   Wallet,
@@ -8,7 +7,10 @@ import {
   TrendingUp,
   AlertTriangle,
   Receipt,
+  BadgePercent,
+  CheckCircle2,
 } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
 import { StatCard } from "@/components/app/stat-card";
@@ -28,6 +30,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { getCommissionSummary } from "@/lib/actions/commissions";
 import { db } from "@/lib/db";
 import {
   canViewFinance,
@@ -221,7 +224,7 @@ export default async function FinancePage() {
   // --- Revenue summary extras (each query agency-scoped) -------------------
   // Agency margin proxy: sum of (totalPrice - totalCost) across the agency's
   // products. Won opportunity value: sum of opportunity.value where stage=won.
-  const [products, wonOpportunities] = await Promise.all([
+  const [products, wonOpportunities, commissionSummary] = await Promise.all([
     db.query.product.findMany({
       where: eq(product.agencyId, user.agencyId),
       columns: { totalPrice: true, totalCost: true },
@@ -235,7 +238,24 @@ export default async function FinancePage() {
       columns: { value: true },
       limit: 1000,
     }),
+    getCommissionSummary(),
   ]);
+
+  // Commission KPIs: prefer EUR, else fall back to whatever currency is first.
+  const commissionCurrency =
+    commissionSummary.find((s) => s.currency === "EUR")?.currency ??
+    commissionSummary[0]?.currency ??
+    "EUR";
+  const commissionTotals = commissionSummary
+    .filter((s) => s.currency === commissionCurrency)
+    .reduce(
+      (acc, s) => ({
+        pending: acc.pending + s.totalPending,
+        earned: acc.earned + s.totalEarned,
+        paid: acc.paid + s.totalPaid,
+      }),
+      { pending: 0, earned: 0, paid: 0 }
+    );
 
   const agencyMargin = products.reduce(
     (sum, p) =>
@@ -513,6 +533,33 @@ export default async function FinancePage() {
             </p>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Commissions */}
+      <div className="space-y-4">
+        <h2 className="flex items-center gap-2 text-lg font-semibold">
+          <BadgePercent className="size-5" /> Commissions
+        </h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <StatCard
+            label={`Pending (${commissionCurrency})`}
+            value={formatMoney(commissionTotals.pending, commissionCurrency)}
+            hint="Not yet earned"
+            icon={Wallet}
+          />
+          <StatCard
+            label={`Earned (${commissionCurrency})`}
+            value={formatMoney(commissionTotals.earned, commissionCurrency)}
+            hint="Earned, awaiting payout"
+            icon={CircleDollarSign}
+          />
+          <StatCard
+            label={`Paid (${commissionCurrency})`}
+            value={formatMoney(commissionTotals.paid, commissionCurrency)}
+            hint="Settled commissions"
+            icon={CheckCircle2}
+          />
+        </div>
       </div>
     </div>
   );

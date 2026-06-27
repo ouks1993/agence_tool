@@ -6,7 +6,14 @@ type LogActivityInput = {
   agencyId: string;
   userId: string | null;
   action: string;
-  entityType: "client" | "opportunity" | "product" | "booking" | "user";
+  entityType:
+    | "client"
+    | "opportunity"
+    | "product"
+    | "booking"
+    | "user"
+    | "supplier"
+    | "commission";
   entityId?: string | null;
   entityLabel?: string | null;
   metadata?: Record<string, unknown> | null;

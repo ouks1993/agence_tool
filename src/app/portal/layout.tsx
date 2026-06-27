@@ -12,7 +12,7 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
       <header className="border-b">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between gap-4">
           <Link
             href="/portal"
             className="flex items-center gap-2 text-lg font-semibold"
@@ -22,12 +22,26 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
             </span>
             My Trips
           </Link>
-          <a
-            href="/api/portal/auth/signout"
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Sign out
-          </a>
+          <nav className="flex items-center gap-4 text-sm">
+            <Link
+              href="/portal"
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              My Trips
+            </Link>
+            <Link
+              href="/portal/proposals"
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              My Proposals
+            </Link>
+            <a
+              href="/api/portal/auth/signout"
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Sign out
+            </a>
+          </nav>
         </div>
       </header>
       <main className="flex-1 container mx-auto px-4 py-8">{children}</main>

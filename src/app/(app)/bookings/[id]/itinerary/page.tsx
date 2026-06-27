@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { and, asc, eq } from "drizzle-orm";
 import { ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
+import { GenerateItineraryButton } from "@/components/bookings/generate-itinerary-button";
 import {
   ItineraryBuilder,
   type DayVM,
@@ -95,7 +96,9 @@ export default async function ItineraryPage({
       <PageHeader
         title="Itinerary"
         description={b.destination ? `${b.reference} · ${b.destination}` : b.reference}
-      />
+      >
+        <GenerateItineraryButton bookingId={b.id} />
+      </PageHeader>
       <ItineraryBuilder
         bookingId={b.id}
         days={dayVMs}

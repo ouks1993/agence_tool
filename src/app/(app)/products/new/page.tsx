@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
-import { ProductForm } from "@/components/products/product-form";
+import { NewProductWithAi } from "@/components/products/new-product-with-ai";
 import { Button } from "@/components/ui/button";
 import { requireAgencyUser } from "@/lib/permissions";
 import { listClientOptions, listOpportunityOptions } from "@/lib/queries";
@@ -29,8 +29,7 @@ export default async function NewProductPage({
         </Link>
       </Button>
       <PageHeader title="New proposal" description="Start a travel package for a client." />
-      <ProductForm
-        mode="create"
+      <NewProductWithAi
         clients={clients}
         opportunities={opportunities}
         initial={{

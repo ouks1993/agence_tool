@@ -119,6 +119,8 @@ export const user = pgTable(
     locale: text("locale"),
     // Soft-disable a team member without deleting their history.
     active: boolean("active").default(true).notNull(),
+    // Default commission rate (%) this agent earns from the agency per booking.
+    commissionRatePercent: numeric("commission_rate_percent", { precision: 5, scale: 2 }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()
@@ -386,6 +388,10 @@ export const productItem = pgTable(
     productId: uuid("product_id")
       .notNull()
       .references(() => product.id, { onDelete: "cascade" }),
+    // FK to a managed supplier record (optional — free-text `supplier` kept for ad-hoc entries).
+    supplierId: uuid("supplier_id").references(() => supplier.id, {
+      onDelete: "set null",
+    }),
     // "flight" | "hotel" | "activity" | "transfer" | "insurance" | "other"
     type: text("type").notNull(),
     title: text("title").notNull(),
@@ -485,6 +491,10 @@ export const bookingItem = pgTable(
     bookingId: uuid("booking_id")
       .notNull()
       .references(() => booking.id, { onDelete: "cascade" }),
+    // FK to a managed supplier record (optional — free-text `supplier` kept for ad-hoc entries).
+    supplierId: uuid("supplier_id").references(() => supplier.id, {
+      onDelete: "set null",
+    }),
     // "flight" | "hotel" | "excursion" | "transfer" | "insurance" | "fee" | "other"
     type: text("type").notNull(),
     title: text("title").notNull(),
@@ -879,4 +889,158 @@ export const hotelContent = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [index("hotel_content_destination_idx").on(table.destinationCode)]
+);
+
+// ---------------------------------------------------------------------------
+// Supplier management: agency-managed supplier list with contracts and rates
+// ---------------------------------------------------------------------------
+
+/** A supplier the agency works with (hotel chain, airline, DMC, car rental, etc.). */
+export const supplier = pgTable(
+  "supplier",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agency.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    // "hotel" | "airline" | "car_rental" | "transfer" | "dmc" | "insurance" | "other"
+    type: text("type").notNull(),
+    // "active" | "inactive"
+    status: text("status").default("active").notNull(),
+    email: text("email"),
+    phone: text("phone"),
+    website: text("website"),
+    address: text("address"),
+    city: text("city"),
+    country: text("country"),
+    contactName: text("contact_name"),
+    notes: text("notes"),
+    createdById: text("created_by_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("supplier_agency_idx").on(table.agencyId),
+    index("supplier_type_idx").on(table.type),
+    index("supplier_status_idx").on(table.status),
+    unique("supplier_agency_name_unique").on(table.agencyId, table.name),
+  ]
+);
+
+/** A commercial contract between the agency and a supplier, holding commission rates. */
+export const supplierContract = pgTable(
+  "supplier_contract",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    supplierId: uuid("supplier_id")
+      .notNull()
+      .references(() => supplier.id, { onDelete: "cascade" }),
+    // Denormalized for efficient agency-scoped queries.
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agency.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    reference: text("reference"),
+    // "percent" | "fixed" | "net"
+    commissionBasis: text("commission_basis"),
+    // Agency's commission rate from this supplier (percentage or fixed amount).
+    commissionRate: numeric("commission_rate", { precision: 5, scale: 2 }),
+    currency: text("currency").default("EUR").notNull(),
+    validFrom: timestamp("valid_from"),
+    validTo: timestamp("valid_to"),
+    // URL to the uploaded contract PDF (Vercel Blob).
+    fileUrl: text("file_url"),
+    // "active" | "expired" | "draft"
+    status: text("status").default("active").notNull(),
+    notes: text("notes"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("supplier_contract_supplier_idx").on(table.supplierId),
+    index("supplier_contract_agency_idx").on(table.agencyId),
+    index("supplier_contract_status_idx").on(table.status),
+  ]
+);
+
+/** A structured rate entry within a supplier contract. */
+export const supplierRate = pgTable(
+  "supplier_rate",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    contractId: uuid("contract_id")
+      .notNull()
+      .references(() => supplierContract.id, { onDelete: "cascade" }),
+    description: text("description").notNull(),
+    netRate: numeric("net_rate", { precision: 12, scale: 2 }),
+    sellRate: numeric("sell_rate", { precision: 12, scale: 2 }),
+    currency: text("currency").default("EUR").notNull(),
+    validFrom: timestamp("valid_from"),
+    validTo: timestamp("valid_to"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [index("supplier_rate_contract_idx").on(table.contractId)]
+);
+
+// ---------------------------------------------------------------------------
+// Commissions: agency earns from suppliers, agents earn from agency
+// ---------------------------------------------------------------------------
+
+/**
+ * Commission ledger row.
+ * type="supplier_to_agency" — commission the agency earns from a supplier for a booking item.
+ * type="agency_to_agent"   — commission an agent earns from the agency for a booking.
+ */
+export const commission = pgTable(
+  "commission",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agency.id, { onDelete: "cascade" }),
+    bookingId: uuid("booking_id").references(() => booking.id, {
+      onDelete: "cascade",
+    }),
+    // For supplier commissions — the specific booking item this relates to.
+    bookingItemId: uuid("booking_item_id").references(() => bookingItem.id, {
+      onDelete: "set null",
+    }),
+    // For supplier commissions — the supplier who pays the commission.
+    supplierId: uuid("supplier_id").references(() => supplier.id, {
+      onDelete: "set null",
+    }),
+    // For agent commissions — the agent who earns it.
+    agentUserId: text("agent_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    // "supplier_to_agency" | "agency_to_agent"
+    type: text("type").notNull(),
+    // "percent" | "fixed"
+    basis: text("basis").notNull().default("percent"),
+    // Rate used (percent when basis=percent).
+    rate: numeric("rate", { precision: 5, scale: 2 }),
+    // The amount the commission was computed on.
+    baseAmount: numeric("base_amount", { precision: 12, scale: 2 }),
+    // Computed commission value.
+    amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+    currency: text("currency").default("EUR").notNull(),
+    // "pending" | "earned" | "invoiced" | "paid" | "void"
+    status: text("status").default("pending").notNull(),
+    note: text("note"),
+    createdById: text("created_by_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("commission_agency_idx").on(table.agencyId),
+    index("commission_booking_idx").on(table.bookingId),
+    index("commission_type_idx").on(table.type),
+    index("commission_agent_idx").on(table.agentUserId),
+    index("commission_status_idx").on(table.status),
+  ]
 );

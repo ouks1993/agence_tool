@@ -49,5 +49,11 @@ export function describeActivity(a: ActivityRow): string {
   }
 
   const verb = VERB[a.action] ?? a.action;
-  return `${verb} ${entity} “${label}”`;
+  const entityLabel =
+    entity === "supplier"
+      ? "supplier"
+      : entity === "commission"
+        ? "commission"
+        : entity;
+  return `${verb} ${entityLabel} “${label}”`;
 }

@@ -11,6 +11,7 @@
   "nav": {
     "dashboard": "لوحة التحكم",
     "finance": "المالية",
+    "commissions": "العمولات",
     "support": "الدعم",
     "bookings": "الحجوزات",
     "operations": "العمليات",
@@ -18,6 +19,7 @@
     "search": "بحث",
     "hotels": "الفنادق",
     "assistant": "المساعد الذكي",
+    "suppliers": "الموردون",
     "team": "الفريق",
     "billing": "الفوترة",
     "settings": "الإعدادات",

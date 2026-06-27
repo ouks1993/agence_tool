@@ -13,6 +13,7 @@ import {
   Plus,
 } from "lucide-react";
 import { toast } from "sonner";
+import { SupplierPicker, type SupplierOption } from "@/components/suppliers/supplier-picker";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -58,10 +59,12 @@ export function ItemsManager({
   productId,
   currency,
   items,
+  suppliers = [],
 }: {
   productId: string;
   currency: string;
   items: ProductItemRow[];
+  suppliers?: SupplierOption[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -70,6 +73,7 @@ export function ItemsManager({
     type: "activity",
     title: "",
     supplier: "",
+    supplierId: null as string | null,
     quantity: "1",
     unitCost: "",
     description: "",
@@ -92,7 +96,8 @@ export function ItemsManager({
       const res = await addProductItem(productId, {
         type: form.type as ProductItemType,
         title: form.title,
-        supplier: form.supplier,
+        supplier: form.supplier || undefined,
+        supplierId: form.supplierId ?? undefined,
         quantity: form.quantity === "" ? 1 : Number(form.quantity),
         unitCost: form.unitCost === "" ? 0 : Number(form.unitCost),
         currency,
@@ -100,7 +105,7 @@ export function ItemsManager({
       });
       if (res.ok) {
         toast.success("Item added");
-        setForm({ type: "activity", title: "", supplier: "", quantity: "1", unitCost: "", description: "" });
+        setForm({ type: "activity", title: "", supplier: "", supplierId: null, quantity: "1", unitCost: "", description: "" });
         setOpen(false);
         router.refresh();
       } else {
@@ -209,10 +214,14 @@ export function ItemsManager({
             </div>
             <div className="space-y-2">
               <Label htmlFor="i-supplier">Supplier</Label>
-              <Input
+              <SupplierPicker
                 id="i-supplier"
+                suppliers={suppliers}
                 value={form.supplier}
-                onChange={(e) => setForm((f) => ({ ...f, supplier: e.target.value }))}
+                supplierId={form.supplierId}
+                onChange={(name, id) =>
+                  setForm((f) => ({ ...f, supplier: name, supplierId: id }))
+                }
               />
             </div>
             <div className="space-y-2">

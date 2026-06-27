@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
+import { autoGenerateCommissions } from "@/lib/actions/commissions";
 import type { ActionResult } from "@/lib/actions/types";
 import { logActivity } from "@/lib/activity";
 import { db } from "@/lib/db";
@@ -215,6 +216,10 @@ export async function setBookingStatus(
     .set({ status })
     .where(and(eq(booking.id, id), eq(booking.agencyId, user.agencyId)));
 
+  if (status === "confirmed") {
+    await autoGenerateCommissions(id, user.agencyId);
+  }
+
   await logActivity({
     agencyId: user.agencyId,
     userId: user.id,
@@ -396,6 +401,10 @@ export async function advanceStatus(
     .update(booking)
     .set({ status: next })
     .where(and(eq(booking.id, id), eq(booking.agencyId, user.agencyId)));
+
+  if (next === "confirmed" || next === "ticketed") {
+    await autoGenerateCommissions(id, user.agencyId);
+  }
 
   await logActivity({
     agencyId: user.agencyId,
@@ -611,6 +620,7 @@ const itemInput = z.object({
   title: z.string().trim().min(1, "Title is required").max(300),
   description: z.string().trim().max(2000).optional(),
   supplier: z.string().trim().max(120).optional(),
+  supplierId: z.string().uuid().optional(),
   bookingRef: z.string().trim().max(120).optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
@@ -645,6 +655,7 @@ export async function addBookingItem(
     type: d.type,
     title: d.title,
     description: d.description || null,
+    supplierId: d.supplierId ?? null,
     supplier: d.supplier || null,
     bookingRef: d.bookingRef || null,
     startDate: toDate(d.startDate),
