@@ -1,9 +1,12 @@
 /**
- * Seeds the Demo Agency with a rich, realistic dataset for customer demos.
+ * Seeds the Demo Agency with a RICH, realistic dataset for customer demos.
  *
- * Idempotent: wipes the Demo Agency's business data (clients, opportunities,
- * products, bookings + children, payments, activity) — but KEEPS the agency and
- * its users — then reseeds a curated set. Safe to re-run to reset before a demo.
+ * Idempotent: wipes the Demo Agency's business data (clients, suppliers,
+ * opportunities, products, bookings + children, payments, commissions,
+ * notifications, activity) — but KEEPS the agency and its users — then reseeds a
+ * large curated set. Safe to re-run to reset before a demo.
+ *
+ * Everything is denominated in DZD (Algerian Dinar).
  *
  * Run: npx tsx --env-file=.env scripts/seed-demo-data.ts
  */
@@ -20,19 +23,35 @@ import {
   bookingTraveller,
   client,
   clientContact,
+  commission,
+  notification,
   opportunity,
   payment,
   product,
   productItem,
+  supplier,
+  supplierContract,
+  supplierRate,
   user,
 } from "@/lib/schema";
 
 const DEMO = "00000000-0000-0000-0000-000000000001";
+const CUR = "DZD";
 const DAY = 864e5;
 const now = Date.now();
 const d = (offsetDays: number) => new Date(now + offsetDays * DAY);
 const money = (n: number) => n.toFixed(2);
 const pick = <T,>(arr: T[], i: number): T => arr[i % arr.length]!;
+const round = (n: number) => Math.round(n);
+
+// Deterministic PRNG so re-runs produce the same demo data.
+let _s = 1337;
+const rnd = () => {
+  _s = (_s * 1103515245 + 12345) & 0x7fffffff;
+  return _s / 0x7fffffff;
+};
+const between = (lo: number, hi: number) => lo + (hi - lo) * rnd();
+const choice = <T,>(arr: T[]): T => arr[Math.floor(rnd() * arr.length)]!;
 
 async function main() {
   assertSafeDestructiveTarget("the demo-data seed");
@@ -43,12 +62,14 @@ async function main() {
     { email: "karim@demo.test", name: "Karim Haddad" },
     { email: "lina@demo.test", name: "Lina Cherif" },
     { email: "omar@demo.test", name: "Omar Belkacem" },
+    { email: "yacine@demo.test", name: "Yacine Mansouri" },
+    { email: "nour@demo.test", name: "Nour Saadi" },
   ];
   for (const a of agents) {
     let u = await db.query.user.findFirst({ where: eq(user.email, a.email), columns: { id: true } });
     if (!u) {
       const id = crypto.randomUUID();
-      await db.insert(user).values({ id, name: a.name, email: a.email, agencyId: DEMO, role: "agent", emailVerified: true });
+      await db.insert(user).values({ id, name: a.name, email: a.email, agencyId: DEMO, role: "agent", emailVerified: true, commissionRatePercent: round(between(3, 7)) });
       u = { id };
     } else {
       await db.update(user).set({ agencyId: DEMO, role: "agent", active: true }).where(eq(user.id, u.id));
@@ -67,176 +88,337 @@ async function main() {
   const seller = (i: number) => pick(sellers, i);
 
   // --- 2. Wipe existing Demo Agency business data (cascades clear children) ---
+  await db.delete(commission).where(eq(commission.agencyId, DEMO));
+  await db.delete(notification).where(eq(notification.agencyId, DEMO));
   await db.delete(booking).where(eq(booking.agencyId, DEMO));
   await db.delete(product).where(eq(product.agencyId, DEMO));
   await db.delete(opportunity).where(eq(opportunity.agencyId, DEMO));
+  await db.delete(supplierContract).where(eq(supplierContract.agencyId, DEMO));
+  await db.delete(supplier).where(eq(supplier.agencyId, DEMO));
   await db.delete(client).where(eq(client.agencyId, DEMO));
   await db.delete(activityLog).where(eq(activityLog.agencyId, DEMO));
 
-  // --- 3. Clients ---
-  const clientSpecs = [
-    { name: "Amine & Sara Benali", type: "individual", status: "active", city: "Algiers", country: "Algeria", email: "benali.family@example.com", phone: "+213 555 102 003", source: "referral" },
-    { name: "Claire Dubois", type: "individual", status: "active", city: "Lyon", country: "France", email: "claire.dubois@example.fr", phone: "+33 6 12 44 88 21", source: "website" },
-    { name: "James Carter", type: "individual", status: "active", city: "London", country: "United Kingdom", email: "j.carter@example.co.uk", phone: "+44 7700 900123", source: "website" },
-    { name: "Sofia Rossi", type: "individual", status: "lead", city: "Milan", country: "Italy", email: "sofia.rossi@example.it", phone: "+39 333 778 1200", source: "instagram" },
-    { name: "Hassan El Amrani", type: "individual", status: "active", city: "Casablanca", country: "Morocco", email: "h.elamrani@example.ma", phone: "+212 661 223 344", source: "walk-in" },
-    { name: "Thomas Müller", type: "individual", status: "inactive", city: "Munich", country: "Germany", email: "t.mueller@example.de", phone: "+49 151 23456789", source: "referral" },
-    { name: "Aisha Khan", type: "individual", status: "lead", city: "Dubai", country: "UAE", email: "aisha.khan@example.ae", phone: "+971 50 123 4567", source: "website" },
-    { name: "Atlas Tech SARL", type: "corporate", status: "active", company: "Atlas Tech SARL", city: "Algiers", country: "Algeria", email: "travel@atlastech.dz", phone: "+213 770 998 100", source: "outbound" },
-    { name: "Médina Hospitality Group", type: "corporate", status: "active", company: "Médina Hospitality", city: "Marrakech", country: "Morocco", email: "events@medinahg.ma", phone: "+212 524 100 200", source: "referral" },
-    { name: "Sahara Logistics", type: "corporate", status: "lead", company: "Sahara Logistics", city: "Tunis", country: "Tunisia", email: "ops@saharalog.tn", phone: "+216 71 800 900", source: "event" },
-    { name: "Le Comptoir du Voyage", type: "corporate", status: "active", company: "Le Comptoir", city: "Paris", country: "France", email: "groupes@comptoir.fr", phone: "+33 1 80 04 22 10", source: "partner" },
-    { name: "Nadia Bensalah", type: "individual", status: "active", city: "Oran", country: "Algeria", email: "nadia.bensalah@example.com", phone: "+213 556 700 800", source: "referral" },
+  // --- 3. Suppliers + contracts + rates ---
+  const supplierSpecs = [
+    { name: "Turkish Airlines", type: "airline", country: "Turkey", basis: "percent", rate: 6 },
+    { name: "Air Algérie", type: "airline", country: "Algeria", basis: "percent", rate: 5 },
+    { name: "Qatar Airways", type: "airline", country: "Qatar", basis: "percent", rate: 7 },
+    { name: "Emirates", type: "airline", country: "UAE", basis: "percent", rate: 6.5 },
+    { name: "Hilton Hotels & Resorts", type: "hotel", country: "Global", basis: "percent", rate: 12 },
+    { name: "Rixos Hotels", type: "hotel", country: "Turkey", basis: "percent", rate: 14 },
+    { name: "Jaz Hotel Group", type: "hotel", country: "Egypt", basis: "percent", rate: 15 },
+    { name: "Marriott International", type: "hotel", country: "Global", basis: "percent", rate: 11 },
+    { name: "Al Tayyar DMC", type: "dmc", country: "Saudi Arabia", basis: "percent", rate: 10 },
+    { name: "Istanbul Tours DMC", type: "dmc", country: "Turkey", basis: "percent", rate: 18 },
+    { name: "Sahara Excursions", type: "dmc", country: "Algeria", basis: "percent", rate: 20 },
+    { name: "Allianz Travel", type: "insurance", country: "Global", basis: "percent", rate: 25 },
+    { name: "Europ Assistance", type: "insurance", country: "France", basis: "percent", rate: 22 },
+    { name: "Med Transfers", type: "transfer", country: "Tunisia", basis: "fixed", rate: 8 },
   ];
-  const clientIds: string[] = [];
-  for (let i = 0; i < clientSpecs.length; i++) {
-    const s = clientSpecs[i]!;
-    const [row] = await db.insert(client).values({
+  const supplierIds: Record<string, string> = {};
+  const supplierByType: Record<string, string[]> = {};
+  for (let i = 0; i < supplierSpecs.length; i++) {
+    const s = supplierSpecs[i]!;
+    const [row] = await db.insert(supplier).values({
       agencyId: DEMO,
       name: s.name,
       type: s.type,
-      status: s.status,
-      email: s.email,
-      phone: s.phone,
-      company: (s as any).company ?? null,
-      city: s.city,
+      status: i % 9 === 8 ? "inactive" : "active",
+      email: `contact@${s.name.toLowerCase().replace(/[^a-z]/g, "")}.com`,
+      phone: `+213 5${round(between(10, 99))} ${round(between(100, 999))} ${round(between(100, 999))}`,
+      website: `https://www.${s.name.toLowerCase().replace(/[^a-z]/g, "")}.com`,
+      city: s.country,
       country: s.country,
-      source: s.source,
+      contactName: choice(["Mehdi Larbi", "Sami Toumi", "Rania Aziz", "Khaled Brahimi", "Yasmin Fares"]),
+      createdById: seller(i),
+      createdAt: d(-200 + i * 6),
+    }).returning();
+    supplierIds[s.name] = row!.id;
+    (supplierByType[s.type] ??= []).push(row!.id);
+
+    const [contract] = await db.insert(supplierContract).values({
+      supplierId: row!.id,
+      agencyId: DEMO,
+      name: `${s.name} ${2026} Commercial Agreement`,
+      reference: `CTR-${100 + i}`,
+      commissionBasis: s.basis,
+      commissionRate: money(s.rate),
+      currency: CUR,
+      validFrom: d(-180),
+      validTo: d(185),
+      status: i % 11 === 10 ? "expired" : "active",
+      notes: "Standard annual rate agreement with override tiers on volume.",
+      createdAt: d(-180 + i * 5),
+    }).returning();
+
+    const rateCount = 2 + (i % 2);
+    const rates = Array.from({ length: rateCount }).map((_, j) => {
+      const net = round(between(20000, 180000));
+      return {
+        contractId: contract!.id,
+        description: choice([
+          "Standard double room, BB",
+          "Economy class return fare",
+          "All-inclusive package rate",
+          "Half-board family room",
+          "Private airport transfer",
+          "Guided city tour (per pax)",
+        ]) + ` — tier ${j + 1}`,
+        netRate: money(net),
+        sellRate: money(round(net * between(1.15, 1.4))),
+        currency: CUR,
+        validFrom: d(-180),
+        validTo: d(185),
+      };
+    });
+    await db.insert(supplierRate).values(rates);
+  }
+  const anySupplier = (type: string, i: number) => {
+    const list = supplierByType[type];
+    return list && list.length ? pick(list, i) : null;
+  };
+
+  // --- 4. Clients (100) + contacts ---
+  const firstNames = [
+    "Amine", "Sara", "Karim", "Lina", "Omar", "Yasmine", "Hassan", "Nadia", "Sofiane", "Imane",
+    "Bilal", "Meriem", "Rachid", "Asma", "Walid", "Khadija", "Sami", "Leila", "Mourad", "Hanane",
+    "Tarek", "Salima", "Nabil", "Wassila", "Adel", "Farida", "Reda", "Houda", "Younes", "Selma",
+    "Idris", "Amira", "Fares", "Dalia", "Sofia", "Riad", "Nour", "Anis", "Maya", "Zineb",
+  ];
+  const lastNames = [
+    "Benali", "Cherif", "Haddad", "Belkacem", "Mansouri", "Saadi", "Boumediene", "Khelifi", "Bouzid", "Meziane",
+    "Toumi", "Larbi", "Brahimi", "Hamdi", "Ferhat", "Bouchama", "Slimani", "Aziz", "Madani", "Benyahia",
+    "Zerrouki", "Belkadi", "Ouali", "Guerroudj", "Rahmani", "Selmani", "Naceri", "Lounis", "Tahar", "Djebbar",
+  ];
+  const dzCities = [
+    "Algiers", "Oran", "Constantine", "Annaba", "Blida", "Sétif", "Batna", "Tlemcen", "Béjaïa", "Tizi Ouzou",
+    "Djelfa", "Sidi Bel Abbès", "Biskra", "Tébessa", "Ouargla", "Béchar", "Mostaganem", "Bordj Bou Arréridj",
+  ];
+  const intlCities: [string, string][] = [
+    ["Paris", "France"], ["Lyon", "France"], ["Marseille", "France"], ["Montreal", "Canada"],
+    ["London", "United Kingdom"], ["Istanbul", "Turkey"], ["Dubai", "UAE"], ["Tunis", "Tunisia"],
+  ];
+  const companies = [
+    "Atlas Tech SARL", "Sahara Logistics", "Médina Hospitality", "Le Comptoir du Voyage",
+    "Sonatrach Services", "Cevital Group", "Djezzy Telecom", "Condor Electronics",
+    "Biopharm SPA", "Ooredoo Algérie", "NCA-Rouiba", "Mobilis Corporate", "Hassi Energy", "Numidia Bank",
+  ];
+  const statuses = ["active", "active", "active", "active", "lead", "lead", "inactive"];
+  const sources = ["referral", "website", "instagram", "walk-in", "outbound", "partner", "event", "facebook"];
+
+  const clientIds: string[] = [];
+  const clientNames: string[] = [];
+  const clientEmails: string[] = [];
+  const clientRows: (typeof client.$inferInsert)[] = [];
+  const contactRows: (typeof clientContact.$inferInsert)[] = [];
+  // We need ids before contacts; insert clients individually-batched then contacts after.
+  for (let i = 0; i < 100; i++) {
+    const isCorp = i % 7 === 0;
+    let name: string, company: string | null, city: string, country: string, email: string;
+    if (isCorp) {
+      company = pick(companies, i / 7);
+      name = company;
+      const [c, ctry] = i % 2 ? ["Algiers", "Algeria"] : pick(intlCities, i);
+      city = c; country = ctry;
+      email = `travel@${company.toLowerCase().replace(/[^a-z]/g, "")}.dz`;
+    } else {
+      const fn = pick(firstNames, i * 3 + 1);
+      const ln = pick(lastNames, i * 5 + 2);
+      name = `${fn} ${ln}`;
+      company = null;
+      if (i % 4 === 0) { const [c, ctry] = pick(intlCities, i); city = c; country = ctry; }
+      else { city = pick(dzCities, i); country = "Algeria"; }
+      email = `${fn.toLowerCase()}.${ln.toLowerCase()}${i}@example.com`;
+    }
+    clientNames.push(name);
+    clientEmails.push(email);
+    clientRows.push({
+      agencyId: DEMO,
+      name,
+      type: isCorp ? "corporate" : "individual",
+      status: pick(statuses, i),
+      email,
+      phone: `+213 ${choice(["5", "6", "7"])}${round(between(10, 99))} ${round(between(100, 999))} ${round(between(100, 999))}`,
+      company,
+      city,
+      country,
+      source: pick(sources, i),
       ownerId: seller(i),
       createdById: seller(i),
-      createdAt: d(-150 + i * 9),
-    }).returning();
-    clientIds.push(row!.id);
-    if (s.type === "corporate") {
-      await db.insert(clientContact).values({
-        clientId: row!.id,
-        name: ["Lead Coordinator", "Travel Manager", "Office Manager"][i % 3]!,
-        jobTitle: "Travel Coordinator",
-        email: s.email,
-        phone: s.phone,
-        isPrimary: true,
-      });
-    }
-  }
-
-  // --- 4. Opportunities (across pipeline stages) ---
-  const oppSpecs = [
-    { title: "Honeymoon — Maldives 10 nights", stage: "won", value: 8400, dest: "Maldives", pax: 2, prob: 100 },
-    { title: "Family summer — Turkey", stage: "proposal", value: 5200, dest: "Istanbul, Turkey", pax: 4, prob: 60 },
-    { title: "Corporate offsite — Barcelona", stage: "qualified", value: 18500, dest: "Barcelona, Spain", pax: 22, prob: 45 },
-    { title: "City break — Rome", stage: "booked", value: 2300, dest: "Rome, Italy", pax: 2, prob: 90 },
-    { title: "Safari — Cape Town & Kruger", stage: "lead", value: 11200, dest: "Cape Town, South Africa", pax: 2, prob: 20 },
-    { title: "Group umrah package", stage: "proposal", value: 26000, dest: "Jeddah, Saudi Arabia", pax: 30, prob: 55 },
-    { title: "Ski week — Swiss Alps", stage: "lost", value: 6900, dest: "Zermatt, Switzerland", pax: 4, prob: 0, lost: "Chose a competitor" },
-    { title: "Anniversary — Santorini", stage: "won", value: 4700, dest: "Santorini, Greece", pax: 2, prob: 100 },
-    { title: "Business trip — Dubai expo", stage: "qualified", value: 3800, dest: "Dubai, UAE", pax: 3, prob: 50 },
-    { title: "Cultural tour — Japan", stage: "lead", value: 14500, dest: "Tokyo, Japan", pax: 2, prob: 15 },
-  ];
-  const currencies = ["DZD", "DZD", "DZD", "DZD", "DZD", "DZD"];
-  for (let i = 0; i < oppSpecs.length; i++) {
-    const o = oppSpecs[i]!;
-    await db.insert(opportunity).values({
-      agencyId: DEMO,
-      title: o.title,
-      clientId: pick(clientIds, i + 1),
-      stage: o.stage,
-      value: money(o.value),
-      currency: pick(currencies, i),
-      probability: o.prob,
-      destination: o.dest,
-      travelStartDate: d(20 + i * 12),
-      travelEndDate: d(27 + i * 12),
-      paxCount: o.pax,
-      expectedCloseDate: d(-10 + i * 6),
-      lostReason: (o as any).lost ?? null,
-      assignedToId: seller(i),
-      createdById: seller(i),
-      createdAt: d(-120 + i * 10),
+      createdAt: d(-220 + i * 2),
     });
   }
-
-  // --- 5. Products / proposals ---
-  const productSpecs = [
-    { title: "Maldives Overwater Escape", status: "accepted", dest: "Maldives", price: 8400, cost: 6900 },
-    { title: "Istanbul Family Discovery", status: "sent", dest: "Istanbul, Turkey", price: 5200, cost: 4300 },
-    { title: "Barcelona Corporate Offsite", status: "draft", dest: "Barcelona, Spain", price: 18500, cost: 15800 },
-    { title: "Rome Weekend for Two", status: "accepted", dest: "Rome, Italy", price: 2300, cost: 1850 },
-    { title: "Santorini Anniversary", status: "sent", dest: "Santorini, Greece", price: 4700, cost: 3900 },
-    { title: "Cape Town & Safari", status: "draft", dest: "Cape Town, South Africa", price: 11200, cost: 9400 },
-  ];
-  for (let i = 0; i < productSpecs.length; i++) {
-    const p = productSpecs[i]!;
-    const [row] = await db.insert(product).values({
-      agencyId: DEMO,
-      reference: `PRD-${2001 + i}`,
-      title: p.title,
-      clientId: pick(clientIds, i),
-      status: p.status,
-      destination: p.dest,
-      startDate: d(30 + i * 14),
-      endDate: d(37 + i * 14),
-      paxCount: 2 + (i % 4),
-      currency: "DZD",
-      markupPercent: "18.00",
-      totalCost: money(p.cost),
-      totalPrice: money(p.price),
-      summary: `Tailor-made ${p.dest} itinerary including flights, hand-picked hotels and curated experiences.`,
-      validUntil: d(20 + i * 5),
-      createdById: seller(i),
-      createdAt: d(-90 + i * 9),
-    }).returning();
-    const items = [
-      { type: "flight", title: "Return flights", supplier: "Air Partner", unit: p.cost * 0.35 },
-      { type: "hotel", title: "Boutique hotel — 5 nights", supplier: "Leading Hotels", unit: p.cost * 0.45 },
-      { type: "activity", title: "Private guided experiences", supplier: "Local DMC", unit: p.cost * 0.2 },
-    ];
-    for (let j = 0; j < items.length; j++) {
-      const it = items[j]!;
-      await db.insert(productItem).values({
-        productId: row!.id,
-        type: it.type,
-        title: it.title,
-        supplier: it.supplier,
-        quantity: 1,
-        unitCost: money(it.unit),
-        unitPrice: money(it.unit * 1.18),
-        currency: "DZD",
-        startDate: d(30 + i * 14),
-        endDate: d(35 + i * 14),
-        sortOrder: j,
+  // Batch insert clients, capture ids in order.
+  const insertedClients = await db.insert(client).values(clientRows).returning({ id: client.id });
+  for (const c of insertedClients) clientIds.push(c.id);
+  // Corporate contacts.
+  for (let i = 0; i < clientIds.length; i++) {
+    if (clientRows[i]!.type !== "corporate") continue;
+    const n = 1 + (i % 2);
+    for (let j = 0; j < n; j++) {
+      contactRows.push({
+        clientId: clientIds[i]!,
+        name: `${pick(firstNames, i + j)} ${pick(lastNames, i + j + 3)}`,
+        jobTitle: choice(["Travel Manager", "Office Manager", "Executive Assistant", "Procurement Lead"]),
+        email: clientEmails[i]!,
+        phone: `+213 770 ${round(between(100, 999))} ${round(between(100, 999))}`,
+        isPrimary: j === 0,
       });
     }
   }
+  if (contactRows.length) await db.insert(clientContact).values(contactRows);
 
-  // --- 6. Bookings (varied destinations, statuses, dates) + travellers/items/payments ---
-  const bookingSpecs = [
-    { dest: "Marrakech, Morocco", status: "confirmed", depart: 18, pax: 2, createdM: -1, payMethod: "card", deposit: 0.4 },
-    { dest: "Paris, France", status: "ticketed", depart: 9, pax: 2, createdM: -1, payMethod: "transfer", deposit: 1 },
-    { dest: "Istanbul, Turkey", status: "awaiting_payment", depart: 26, pax: 4, createdM: 0, payMethod: "manual", deposit: 0.25 },
-    { dest: "Dubai, UAE", status: "completed", depart: -20, pax: 3, createdM: -3, payMethod: "card", deposit: 1 },
-    { dest: "Cairo, Egypt", status: "confirmed", depart: 42, pax: 2, createdM: 0, payMethod: "transfer", deposit: 0.5 },
-    { dest: "Barcelona, Spain", status: "ticketed", depart: 14, pax: 6, createdM: -2, payMethod: "card", deposit: 1 },
-    { dest: "Rome, Italy", status: "completed", depart: -35, pax: 2, createdM: -4, payMethod: "card", deposit: 1 },
-    { dest: "Bangkok, Thailand", status: "draft", depart: 70, pax: 2, createdM: 0, payMethod: "manual", deposit: 0 },
-    { dest: "Lisbon, Portugal", status: "confirmed", depart: 30, pax: 2, createdM: -1, payMethod: "transfer", deposit: 0.5 },
-    { dest: "Santorini, Greece", status: "ticketed", depart: 21, pax: 2, createdM: -2, payMethod: "card", deposit: 1 },
-    { dest: "Maldives", status: "completed", depart: -10, pax: 2, createdM: -5, payMethod: "transfer", deposit: 1 },
-    { dest: "Istanbul, Turkey", status: "cancelled", depart: 5, pax: 3, createdM: -2, payMethod: "card", deposit: 0.3 },
-    { dest: "Cape Town, South Africa", status: "awaiting_payment", depart: 55, pax: 2, createdM: 0, payMethod: "manual", deposit: 0.2 },
-    { dest: "Tokyo, Japan", status: "confirmed", depart: 48, pax: 2, createdM: -1, payMethod: "card", deposit: 0.5 },
+  // --- Destinations & pricing (DZD) ---
+  type Dest = { dest: string; tier: "domestic" | "maghreb" | "europe" | "gulf" | "umrah" | "luxury" | "asia" };
+  const destinations: Dest[] = [
+    { dest: "Istanbul, Turkey", tier: "europe" },
+    { dest: "Antalya, Turkey", tier: "europe" },
+    { dest: "Paris, France", tier: "europe" },
+    { dest: "Barcelona, Spain", tier: "europe" },
+    { dest: "Rome, Italy", tier: "europe" },
+    { dest: "Tunis, Tunisia", tier: "maghreb" },
+    { dest: "Djerba, Tunisia", tier: "maghreb" },
+    { dest: "Hammamet, Tunisia", tier: "maghreb" },
+    { dest: "Dubai, UAE", tier: "gulf" },
+    { dest: "Doha, Qatar", tier: "gulf" },
+    { dest: "Mecca, Saudi Arabia", tier: "umrah" },
+    { dest: "Medina, Saudi Arabia", tier: "umrah" },
+    { dest: "Cairo, Egypt", tier: "maghreb" },
+    { dest: "Sharm El Sheikh, Egypt", tier: "maghreb" },
+    { dest: "Maldives", tier: "luxury" },
+    { dest: "Bali, Indonesia", tier: "asia" },
+    { dest: "Kuala Lumpur, Malaysia", tier: "asia" },
+    { dest: "Bangkok, Thailand", tier: "asia" },
+    { dest: "Djanet, Algeria", tier: "domestic" },
+    { dest: "Tamanrasset, Algeria", tier: "domestic" },
+    { dest: "Oran, Algeria", tier: "domestic" },
   ];
-  const firstNames = ["Amine", "Sara", "Claire", "James", "Sofia", "Hassan", "Aisha", "Thomas", "Nadia", "Omar", "Leïla", "Karim"];
-  const lastNames = ["Benali", "Dubois", "Carter", "Rossi", "El Amrani", "Khan", "Müller", "Bensalah", "Haddad"];
-  let bk = 1005;
-  for (let i = 0; i < bookingSpecs.length; i++) {
-    const b = bookingSpecs[i]!;
-    const created = new Date(now + b.createdM * 30 * DAY + (i % 7) * DAY);
-    // Items: a flight + hotel + maybe an activity, amounts scale with pax.
-    const base = 250 + (i % 5) * 80;
+  // Per-person price ranges in DZD.
+  const tierPrice: Record<Dest["tier"], [number, number]> = {
+    domestic: [35000, 120000],
+    maghreb: [90000, 240000],
+    europe: [180000, 480000],
+    gulf: [220000, 620000],
+    umrah: [380000, 1200000],
+    luxury: [1200000, 3800000],
+    asia: [350000, 950000],
+  };
+  const perPax = (tier: Dest["tier"]) => round(between(...tierPrice[tier]) / 1000) * 1000;
+
+  // --- 5. Opportunities (40 across stages) ---
+  const stages = ["lead", "qualified", "proposal", "booked", "won", "lost"];
+  const oppRows: (typeof opportunity.$inferInsert)[] = [];
+  for (let i = 0; i < 40; i++) {
+    const dst = pick(destinations, i * 3);
+    const pax = 1 + Math.floor(rnd() * 6);
+    const stage = pick(stages, i);
+    const value = perPax(dst.tier) * pax;
+    oppRows.push({
+      agencyId: DEMO,
+      title: `${choice(["Honeymoon", "Family trip", "City break", "Group tour", "Business trip", "Umrah package", "Anniversary", "Holiday"])} — ${dst.dest.split(",")[0]}`,
+      clientId: pick(clientIds, i + 1),
+      stage,
+      value: money(value),
+      currency: CUR,
+      probability: stage === "won" ? 100 : stage === "lost" ? 0 : round(between(15, 80)),
+      destination: dst.dest,
+      travelStartDate: d(15 + i * 5),
+      travelEndDate: d(22 + i * 5),
+      paxCount: pax,
+      expectedCloseDate: d(-15 + i * 4),
+      lostReason: stage === "lost" ? choice(["Chose a competitor", "Budget too high", "Trip postponed"]) : null,
+      assignedToId: seller(i),
+      createdById: seller(i),
+      createdAt: d(-160 + i * 3),
+    });
+  }
+  await db.insert(opportunity).values(oppRows);
+
+  // --- 6. Products / proposals (25) + items ---
+  const prodStatuses = ["draft", "sent", "sent", "accepted", "accepted", "rejected", "expired"];
+  let prdRef = 2001;
+  for (let i = 0; i < 25; i++) {
+    const dst = pick(destinations, i * 2 + 1);
+    const pax = 2 + (i % 4);
+    const status = pick(prodStatuses, i);
+    const cost = perPax(dst.tier) * pax;
+    const markup = round(between(12, 25));
+    const price = round(cost * (1 + markup / 100));
+    const accepted = status === "accepted";
+    const [row] = await db.insert(product).values({
+      agencyId: DEMO,
+      reference: `PRD-${prdRef++}`,
+      title: `${dst.dest.split(",")[0]} ${choice(["Discovery", "Escape", "Experience", "Package", "Getaway"])}`,
+      clientId: pick(clientIds, i),
+      status,
+      destination: dst.dest,
+      startDate: d(25 + i * 7),
+      endDate: d(32 + i * 7),
+      paxCount: pax,
+      currency: CUR,
+      markupPercent: money(markup),
+      totalCost: money(cost),
+      totalPrice: money(price),
+      summary: `Tailor-made ${dst.dest} itinerary including flights, hand-picked hotels and curated experiences for ${pax} travellers.`,
+      validUntil: d(15 + i * 3),
+      shareToken: `demo-prop-${i}-${prdRef}`,
+      acceptedAt: accepted ? d(-5 - i) : null,
+      signerName: accepted ? pick(clientNames, i) : null,
+      signerEmail: accepted ? pick(clientEmails, i) : null,
+      signatureData: accepted ? pick(clientNames, i) : null,
+      signerIp: accepted ? "41.200.10.5" : null,
+      createdById: seller(i),
+      createdAt: d(-100 + i * 4),
+    }).returning();
+    const items = [
+      { type: "flight", title: `Return flights to ${dst.dest.split(",")[0]}`, supplierType: "airline", frac: 0.35 },
+      { type: "hotel", title: "Hotel accommodation", supplierType: "hotel", frac: 0.45 },
+      { type: "activity", title: "Guided experiences & transfers", supplierType: "dmc", frac: 0.2 },
+    ];
+    await db.insert(productItem).values(items.map((it, j) => {
+      const unit = round(cost * it.frac);
+      return {
+        productId: row!.id,
+        supplierId: anySupplier(it.supplierType, i + j),
+        type: it.type,
+        title: it.title,
+        supplier: supplierSpecs.find((s) => s.type === it.supplierType)?.name ?? null,
+        quantity: 1,
+        unitCost: money(unit),
+        unitPrice: money(round(unit * (1 + markup / 100))),
+        currency: CUR,
+        startDate: d(25 + i * 7),
+        endDate: d(30 + i * 7),
+        sortOrder: j,
+      };
+    }));
+  }
+
+  // --- 7. Bookings (80) + travellers/items/payments/days/commissions/notifications ---
+  const bookingStatuses = [
+    "confirmed", "confirmed", "ticketed", "ticketed", "completed", "completed",
+    "awaiting_payment", "draft", "cancelled",
+  ];
+  const payMethods = ["card", "transfer", "cash", "manual"];
+  const natList = ["Algerian", "Algerian", "Algerian", "French", "Tunisian", "Moroccan"];
+  const commissionRows: (typeof commission.$inferInsert)[] = [];
+  const notificationRows: (typeof notification.$inferInsert)[] = [];
+  let bk = 1001;
+  for (let i = 0; i < 80; i++) {
+    const dst = pick(destinations, i * 2);
+    const status = pick(bookingStatuses, i);
+    const pax = 1 + Math.floor(rnd() * 5);
+    const isPast = status === "completed";
+    const depart = isPast ? -round(between(10, 120)) : round(between(3, 160));
+    const createdAt = new Date(now - round(between(5, 180)) * DAY);
+    const sellerId = seller(i);
+
+    const ppax = perPax(dst.tier);
     const itemDefs = [
-      { type: "flight", title: `Flights to ${b.dest.split(",")[0]}`, supplier: "Air Partner", amount: base, qty: b.pax },
-      { type: "hotel", title: "Hotel — 5 nights", supplier: "Partner Hotels", amount: base * 1.6, qty: 1 },
-      ...(i % 2 === 0 ? [{ type: "excursion", title: "Guided day tour", supplier: "Local DMC", amount: 120, qty: b.pax }] : []),
+      { type: "flight", title: `Flights to ${dst.dest.split(",")[0]}`, supplierType: "airline", amount: round(ppax * 0.4), qty: pax },
+      { type: "hotel", title: `Hotel — ${3 + (i % 5)} nights`, supplierType: "hotel", amount: round(ppax * 0.5 * pax), qty: 1 },
+      ...(i % 2 === 0 ? [{ type: "excursion", title: "Guided day tour", supplierType: "dmc", amount: round(ppax * 0.1), qty: pax }] : []),
+      ...(i % 3 === 0 ? [{ type: "insurance", title: "Travel insurance", supplierType: "insurance", amount: round(between(4000, 12000)), qty: pax }] : []),
     ];
     const total = itemDefs.reduce((s, it) => s + it.amount * it.qty, 0);
 
@@ -244,133 +426,211 @@ async function main() {
       agencyId: DEMO,
       reference: `BKG-${bk++}`,
       clientId: pick(clientIds, i),
-      status: b.status,
-      destination: b.dest,
-      departDate: d(b.depart),
-      returnDate: d(b.depart + 6),
-      currency: "DZD",
-      notes: i % 3 === 0 ? "VIP client — confirm airport transfer." : null,
+      status,
+      destination: dst.dest,
+      departDate: d(depart),
+      returnDate: d(depart + 5 + (i % 5)),
+      currency: CUR,
+      notes: i % 4 === 0 ? "VIP client — confirm airport transfer." : null,
       totalAmount: money(total),
       shareToken: `demo-share-${bk}-${i}`,
-      createdById: seller(i),
-      createdAt: created,
+      createdById: sellerId,
+      createdAt,
     }).returning();
     const bookingId = row!.id;
 
-    // Travellers (lead + companions); make one passport expire soon for alerts.
-    for (let t = 0; t < b.pax; t++) {
-      const soonExpiry = i % 4 === 0 && t === 0;
-      await db.insert(bookingTraveller).values({
+    // Travellers.
+    const travellers = Array.from({ length: pax }).map((_, t) => {
+      const soonExpiry = i % 5 === 0 && t === 0;
+      return {
         bookingId,
         fullName: `${pick(firstNames, i + t)} ${pick(lastNames, i + t + 1)}`,
-        passportNumber: `P${(1000000 + i * 13 + t).toString()}`,
-        passportExpiry: soonExpiry ? d(b.depart + 60) : d(900 + i * 10),
-        nationality: pick(["Algerian", "French", "British", "Moroccan", "Emirati"], i + t),
-        dateOfBirth: new Date(1985 + ((i + t) % 20), (i + t) % 12, 1 + ((i + t) % 27)),
+        passportNumber: `${choice(["A", "B", "X"])}${round(between(1000000, 9999999))}`,
+        passportExpiry: soonExpiry ? d(depart + round(between(20, 120))) : d(round(between(400, 2000))),
+        nationality: pick(natList, i + t),
+        dateOfBirth: new Date(1975 + ((i + t) % 30), (i + t) % 12, 1 + ((i + t) % 27)),
         isLead: t === 0,
         sortOrder: t,
-      });
-    }
+      };
+    });
+    await db.insert(bookingTraveller).values(travellers);
 
-    // Items
-    for (let j = 0; j < itemDefs.length; j++) {
-      const it = itemDefs[j]!;
-      await db.insert(bookingItem).values({
+    // Items (capture ids for supplier commissions).
+    const insertedItems = await db.insert(bookingItem).values(
+      itemDefs.map((it, j) => ({
         bookingId,
+        supplierId: anySupplier(it.supplierType, i + j),
         type: it.type,
         title: it.title,
-        supplier: it.supplier,
+        supplier: supplierSpecs.find((s) => s.type === it.supplierType)?.name ?? null,
         bookingRef: `${it.type.slice(0, 2).toUpperCase()}-${1000 + i * 5 + j}`,
-        startDate: d(b.depart),
-        endDate: d(b.depart + 5),
+        startDate: d(depart),
+        endDate: d(depart + 5),
         quantity: it.qty,
         amount: money(it.amount),
-        currency: "DZD",
-        itemStatus: b.status === "ticketed" || b.status === "completed" ? "ticketed" : b.status === "confirmed" ? "confirmed" : "pending",
-        confirmationNumber: b.status === "ticketed" || b.status === "completed" ? `CNF${100000 + i * 7 + j}` : null,
+        currency: CUR,
+        itemStatus: status === "ticketed" || status === "completed" ? "ticketed" : status === "confirmed" ? "confirmed" : "pending",
+        confirmationNumber: status === "ticketed" || status === "completed" ? `CNF${100000 + i * 7 + j}` : null,
         sortOrder: j,
-      });
-    }
+      }))
+    ).returning({ id: bookingItem.id, type: bookingItem.type, amount: bookingItem.amount, supplierId: bookingItem.supplierId });
 
-    // Payments (skip drafts/cancelled fully unpaid)
-    if (b.deposit > 0) {
-      const paid = Math.round(total * b.deposit * 100) / 100;
+    // Payments.
+    const depositFrac = status === "cancelled" ? 0.3 : status === "draft" ? 0 : status === "awaiting_payment" ? choice([0.2, 0.3]) : choice([0.5, 1]);
+    if (depositFrac > 0) {
+      const paid = round(total * depositFrac);
       await db.insert(payment).values({
         bookingId,
         amount: money(paid),
-        currency: "DZD",
-        kind: b.deposit >= 1 ? "payment" : "deposit",
-        method: b.payMethod,
+        currency: CUR,
+        kind: depositFrac >= 1 ? "payment" : "deposit",
+        method: pick(payMethods, i),
         status: "completed",
         reference: `PAY-${i}-1`,
-        note: b.deposit >= 1 ? "Paid in full" : "Deposit received",
-        createdById: seller(i),
-        createdAt: new Date(created.getTime() + 2 * DAY),
+        note: depositFrac >= 1 ? "Paid in full" : "Deposit received",
+        createdById: sellerId,
+        createdAt: new Date(createdAt.getTime() + 2 * DAY),
       });
-      // A second installment for some
-      if (b.deposit > 0 && b.deposit < 1 && i % 2 === 0) {
+      if (depositFrac > 0 && depositFrac < 1 && i % 2 === 0) {
         await db.insert(payment).values({
           bookingId,
-          amount: money(Math.round(total * 0.3 * 100) / 100),
-          currency: "DZD",
+          amount: money(round(total * 0.3)),
+          currency: CUR,
           kind: "installment",
-          method: b.payMethod,
+          method: pick(payMethods, i + 1),
           status: "completed",
           reference: `PAY-${i}-2`,
-          createdById: seller(i),
-          createdAt: new Date(created.getTime() + 15 * DAY),
+          createdById: sellerId,
+          createdAt: new Date(createdAt.getTime() + 18 * DAY),
         });
       }
     }
 
-    // Itinerary days for a couple of confirmed/ticketed trips
-    if (b.status === "ticketed" || b.status === "confirmed") {
-      for (let dayI = 0; dayI < 3; dayI++) {
-        await db.insert(bookingDay).values({
+    // Itinerary days for confirmed/ticketed/completed.
+    if (["confirmed", "ticketed", "completed"].includes(status)) {
+      const dayTitles = ["Arrival & check-in", "Guided exploration", "Leisure & activities", "Free day & departure"];
+      await db.insert(bookingDay).values(
+        dayTitles.slice(0, 3 + (i % 2)).map((title, dayI) => ({
           bookingId,
           dayIndex: dayI,
-          title: ["Arrival & check-in", "Guided exploration", "Free day & departure"][dayI]!,
+          title,
           notes: dayI === 0 ? "Private transfer from airport." : null,
+        }))
+      );
+    }
+
+    // Commissions (only for revenue-generating bookings).
+    if (["confirmed", "ticketed", "completed"].includes(status)) {
+      // Supplier → agency, per item with a supplier.
+      for (const it of insertedItems) {
+        if (!it.supplierId) continue;
+        const base = parseFloat(it.amount) * (it.type === "hotel" ? 1 : 1);
+        const rate = round(between(6, 16));
+        commissionRows.push({
+          agencyId: DEMO,
+          bookingId,
+          bookingItemId: it.id,
+          supplierId: it.supplierId,
+          type: "supplier_to_agency",
+          basis: "percent",
+          rate: money(rate),
+          baseAmount: money(base),
+          amount: money(round(base * rate / 100)),
+          currency: CUR,
+          status: status === "completed" ? "paid" : choice(["earned", "invoiced", "earned"]),
+          createdById: sellerId,
+          createdAt,
+        });
+      }
+      // Agency → agent.
+      const agRate = round(between(3, 7));
+      commissionRows.push({
+        agencyId: DEMO,
+        bookingId,
+        agentUserId: sellerId,
+        type: "agency_to_agent",
+        basis: "percent",
+        rate: money(agRate),
+        baseAmount: money(total),
+        amount: money(round(total * agRate / 100)),
+        currency: CUR,
+        status: status === "completed" ? "paid" : "pending",
+        createdById: manager,
+        createdAt,
+      });
+    }
+
+    // Notifications (communications log).
+    if (status !== "draft") {
+      const recip = clientEmails[i % clientEmails.length]!;
+      notificationRows.push({
+        agencyId: DEMO,
+        bookingId,
+        channel: "email",
+        recipient: recip,
+        subject: `Booking ${row!.reference} confirmation`,
+        body: `Your trip to ${dst.dest} is confirmed.`,
+        kind: "confirmation",
+        status: "sent",
+        createdById: sellerId,
+        createdAt: new Date(createdAt.getTime() + 1 * DAY),
+      });
+      if (["ticketed", "completed"].includes(status)) {
+        notificationRows.push({
+          agencyId: DEMO,
+          bookingId,
+          channel: "email",
+          recipient: recip,
+          subject: `Travel documents — ${row!.reference}`,
+          body: "Please find your vouchers and e-tickets attached.",
+          kind: "voucher",
+          status: "sent",
+          createdById: sellerId,
+          createdAt: new Date(createdAt.getTime() + 4 * DAY),
         });
       }
     }
   }
+  if (commissionRows.length) await db.insert(commission).values(commissionRows);
+  if (notificationRows.length) await db.insert(notification).values(notificationRows);
 
-  // --- 7. Activity log (spread across the team and time) ---
-  const acts = [
-    { action: "created", entity: "booking", label: "BKG-1005 · Marrakech" },
-    { action: "status_changed", entity: "booking", label: "BKG-1006 · Paris" },
-    { action: "created", entity: "client", label: "Atlas Tech SARL" },
-    { action: "stage_changed", entity: "opportunity", label: "Honeymoon — Maldives" },
-    { action: "sent", entity: "product", label: "PRD-2002 · Istanbul" },
-    { action: "created", entity: "opportunity", label: "Corporate offsite — Barcelona" },
-    { action: "updated", entity: "booking", label: "BKG-1010 · Santorini" },
-    { action: "created", entity: "booking", label: "BKG-1009 · Lisbon" },
-    { action: "status_changed", entity: "booking", label: "BKG-1004 · Dubai" },
-    { action: "created", entity: "client", label: "Le Comptoir du Voyage" },
-    { action: "sent", entity: "product", label: "PRD-2005 · Santorini" },
-    { action: "stage_changed", entity: "opportunity", label: "Anniversary — Santorini" },
+  // --- 8. Activity log (spread across the team and time) ---
+  const actDefs = [
+    { action: "created", entity: "booking" },
+    { action: "status_changed", entity: "booking" },
+    { action: "created", entity: "client" },
+    { action: "stage_changed", entity: "opportunity" },
+    { action: "sent", entity: "product" },
+    { action: "updated", entity: "booking" },
+    { action: "created", entity: "opportunity" },
   ];
-  for (let i = 0; i < acts.length; i++) {
-    const a = acts[i]!;
-    await db.insert(activityLog).values({
+  const actRows = Array.from({ length: 40 }).map((_, i) => {
+    const def = pick(actDefs, i);
+    return {
       agencyId: DEMO,
       userId: seller(i),
-      action: a.action,
-      entityType: a.entity,
-      entityLabel: a.label,
-      createdAt: d(-30 + i * 2 + (i % 3)),
-    });
-  }
+      action: def.action,
+      entityType: def.entity,
+      entityLabel: def.entity === "client" ? pick(clientNames, i) : def.entity === "booking" ? `BKG-${1001 + (i % 80)}` : def.entity === "product" ? `PRD-${2001 + (i % 25)}` : pick(destinations, i).dest,
+      createdAt: d(-40 + i),
+    };
+  });
+  await db.insert(activityLog).values(actRows);
 
   // --- Summary ---
-  const counts = await Promise.all(
-    [client, opportunity, product, booking].map((t) => db.$count(t, eq((t as any).agencyId, DEMO)))
-  );
-  console.log("✓ Demo Agency seeded:");
-  console.log(`  team: ${team.length} users (manager, finance, support, ${agentIds.length} agents)`);
-  console.log(`  clients: ${counts[0]}  opportunities: ${counts[1]}  products: ${counts[2]}  bookings: ${counts[3]}`);
-  console.log("  agent logins: karim@demo.test / lina@demo.test / omar@demo.test — all Agent!2026");
+  const counts = await Promise.all([
+    db.$count(client, eq(client.agencyId, DEMO)),
+    db.$count(supplier, eq(supplier.agencyId, DEMO)),
+    db.$count(opportunity, eq(opportunity.agencyId, DEMO)),
+    db.$count(product, eq(product.agencyId, DEMO)),
+    db.$count(booking, eq(booking.agencyId, DEMO)),
+    db.$count(commission, eq(commission.agencyId, DEMO)),
+    db.$count(notification, eq(notification.agencyId, DEMO)),
+  ]);
+  console.log("✓ Demo Agency seeded (all amounts in DZD):");
+  console.log(`  team: ${team.length} users (${agentIds.length} agents)`);
+  console.log(`  clients: ${counts[0]}  suppliers: ${counts[1]}  opportunities: ${counts[2]}`);
+  console.log(`  proposals: ${counts[3]}  bookings: ${counts[4]}  commissions: ${counts[5]}  notifications: ${counts[6]}`);
   process.exit(0);
 }
 
