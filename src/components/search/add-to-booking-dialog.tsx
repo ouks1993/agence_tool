@@ -28,12 +28,14 @@ export function AddToBookingDialog({
   bookings,
   clients,
   defaultDestination,
+  defaultBookingId,
 }: {
   item: BookingItemInput;
   itemSummary: string;
   bookings: BookingOption[];
   clients: ClientOption[];
-  defaultDestination?: string;
+  defaultDestination?: string | undefined;
+  defaultBookingId?: string | undefined;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -41,7 +43,13 @@ export function AddToBookingDialog({
   const [mode, setMode] = useState<"existing" | "new">(
     bookings.length ? "existing" : "new"
   );
-  const [bookingId, setBookingId] = useState(bookings[0]?.id ?? "");
+  // Pre-select the active booking when launched from a booking's search sheet,
+  // falling back to the first available booking otherwise.
+  const [bookingId, setBookingId] = useState(
+    defaultBookingId && bookings.some((b) => b.id === defaultBookingId)
+      ? defaultBookingId
+      : bookings[0]?.id ?? ""
+  );
   const [clientId, setClientId] = useState("");
   const [destination, setDestination] = useState(defaultDestination ?? "");
 

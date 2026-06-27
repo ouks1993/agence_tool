@@ -29,10 +29,14 @@ export function SearchWorkspace({
   bookings,
   clients,
   supplierLabel,
+  defaultBookingId,
+  defaultDestination,
 }: {
   bookings: BookingOption[];
   clients: ClientOption[];
   supplierLabel: string;
+  defaultBookingId?: string | undefined;
+  defaultDestination?: string | undefined;
 }) {
   const [tab, setTab] = useState<Tab>("flights");
 
@@ -51,9 +55,18 @@ export function SearchWorkspace({
       </div>
 
       {tab === "flights" ? (
-        <FlightSearch bookings={bookings} clients={clients} />
+        <FlightSearch
+          bookings={bookings}
+          clients={clients}
+          defaultBookingId={defaultBookingId}
+        />
       ) : (
-        <HotelSearch bookings={bookings} clients={clients} />
+        <HotelSearch
+          bookings={bookings}
+          clients={clients}
+          defaultBookingId={defaultBookingId}
+          defaultDestination={defaultDestination}
+        />
       )}
     </div>
   );
@@ -91,9 +104,11 @@ function TabButton({
 function FlightSearch({
   bookings,
   clients,
+  defaultBookingId,
 }: {
   bookings: BookingOption[];
   clients: ClientOption[];
+  defaultBookingId?: string | undefined;
 }) {
   const [form, setForm] = useState({
     origin: "",
@@ -283,6 +298,7 @@ function FlightSearch({
                       itemSummary={`${o.airlineName} · ${formatMoney(o.priceTotal, o.currency)}`}
                       bookings={bookings}
                       clients={clients}
+                      defaultBookingId={defaultBookingId}
                       defaultDestination={`${form.origin.toUpperCase()} → ${form.destination.toUpperCase()}`}
                     />
                   </div>
@@ -301,12 +317,17 @@ function FlightSearch({
 function HotelSearch({
   bookings,
   clients,
+  defaultBookingId,
+  defaultDestination,
 }: {
   bookings: BookingOption[];
   clients: ClientOption[];
+  defaultBookingId?: string | undefined;
+  defaultDestination?: string | undefined;
 }) {
   const [form, setForm] = useState({
-    city: "",
+    // Pre-fill the destination when launched from a booking's search sheet.
+    city: defaultDestination ?? "",
     cityCode: "",
     checkIn: "",
     checkOut: "",
@@ -555,6 +576,7 @@ function HotelSearch({
                       itemSummary={`${o.name} · ${formatMoney(o.priceTotal, o.currency)} (${o.nights}n from ${formatDate(form.checkIn)})`}
                       bookings={bookings}
                       clients={clients}
+                      defaultBookingId={defaultBookingId}
                       defaultDestination={form.city}
                     />
                   </div>

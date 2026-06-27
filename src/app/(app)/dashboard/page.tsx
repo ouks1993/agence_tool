@@ -43,7 +43,8 @@ import {
 } from "@/lib/format";
 import { paymentSummary } from "@/lib/payments/summary";
 import { requireAgencyUser } from "@/lib/permissions";
-import { booking, activityLog, opportunity, user as userTable } from "@/lib/schema";
+import { booking, activityLog, opportunity, product, client as clientTable, user as userTable } from "@/lib/schema";
+import { GettingStartedCard } from "@/components/app/getting-started-card";
 
 export const metadata = { title: "Dashboard" };
 
@@ -57,6 +58,15 @@ export default async function DashboardPage() {
   if (home !== "/dashboard") redirect(home);
 
   const canSeeAll = seesAllData(user.role);
+
+  // Quick counts for the getting-started checklist (admin/manager only).
+  const [clientCount, opportunityCount, productCount] = canSeeAll
+    ? await Promise.all([
+        db.select({ id: clientTable.id }).from(clientTable).where(eq(clientTable.agencyId, user.agencyId)).then((r) => r.length),
+        db.select({ id: opportunity.id }).from(opportunity).where(eq(opportunity.agencyId, user.agencyId)).then((r) => r.length),
+        db.select({ id: product.id }).from(product).where(eq(product.agencyId, user.agencyId)).then((r) => r.length),
+      ])
+    : [1, 1, 1]; // agents skip the checklist
 
   // Bookings (agency-scoped ALWAYS; full-visibility roles see the whole agency,
   // agents see only the bookings they created within their agency).
@@ -285,6 +295,38 @@ export default async function DashboardPage() {
           </Button>
         )}
       </PageHeader>
+
+      {/* Getting started checklist — shown to admin/manager on a fresh agency */}
+      {canSeeAll && (
+        <GettingStartedCard
+          steps={[
+            {
+              label: "Add your first client",
+              description: "Create a client record before building bookings or proposals.",
+              href: "/clients/new",
+              done: clientCount > 0,
+            },
+            {
+              label: "Create an opportunity",
+              description: "Track a sales lead through your pipeline.",
+              href: "/opportunities/new",
+              done: opportunityCount > 0,
+            },
+            {
+              label: "Build a proposal",
+              description: "Quote a trip package and share it with your client.",
+              href: "/products/new",
+              done: productCount > 0,
+            },
+            {
+              label: "Create a booking",
+              description: "Start a booking file with travellers and trip services.",
+              href: "/bookings/new",
+              done: bookings.length > 0,
+            },
+          ]}
+        />
+      )}
 
       {/* KPIs */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

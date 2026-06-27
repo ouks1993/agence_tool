@@ -15,15 +15,18 @@ import {
   Mail,
   BadgePercent,
   Map as MapIcon,
+  Search,
 } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusBadge } from "@/components/app/status-badge";
 import { BookingItemsManager } from "@/components/bookings/booking-items-manager";
+import { BookingLifecycleStepper } from "@/components/bookings/booking-lifecycle-stepper";
 import { BookingStatusControl } from "@/components/bookings/booking-status-control";
 import { CommunicationsManager } from "@/components/bookings/communications-manager";
 import { DeleteBookingButton } from "@/components/bookings/delete-booking-button";
 import { PaymentsManager } from "@/components/bookings/payments-manager";
+import { SearchSheet } from "@/components/bookings/search-sheet";
 import { TravellersManager } from "@/components/bookings/travellers-manager";
 import { VisaAssistant } from "@/components/bookings/visa-assistant";
 import { PortalInviteButton } from "@/components/clients/portal-invite-button";
@@ -39,7 +42,9 @@ import { isEmailConfigured } from "@/lib/notifications/email";
 import { isStripeConfigured } from "@/lib/payments/stripe";
 import { paymentSummary } from "@/lib/payments/summary";
 import { requireAgencyUser } from "@/lib/permissions";
+import { listClientOptions, listOpenBookings } from "@/lib/queries";
 import { booking } from "@/lib/schema";
+import { getFlightSupplier, getHotelSupplier } from "@/lib/suppliers";
 
 export default async function BookingWorkspace({
   params,
@@ -50,7 +55,9 @@ export default async function BookingWorkspace({
   const t = await getTranslations("bookings");
   const { id } = await params;
 
-  const [b, suppliers] = await Promise.all([
+  // bookings + clients power the embedded flight/hotel search sheet, mirroring
+  // what the standalone /search page fetches for SearchWorkspace.
+  const [b, suppliers, searchClients, searchBookings] = await Promise.all([
     db.query.booking.findFirst({
       where: and(eq(booking.id, id), eq(booking.agencyId, user.agencyId)),
       with: {
@@ -62,8 +69,15 @@ export default async function BookingWorkspace({
       },
     }),
     getSuppliersForPicker(),
+    listClientOptions(user.agencyId),
+    listOpenBookings(user.agencyId),
   ]);
   if (!b) notFound();
+
+  const flightLabel = getFlightSupplier().label;
+  const hotelLabel = getHotelSupplier().label;
+  const supplierLabel =
+    flightLabel === hotelLabel ? flightLabel : `${flightLabel} · ${hotelLabel}`;
 
   // Commissions are part of the finance workspace; only fetch them for roles
   // that can view finance so we never do the extra query for everyone else.
@@ -140,6 +154,13 @@ export default async function BookingWorkspace({
         )}
       </div>
 
+      <BookingLifecycleStepper
+        bookingId={b.id}
+        status={b.status}
+        hasItems={b.items.length > 0}
+        hasBalance={balance > 0}
+      />
+
       {passportIssues.length > 0 && (
         <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-300">
           <ShieldAlert className="mt-0.5 size-4 shrink-0" />
@@ -192,11 +213,27 @@ export default async function BookingWorkspace({
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 {t("purchasesTitle")}
-                {b.items.length === 0 && (
-                  <span className="ml-auto text-xs font-normal text-muted-foreground">
-                    No trip services yet
-                  </span>
-                )}
+                <div className="ml-auto flex items-center gap-2">
+                  {b.items.length === 0 && (
+                    <span className="text-xs font-normal text-muted-foreground">
+                      No trip services yet
+                    </span>
+                  )}
+                  <SearchSheet
+                    bookingId={b.id}
+                    bookingRef={b.reference}
+                    destination={b.destination}
+                    bookings={searchBookings}
+                    clients={searchClients}
+                    supplierLabel={supplierLabel}
+                    trigger={
+                      <Button variant="outline" size="sm">
+                        <Search className="mr-2 size-4" />
+                        Search flights/hotels
+                      </Button>
+                    }
+                  />
+                </div>
               </CardTitle>
             </CardHeader>
             <CardContent>
