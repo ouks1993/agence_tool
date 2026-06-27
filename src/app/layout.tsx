@@ -1,5 +1,6 @@
 import { Geist, Geist_Mono, IBM_Plex_Sans_Arabic } from "next/font/google";
 import "./globals.css";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -61,6 +62,7 @@ export default async function RootLayout({
             {children}
             <Toaster richColors position="top-right" />
           </ThemeProvider>
+          <SpeedInsights />
         </NextIntlClientProvider>
       </body>
     </html>
