@@ -220,8 +220,10 @@ export const client = pgTable(
     address: text("address"),
     city: text("city"),
     country: text("country"),
-    // How the agency acquired this client (referral, website, walk-in, ...).
+    // How the agency acquired this client (LEAD_SOURCES code).
     source: text("source"),
+    // Industry of a corporate client (INDUSTRIES code).
+    industry: text("industry"),
     notes: text("notes"),
     // The agent who owns the relationship.
     ownerId: text("owner_id").references(() => user.id, {
@@ -288,7 +290,10 @@ export const opportunity = pgTable(
     travelStartDate: timestamp("travel_start_date"),
     travelEndDate: timestamp("travel_end_date"),
     paxCount: integer("pax_count").default(1).notNull(),
+    // Why the client is travelling (TRAVEL_PURPOSES code).
+    travelPurpose: text("travel_purpose"),
     expectedCloseDate: timestamp("expected_close_date"),
+    // Reason lost (LOST_REASONS code) — only set when stage = "lost".
     lostReason: text("lost_reason"),
     notes: text("notes"),
     assignedToId: text("assigned_to_id").references(() => user.id, {
@@ -439,6 +444,10 @@ export const booking = pgTable(
     destination: text("destination"),
     departDate: timestamp("depart_date"),
     returnDate: timestamp("return_date"),
+    // Why the client is travelling (TRAVEL_PURPOSES code).
+    travelPurpose: text("travel_purpose"),
+    // Shape of the journey (TRIP_TYPES code).
+    tripType: text("trip_type"),
     currency: text("currency").default("EUR").notNull(),
     notes: text("notes"),
     totalAmount: numeric("total_amount", { precision: 12, scale: 2 })
@@ -473,6 +482,9 @@ export const bookingTraveller = pgTable(
       .notNull()
       .references(() => booking.id, { onDelete: "cascade" }),
     fullName: text("full_name").notNull(),
+    // Courtesy title (TITLES code) and gender (GENDERS code) — airlines need these.
+    title: text("title"),
+    gender: text("gender"),
     passportNumber: text("passport_number"),
     passportExpiry: timestamp("passport_expiry"),
     nationality: text("nationality"),

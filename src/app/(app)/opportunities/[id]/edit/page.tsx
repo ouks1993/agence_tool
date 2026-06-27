@@ -51,6 +51,7 @@ export default async function EditOpportunityPage({
           currency: o.currency,
           probability: String(o.probability),
           destination: o.destination ?? "",
+          travelPurpose: o.travelPurpose ?? "",
           travelStartDate: toDateInputValue(o.travelStartDate),
           travelEndDate: toDateInputValue(o.travelEndDate),
           paxCount: String(o.paxCount),

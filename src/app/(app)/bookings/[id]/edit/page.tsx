@@ -46,6 +46,8 @@ export default async function EditBookingPage({
           destination: b.destination ?? "",
           departDate: toDateInputValue(b.departDate),
           returnDate: toDateInputValue(b.returnDate),
+          travelPurpose: b.travelPurpose ?? "",
+          tripType: b.tripType ?? "",
           currency: b.currency,
           notes: b.notes ?? "",
         }}

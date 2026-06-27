@@ -10,6 +10,12 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { createClient, updateClient, type ClientInput } from "@/lib/actions/clients";
+import {
+  INDUSTRIES,
+  INDUSTRY_LABEL,
+  LEAD_SOURCES,
+  LEAD_SOURCE_LABEL,
+} from "@/lib/domain";
 import type { TeamMember } from "@/lib/queries";
 
 type Props = {
@@ -33,6 +39,7 @@ export function ClientForm({ mode, clientId, teamMembers, initial }: Props) {
     city: initial?.city ?? "",
     country: initial?.country ?? "",
     source: initial?.source ?? "",
+    industry: initial?.industry ?? "",
     notes: initial?.notes ?? "",
     ownerId: initial?.ownerId ?? "",
   });
@@ -160,13 +167,37 @@ export function ClientForm({ mode, clientId, teamMembers, initial }: Props) {
 
           <div className="space-y-2">
             <Label htmlFor="source">Source</Label>
-            <Input
+            <Select
               id="source"
               value={form.source}
-              onChange={(e) => set("source", e.target.value)}
-              placeholder="Referral, website, walk-in…"
-            />
+              onChange={(e) => set("source", e.target.value as ClientInput["source"])}
+            >
+              <option value="">Not set</option>
+              {LEAD_SOURCES.map((s) => (
+                <option key={s} value={s}>
+                  {LEAD_SOURCE_LABEL[s]}
+                </option>
+              ))}
+            </Select>
           </div>
+
+          {form.type === "corporate" && (
+            <div className="space-y-2">
+              <Label htmlFor="industry">Industry</Label>
+              <Select
+                id="industry"
+                value={form.industry}
+                onChange={(e) => set("industry", e.target.value as ClientInput["industry"])}
+              >
+                <option value="">Not set</option>
+                {INDUSTRIES.map((i) => (
+                  <option key={i} value={i}>
+                    {INDUSTRY_LABEL[i]}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="ownerId">Owner</Label>

@@ -7,7 +7,14 @@ import { autoGenerateCommissions } from "@/lib/actions/commissions";
 import type { ActionResult } from "@/lib/actions/types";
 import { logActivity } from "@/lib/activity";
 import { db } from "@/lib/db";
-import { canDeleteRecords, nextBookingStatus } from "@/lib/domain";
+import {
+  canDeleteRecords,
+  GENDERS,
+  nextBookingStatus,
+  TITLES,
+  TRAVEL_PURPOSES,
+  TRIP_TYPES,
+} from "@/lib/domain";
 import { formatMoney } from "@/lib/format";
 import { paymentSummary } from "@/lib/payments/summary";
 import { requireAgencyUser } from "@/lib/permissions";
@@ -97,6 +104,8 @@ const bookingInput = z.object({
   destination: z.string().trim().max(200).optional(),
   departDate: z.string().optional(),
   returnDate: z.string().optional(),
+  travelPurpose: z.enum(TRAVEL_PURPOSES).optional().or(z.literal("")),
+  tripType: z.enum(TRIP_TYPES).optional().or(z.literal("")),
   currency: z.string().trim().min(1).max(8).default("DZD"),
   notes: z.string().trim().max(5000).optional(),
   leadTravellerName: z.string().trim().max(200).optional(),
@@ -138,6 +147,8 @@ export async function createBooking(
           destination: d.destination || null,
           departDate: toDate(d.departDate),
           returnDate: toDate(d.returnDate),
+          travelPurpose: d.travelPurpose || null,
+          tripType: d.tripType || null,
           currency: d.currency,
           notes: d.notes || null,
           createdById: user.id,
@@ -204,6 +215,8 @@ export async function updateBooking(
       destination: d.destination || null,
       departDate: toDate(d.departDate),
       returnDate: toDate(d.returnDate),
+      travelPurpose: d.travelPurpose || null,
+      tripType: d.tripType || null,
       currency: d.currency,
       notes: d.notes || null,
     })
@@ -565,6 +578,8 @@ export async function revokeShareLink(bookingId: string): Promise<ActionResult> 
 
 const travellerInput = z.object({
   fullName: z.string().trim().min(1, "Name is required").max(200),
+  title: z.enum(TITLES).optional().or(z.literal("")),
+  gender: z.enum(GENDERS).optional().or(z.literal("")),
   passportNumber: z.string().trim().max(60).optional(),
   passportExpiry: z.string().optional(),
   nationality: z.string().trim().max(80).optional(),
@@ -600,6 +615,8 @@ export async function addTraveller(
   await db.insert(bookingTraveller).values({
     bookingId,
     fullName: d.fullName,
+    title: d.title || null,
+    gender: d.gender || null,
     passportNumber: d.passportNumber || null,
     passportExpiry: toDate(d.passportExpiry),
     nationality: d.nationality || null,
@@ -635,6 +652,8 @@ export async function updateTraveller(
     .update(bookingTraveller)
     .set({
       fullName: d.fullName,
+      title: d.title || null,
+      gender: d.gender || null,
       passportNumber: d.passportNumber || null,
       passportExpiry: toDate(d.passportExpiry),
       nationality: d.nationality || null,

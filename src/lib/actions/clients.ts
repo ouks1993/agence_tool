@@ -6,9 +6,13 @@ import { z } from "zod";
 import type { ActionResult } from "@/lib/actions/types";
 import { logActivity } from "@/lib/activity";
 import { db } from "@/lib/db";
-import { canDeleteRecords } from "@/lib/domain";
+import { canDeleteRecords, INDUSTRIES, LEAD_SOURCES } from "@/lib/domain";
 import { requireAgencyUser } from "@/lib/permissions";
 import { client, clientContact } from "@/lib/schema";
+
+// Accepts a controlled code, "" or undefined → normalized to null on write.
+const optionalEnum = <T extends readonly [string, ...string[]]>(values: T) =>
+  z.enum(values).optional().or(z.literal(""));
 
 const clientInput = z.object({
   name: z.string().trim().min(1, "Name is required").max(200),
@@ -20,7 +24,8 @@ const clientInput = z.object({
   address: z.string().trim().max(300).optional(),
   city: z.string().trim().max(120).optional(),
   country: z.string().trim().max(120).optional(),
-  source: z.string().trim().max(120).optional(),
+  source: optionalEnum(LEAD_SOURCES),
+  industry: optionalEnum(INDUSTRIES),
   notes: z.string().trim().max(5000).optional(),
   ownerId: z.string().trim().optional(),
 });
@@ -51,6 +56,7 @@ export async function createClient(
       city: d.city || null,
       country: d.country || null,
       source: d.source || null,
+      industry: d.industry || null,
       notes: d.notes || null,
       ownerId: d.ownerId || user.id,
       createdById: user.id,
@@ -101,6 +107,7 @@ export async function updateClient(
       city: d.city || null,
       country: d.country || null,
       source: d.source || null,
+      industry: d.industry || null,
       notes: d.notes || null,
       ownerId: d.ownerId || null,
     })

@@ -10,7 +10,13 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { createBooking, updateBooking, type BookingInput } from "@/lib/actions/bookings";
-import { SUPPORTED_CURRENCIES } from "@/lib/domain";
+import {
+  SUPPORTED_CURRENCIES,
+  TRAVEL_PURPOSES,
+  TRAVEL_PURPOSE_LABEL,
+  TRIP_TYPES,
+  TRIP_TYPE_LABEL,
+} from "@/lib/domain";
 import type { ClientOption } from "@/lib/queries";
 
 type FormState = {
@@ -18,6 +24,8 @@ type FormState = {
   destination: string;
   departDate: string;
   returnDate: string;
+  travelPurpose: string;
+  tripType: string;
   currency: string;
   leadTravellerName: string;
   notes: string;
@@ -41,6 +49,8 @@ export function BookingForm({
     destination: initial?.destination ?? "",
     departDate: initial?.departDate ?? "",
     returnDate: initial?.returnDate ?? "",
+    travelPurpose: initial?.travelPurpose ?? "",
+    tripType: initial?.tripType ?? "",
     currency: initial?.currency ?? "DZD",
     leadTravellerName: initial?.leadTravellerName ?? "",
     notes: initial?.notes ?? "",
@@ -56,6 +66,8 @@ export function BookingForm({
       destination: form.destination,
       departDate: form.departDate,
       returnDate: form.returnDate,
+      travelPurpose: form.travelPurpose as BookingInput["travelPurpose"],
+      tripType: form.tripType as BookingInput["tripType"],
       currency: form.currency,
       notes: form.notes,
       ...(mode === "create" ? { leadTravellerName: form.leadTravellerName } : {}),
@@ -134,6 +146,38 @@ export function BookingForm({
               value={form.returnDate}
               onChange={(e) => set("returnDate", e.target.value)}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="travelPurpose">Travel purpose</Label>
+            <Select
+              id="travelPurpose"
+              value={form.travelPurpose}
+              onChange={(e) => set("travelPurpose", e.target.value)}
+            >
+              <option value="">Not set</option>
+              {TRAVEL_PURPOSES.map((p) => (
+                <option key={p} value={p}>
+                  {TRAVEL_PURPOSE_LABEL[p]}
+                </option>
+              ))}
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="tripType">Trip type</Label>
+            <Select
+              id="tripType"
+              value={form.tripType}
+              onChange={(e) => set("tripType", e.target.value)}
+            >
+              <option value="">Not set</option>
+              {TRIP_TYPES.map((tt) => (
+                <option key={tt} value={tt}>
+                  {TRIP_TYPE_LABEL[tt]}
+                </option>
+              ))}
+            </Select>
           </div>
 
           <div className="space-y-2">

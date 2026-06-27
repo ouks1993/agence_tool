@@ -15,9 +15,13 @@ import {
   type OpportunityInput,
 } from "@/lib/actions/opportunities";
 import {
+  LOST_REASONS,
+  LOST_REASON_LABEL,
   OPPORTUNITY_STAGES,
   OPPORTUNITY_STAGE_META,
   SUPPORTED_CURRENCIES,
+  TRAVEL_PURPOSES,
+  TRAVEL_PURPOSE_LABEL,
 } from "@/lib/domain";
 import type { ClientOption, TeamMember } from "@/lib/queries";
 
@@ -29,6 +33,7 @@ type FormState = {
   currency: string;
   probability: string;
   destination: string;
+  travelPurpose: string;
   travelStartDate: string;
   travelEndDate: string;
   paxCount: string;
@@ -61,6 +66,7 @@ export function OpportunityForm({
     currency: initial?.currency ?? "DZD",
     probability: initial?.probability ?? "",
     destination: initial?.destination ?? "",
+    travelPurpose: initial?.travelPurpose ?? "",
     travelStartDate: initial?.travelStartDate ?? "",
     travelEndDate: initial?.travelEndDate ?? "",
     paxCount: initial?.paxCount ?? "1",
@@ -83,11 +89,12 @@ export function OpportunityForm({
       currency: form.currency,
       probability: form.probability === "" ? undefined : Number(form.probability),
       destination: form.destination,
+      travelPurpose: form.travelPurpose as OpportunityInput["travelPurpose"],
       travelStartDate: form.travelStartDate,
       travelEndDate: form.travelEndDate,
       paxCount: form.paxCount === "" ? 1 : Number(form.paxCount),
       expectedCloseDate: form.expectedCloseDate,
-      lostReason: form.lostReason,
+      lostReason: form.lostReason as OpportunityInput["lostReason"],
       notes: form.notes,
       assignedToId: form.assignedToId,
     };
@@ -194,6 +201,22 @@ export function OpportunityForm({
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="travelPurpose">Travel purpose</Label>
+            <Select
+              id="travelPurpose"
+              value={form.travelPurpose}
+              onChange={(e) => set("travelPurpose", e.target.value)}
+            >
+              <option value="">Not set</option>
+              {TRAVEL_PURPOSES.map((p) => (
+                <option key={p} value={p}>
+                  {TRAVEL_PURPOSE_LABEL[p]}
+                </option>
+              ))}
+            </Select>
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="paxCount">Travellers</Label>
             <Input
               id="paxCount"
@@ -253,12 +276,18 @@ export function OpportunityForm({
           {form.stage === "lost" && (
             <div className="space-y-2 md:col-span-2">
               <Label htmlFor="lostReason">Reason lost</Label>
-              <Input
+              <Select
                 id="lostReason"
                 value={form.lostReason}
                 onChange={(e) => set("lostReason", e.target.value)}
-                placeholder="Price, timing, booked elsewhere…"
-              />
+              >
+                <option value="">Not set</option>
+                {LOST_REASONS.map((r) => (
+                  <option key={r} value={r}>
+                    {LOST_REASON_LABEL[r]}
+                  </option>
+                ))}
+              </Select>
             </div>
           )}
 

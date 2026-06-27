@@ -197,6 +197,8 @@ export default async function BookingWorkspace({
                 travellers={b.travellers.map((t) => ({
                   id: t.id,
                   fullName: t.fullName,
+                  title: t.title,
+                  gender: t.gender,
                   passportNumber: t.passportNumber,
                   passportExpiry: t.passportExpiry,
                   nationality: t.nationality,

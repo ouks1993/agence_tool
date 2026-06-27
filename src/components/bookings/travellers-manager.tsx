@@ -23,13 +23,22 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { addTraveller, updateTraveller, removeTraveller } from "@/lib/actions/bookings";
+import { Select } from "@/components/ui/select";
+import {
+  addTraveller,
+  updateTraveller,
+  removeTraveller,
+  type TravellerInput,
+} from "@/lib/actions/bookings";
+import { GENDERS, GENDER_LABEL, TITLES, TITLE_LABEL } from "@/lib/domain";
 import { formatDate, toDateInputValue, passportExpiryStatus } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export type Traveller = {
   id: string;
   fullName: string;
+  title: string | null;
+  gender: string | null;
   passportNumber: string | null;
   passportExpiry: string | Date | null;
   nationality: string | null;
@@ -41,6 +50,8 @@ export type Traveller = {
 
 type FormState = {
   fullName: string;
+  title: string;
+  gender: string;
   passportNumber: string;
   passportExpiry: string;
   nationality: string;
@@ -51,6 +62,8 @@ type FormState = {
 
 const empty: FormState = {
   fullName: "",
+  title: "",
+  gender: "",
   passportNumber: "",
   passportExpiry: "",
   nationality: "",
@@ -84,6 +97,8 @@ export function TravellersManager({
     setEditingId(t.id);
     setForm({
       fullName: t.fullName,
+      title: t.title ?? "",
+      gender: t.gender ?? "",
       passportNumber: t.passportNumber ?? "",
       passportExpiry: toDateInputValue(t.passportExpiry),
       nationality: t.nationality ?? "",
@@ -96,9 +111,10 @@ export function TravellersManager({
 
   const save = () => {
     startTransition(async () => {
+      const payload = form as TravellerInput;
       const res = editingId
-        ? await updateTraveller(editingId, bookingId, form)
-        : await addTraveller(bookingId, form);
+        ? await updateTraveller(editingId, bookingId, payload)
+        : await addTraveller(bookingId, payload);
       if (res.ok) {
         toast.success(editingId ? "Traveller updated" : "Traveller added");
         setOpen(false);
@@ -191,6 +207,36 @@ export function TravellersManager({
                 onChange={(e) => setForm((f) => ({ ...f, fullName: e.target.value }))}
                 placeholder="As printed on passport"
               />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="t-title">Title</Label>
+              <Select
+                id="t-title"
+                value={form.title}
+                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+              >
+                <option value="">Not set</option>
+                {TITLES.map((t) => (
+                  <option key={t} value={t}>
+                    {TITLE_LABEL[t]}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="t-gender">Gender</Label>
+              <Select
+                id="t-gender"
+                value={form.gender}
+                onChange={(e) => setForm((f) => ({ ...f, gender: e.target.value }))}
+              >
+                <option value="">Not set</option>
+                {GENDERS.map((g) => (
+                  <option key={g} value={g}>
+                    {GENDER_LABEL[g]}
+                  </option>
+                ))}
+              </Select>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="t-nat">Nationality</Label>

@@ -8,8 +8,10 @@ import { logActivity } from "@/lib/activity";
 import { db } from "@/lib/db";
 import {
   canDeleteRecords,
+  LOST_REASONS,
   OPPORTUNITY_STAGES,
   OPPORTUNITY_STAGE_META,
+  TRAVEL_PURPOSES,
   type OpportunityStage,
 } from "@/lib/domain";
 import { requireAgencyUser } from "@/lib/permissions";
@@ -23,11 +25,12 @@ const oppInput = z.object({
   currency: z.string().trim().min(1).max(8).default("DZD"),
   probability: z.coerce.number().min(0).max(100).optional(),
   destination: z.string().trim().max(200).optional(),
+  travelPurpose: z.enum(TRAVEL_PURPOSES).optional().or(z.literal("")),
   travelStartDate: z.string().optional(),
   travelEndDate: z.string().optional(),
   paxCount: z.coerce.number().int().min(1).default(1),
   expectedCloseDate: z.string().optional(),
-  lostReason: z.string().trim().max(500).optional(),
+  lostReason: z.enum(LOST_REASONS).optional().or(z.literal("")),
   notes: z.string().trim().max(5000).optional(),
   assignedToId: z.string().trim().optional(),
 });
@@ -70,6 +73,7 @@ export async function createOpportunity(
       currency: d.currency,
       probability: d.probability ?? OPPORTUNITY_STAGE_META[stage].defaultProbability,
       destination: d.destination || null,
+      travelPurpose: d.travelPurpose || null,
       travelStartDate: toDate(d.travelStartDate),
       travelEndDate: toDate(d.travelEndDate),
       paxCount: d.paxCount,
@@ -131,6 +135,7 @@ export async function updateOpportunity(
       currency: d.currency,
       probability: d.probability ?? OPPORTUNITY_STAGE_META[stage].defaultProbability,
       destination: d.destination || null,
+      travelPurpose: d.travelPurpose || null,
       travelStartDate: toDate(d.travelStartDate),
       travelEndDate: toDate(d.travelEndDate),
       paxCount: d.paxCount,

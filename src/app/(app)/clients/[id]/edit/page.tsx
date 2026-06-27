@@ -4,6 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { ClientForm } from "@/components/clients/client-form";
+import type { ClientInput } from "@/lib/actions/clients";
 import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db";
 import { requireAgencyUser } from "@/lib/permissions";
@@ -48,7 +49,8 @@ export default async function EditClientPage({
           address: c.address ?? "",
           city: c.city ?? "",
           country: c.country ?? "",
-          source: c.source ?? "",
+          source: (c.source ?? "") as ClientInput["source"],
+          industry: (c.industry ?? "") as ClientInput["industry"],
           notes: c.notes ?? "",
           ownerId: c.ownerId ?? "",
         }}

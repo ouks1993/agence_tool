@@ -204,7 +204,16 @@ async function main() {
     "Biopharm SPA", "Ooredoo Algérie", "NCA-Rouiba", "Mobilis Corporate", "Hassi Energy", "Numidia Bank",
   ];
   const statuses = ["active", "active", "active", "active", "lead", "lead", "inactive"];
-  const sources = ["referral", "website", "instagram", "walk-in", "outbound", "partner", "event", "facebook"];
+  // LEAD_SOURCES codes.
+  const sources = ["referral", "website", "instagram", "walk_in", "outbound", "partner", "event", "facebook"];
+  // INDUSTRIES codes (for corporate clients).
+  const industries = ["tourism", "energy", "technology", "finance", "retail", "construction", "public_sector", "health", "telecom", "logistics"];
+  // TRAVEL_PURPOSES / TRIP_TYPES / TITLES / GENDERS / LOST_REASONS codes.
+  const travelPurposes = ["leisure", "business", "honeymoon", "family", "group", "umrah", "hajj", "medical"];
+  const tripTypes = ["one_way", "round_trip", "multi_city"];
+  const titles = ["mr", "mrs", "ms", "dr"];
+  const genders = ["male", "female"];
+  const lostReasonCodes = ["price", "timing", "competitor", "no_response", "postponed", "budget"];
 
   const clientIds: string[] = [];
   const clientNames: string[] = [];
@@ -243,6 +252,7 @@ async function main() {
       city,
       country,
       source: pick(sources, i),
+      industry: isCorp ? pick(industries, i) : null,
       ownerId: seller(i),
       createdById: seller(i),
       createdAt: d(-220 + i * 2),
@@ -322,11 +332,12 @@ async function main() {
       currency: CUR,
       probability: stage === "won" ? 100 : stage === "lost" ? 0 : round(between(15, 80)),
       destination: dst.dest,
+      travelPurpose: pick(travelPurposes, i),
       travelStartDate: d(15 + i * 5),
       travelEndDate: d(22 + i * 5),
       paxCount: pax,
       expectedCloseDate: d(-15 + i * 4),
-      lostReason: stage === "lost" ? choice(["Chose a competitor", "Budget too high", "Trip postponed"]) : null,
+      lostReason: stage === "lost" ? pick(lostReasonCodes, i) : null,
       assignedToId: seller(i),
       createdById: seller(i),
       createdAt: d(-160 + i * 3),
@@ -430,6 +441,8 @@ async function main() {
       destination: dst.dest,
       departDate: d(depart),
       returnDate: d(depart + 5 + (i % 5)),
+      travelPurpose: pick(travelPurposes, i),
+      tripType: pick(tripTypes, i),
       currency: CUR,
       notes: i % 4 === 0 ? "VIP client — confirm airport transfer." : null,
       totalAmount: money(total),
@@ -445,6 +458,8 @@ async function main() {
       return {
         bookingId,
         fullName: `${pick(firstNames, i + t)} ${pick(lastNames, i + t + 1)}`,
+        title: pick(titles, i + t),
+        gender: pick(genders, i + t),
         passportNumber: `${choice(["A", "B", "X"])}${round(between(1000000, 9999999))}`,
         passportExpiry: soonExpiry ? d(depart + round(between(20, 120))) : d(round(between(400, 2000))),
         nationality: pick(natList, i + t),

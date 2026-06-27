@@ -312,6 +312,116 @@ export const SUPPORTED_CURRENCIES = ["DZD", "EUR", "USD"] as const;
 export type Currency = (typeof SUPPORTED_CURRENCIES)[number];
 export const DEFAULT_CURRENCY: Currency = "DZD";
 
+// --- Controlled vocabularies (Phase 2) --------------------------------------
+// Stored as snake_case codes in the DB; the UI shows the friendly label. Keep
+// codes stable for reporting — only ever append new values, never rename.
+
+const labelMap = <T extends string>(labels: Record<T, string>): Record<T, string> =>
+  labels;
+
+/** How a client first reached the agency. */
+export const LEAD_SOURCES = [
+  "referral", "website", "instagram", "facebook", "walk_in",
+  "partner", "event", "outbound", "repeat", "other",
+] as const;
+export type LeadSource = (typeof LEAD_SOURCES)[number];
+export const LEAD_SOURCE_LABEL = labelMap<LeadSource>({
+  referral: "Referral",
+  website: "Website",
+  instagram: "Instagram",
+  facebook: "Facebook",
+  walk_in: "Walk-in",
+  partner: "Partner",
+  event: "Event",
+  outbound: "Outbound",
+  repeat: "Repeat client",
+  other: "Other",
+});
+
+/** Why the client is travelling — drives segmentation & reporting. */
+export const TRAVEL_PURPOSES = [
+  "leisure", "business", "honeymoon", "family", "group",
+  "umrah", "hajj", "medical", "education", "other",
+] as const;
+export type TravelPurpose = (typeof TRAVEL_PURPOSES)[number];
+export const TRAVEL_PURPOSE_LABEL = labelMap<TravelPurpose>({
+  leisure: "Leisure",
+  business: "Business",
+  honeymoon: "Honeymoon",
+  family: "Family",
+  group: "Group",
+  umrah: "Umrah",
+  hajj: "Hajj",
+  medical: "Medical",
+  education: "Education",
+  other: "Other",
+});
+
+/** Shape of the journey. */
+export const TRIP_TYPES = ["one_way", "round_trip", "multi_city"] as const;
+export type TripType = (typeof TRIP_TYPES)[number];
+export const TRIP_TYPE_LABEL = labelMap<TripType>({
+  one_way: "One-way",
+  round_trip: "Round-trip",
+  multi_city: "Multi-city",
+});
+
+/** Traveller gender (airlines require this on tickets). */
+export const GENDERS = ["male", "female", "unspecified"] as const;
+export type Gender = (typeof GENDERS)[number];
+export const GENDER_LABEL = labelMap<Gender>({
+  male: "Male",
+  female: "Female",
+  unspecified: "Unspecified",
+});
+
+/** Traveller courtesy title. */
+export const TITLES = ["mr", "mrs", "ms", "dr", "prof"] as const;
+export type Title = (typeof TITLES)[number];
+export const TITLE_LABEL = labelMap<Title>({
+  mr: "Mr",
+  mrs: "Mrs",
+  ms: "Ms",
+  dr: "Dr",
+  prof: "Prof",
+});
+
+/** Why an opportunity was lost — for win/loss analysis. */
+export const LOST_REASONS = [
+  "price", "timing", "competitor", "no_response", "postponed", "budget", "other",
+] as const;
+export type LostReason = (typeof LOST_REASONS)[number];
+export const LOST_REASON_LABEL = labelMap<LostReason>({
+  price: "Price",
+  timing: "Timing",
+  competitor: "Chose a competitor",
+  no_response: "No response",
+  postponed: "Trip postponed",
+  budget: "Budget",
+  other: "Other",
+});
+
+/** Industry of a corporate client. */
+export const INDUSTRIES = [
+  "tourism", "energy", "technology", "finance", "retail", "construction",
+  "public_sector", "health", "education", "telecom", "logistics", "other",
+] as const;
+export type Industry = (typeof INDUSTRIES)[number];
+export const INDUSTRY_LABEL = labelMap<Industry>({
+  tourism: "Tourism & Hospitality",
+  energy: "Energy",
+  technology: "Technology",
+  finance: "Finance & Banking",
+  retail: "Retail",
+  construction: "Construction",
+  public_sector: "Public Sector",
+  health: "Health",
+  education: "Education",
+  telecom: "Telecom",
+  logistics: "Logistics",
+  other: "Other",
+});
+
 // --- Suppliers --------------------------------------------------------------
 
 export const SUPPLIER_TYPES = [
