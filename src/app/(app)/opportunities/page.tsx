@@ -1,13 +1,22 @@
 import Link from "next/link";
 import { desc, eq } from "drizzle-orm";
-import { Plus, Target } from "lucide-react";
+import { Plus, Target, Wallet, Gauge, Percent, TrendingUp, Filter } from "lucide-react";
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
+import { StatCard } from "@/components/app/stat-card";
+import { FunnelInsight } from "@/components/charts/insight-charts";
 import { PipelineBoard, type BoardItem } from "@/components/opportunities/pipeline-board";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/lib/db";
-import { OPEN_STAGES } from "@/lib/domain";
+import {
+  OPEN_STAGES,
+  OPPORTUNITY_STAGES,
+  OPPORTUNITY_STAGE_META,
+  type OpportunityStage,
+} from "@/lib/domain";
 import { formatMoney } from "@/lib/format";
+import { conversionRate, num } from "@/lib/analytics";
 import { requireAgencyUser } from "@/lib/permissions";
 import { opportunity } from "@/lib/schema";
 
@@ -38,12 +47,34 @@ export default async function OpportunitiesPage() {
     travelStartDate: o.travelStartDate,
   }));
 
-  const openValue = rows
-    .filter((o) => OPEN_STAGES.includes(o.stage as (typeof OPEN_STAGES)[number]))
-    .reduce((sum, o) => sum + parseFloat(o.value || "0"), 0);
-  const openCount = rows.filter((o) =>
-    OPEN_STAGES.includes(o.stage as (typeof OPEN_STAGES)[number])
-  ).length;
+  // DZD-only for monetary pipeline metrics (no FX).
+  const dzd = rows.filter((o) => (o.currency || "DZD") === "DZD");
+  const isOpen = (s: string) => OPEN_STAGES.includes(s as (typeof OPEN_STAGES)[number]);
+
+  const openValue = dzd.filter((o) => isOpen(o.stage)).reduce((sum, o) => sum + num(o.value), 0);
+  const openCount = rows.filter((o) => isOpen(o.stage)).length;
+
+  // Weighted forecast: Σ value × probability across OPEN deals.
+  const forecast = dzd
+    .filter((o) => isOpen(o.stage))
+    .reduce((sum, o) => sum + num(o.value) * (o.probability / 100), 0);
+
+  // Win rate: won ÷ closed (won + lost).
+  const wonCount = rows.filter((o) => o.stage === "won").length;
+  const closedCount = rows.filter((o) => o.stage === "won" || o.stage === "lost").length;
+  const winRate = conversionRate(wonCount, closedCount);
+
+  // Avg deal size: won deals' value (DZD).
+  const wonDzd = dzd.filter((o) => o.stage === "won");
+  const avgDeal = wonDzd.length
+    ? Math.round(wonDzd.reduce((s, o) => s + num(o.value), 0) / wonDzd.length)
+    : 0;
+
+  // Funnel by VALUE across the ordered stages (DZD).
+  const funnel = OPPORTUNITY_STAGES.filter((s) => s !== "lost").map((s) => ({
+    label: OPPORTUNITY_STAGE_META[s as OpportunityStage].label,
+    value: dzd.filter((o) => o.stage === s).reduce((sum, o) => sum + num(o.value), 0),
+  }));
 
   return (
     <div className="mx-auto w-full max-w-[100rem] space-y-6 px-4 py-8 sm:px-6">
@@ -62,6 +93,48 @@ export default async function OpportunitiesPage() {
           </Link>
         </Button>
       </PageHeader>
+
+      {rows.length > 0 && (
+        <>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              label="Open pipeline"
+              value={formatMoney(openValue)}
+              hint={`${openCount} open deal${openCount === 1 ? "" : "s"}`}
+              icon={Wallet}
+            />
+            <StatCard
+              label="Weighted forecast"
+              value={formatMoney(forecast)}
+              hint="Value × probability"
+              icon={TrendingUp}
+            />
+            <StatCard
+              label="Win rate"
+              value={`${winRate}%`}
+              hint="Won ÷ closed deals"
+              icon={Percent}
+            />
+            <StatCard
+              label="Avg deal size"
+              value={formatMoney(avgDeal)}
+              hint="Won opportunities"
+              icon={Gauge}
+            />
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Filter className="size-4" /> Conversion funnel (by value)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <FunnelInsight data={funnel} format="currency" />
+            </CardContent>
+          </Card>
+        </>
+      )}
 
       {rows.length === 0 ? (
         <EmptyState

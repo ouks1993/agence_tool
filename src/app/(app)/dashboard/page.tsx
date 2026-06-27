@@ -12,6 +12,12 @@ import {
   Banknote,
   Coins,
   Trophy,
+  Percent,
+  TrendingUp,
+  Gauge,
+  Users,
+  Tag,
+  MapPin,
 } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/app/page-header";
@@ -21,6 +27,7 @@ import {
   BarInsight,
   DonutInsight,
   AreaInsight,
+  HBarInsight,
   type Point,
 } from "@/components/charts/insight-charts";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -41,6 +48,14 @@ import {
   initials,
   passportExpiryStatus,
 } from "@/lib/format";
+import {
+  conversionRate,
+  countBy,
+  growthPct,
+  monthlyBuckets,
+  num,
+  topN,
+} from "@/lib/analytics";
 import { paymentSummary } from "@/lib/payments/summary";
 import { requireAgencyUser } from "@/lib/permissions";
 import { booking, activityLog, opportunity, product, client as clientTable, user as userTable, agency } from "@/lib/schema";
@@ -145,128 +160,120 @@ export default async function DashboardPage() {
   type Insights = {
     byDestination: Point[];
     byStatus: Point[];
-    teamPerformance: Point[];
-    monthly: Point[];
+    revenueByAgent: Point[];
+    revenueMonthly: Point[];
+    topClients: Point[];
+    leadSources: Point[];
     totalRevenue: number;
     collected: number;
     outstanding: number;
     wonPipeline: number;
+    conversionRate: number;
+    avgBookingValue: number;
+    revenueGrowth: number | null;
   };
   let insights: Insights | null = null;
 
   if (canSeeAll) {
-    // 1) Bookings by destination (country) — non-cancelled, top 8 by count.
-    const destinationCounts = new Map<string, number>();
-    for (const b of active) {
-      const raw = b.destination?.trim();
-      // "Marrakech, Morocco" → "Morocco"; fall back to whole string or "Unknown".
-      const label = raw
+    // Revenue basis for monetary charts: non-cancelled bookings in DZD (the
+    // agency currency). No FX, so any non-DZD booking is excluded from money
+    // charts rather than mis-summed.
+    const dzdActive = active.filter((b) => (b.currency || "DZD") === "DZD");
+    // "Country" label from "Marrakech, Morocco" → "Morocco" (heuristic until
+    // destinations are structured in Phase 3).
+    const countryOf = (raw: string | null | undefined) =>
+      raw
         ? raw.includes(",")
           ? raw.slice(raw.lastIndexOf(",") + 1).trim() || raw
           : raw
         : "Unknown";
-      destinationCounts.set(label, (destinationCounts.get(label) ?? 0) + 1);
-    }
-    const byDestination: Point[] = [...destinationCounts.entries()]
-      .map(([label, value]) => ({ label, value }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 8);
 
-    // 2) Bookings by status — all bookings, labelled via status meta.
-    const statusCounts = new Map<BookingStatus, number>();
-    for (const b of bookings) {
-      const status = b.status as BookingStatus;
-      statusCounts.set(status, (statusCounts.get(status) ?? 0) + 1);
-    }
-    const byStatus: Point[] = [...statusCounts.entries()].map(([status, value]) => ({
-      label: BOOKING_STATUS_META[status]?.label ?? status,
-      value,
-    }));
+    // 1) Top destinations by REVENUE (was: count).
+    const byDestination = topN(dzdActive, (b) => countryOf(b.destination), (b) => num(b.totalAmount), 8);
 
-    // 3) Team performance — bookings created per team member (top 8, skip zero).
+    // 2) Bookings by status — count donut (currency-agnostic).
+    const byStatus = countBy(bookings, (b) => BOOKING_STATUS_META[b.status as BookingStatus]?.label ?? b.status, 8);
+
+    // 3) Revenue per agent (was: booking count). Map createdById → first name.
     const members = await db
       .select({ id: userTable.id, name: userTable.name })
       .from(userTable)
       .where(eq(userTable.agencyId, user.agencyId));
-    const createdByCounts = new Map<string, number>();
-    for (const b of bookings) {
-      if (!b.createdById) continue;
-      createdByCounts.set(b.createdById, (createdByCounts.get(b.createdById) ?? 0) + 1);
-    }
-    const teamPerformance: Point[] = members
-      .map((m) => ({
-        // Prefer the first name for a compact axis label.
-        label: m.name.split(" ")[0] || m.name,
-        value: createdByCounts.get(m.id) ?? 0,
-      }))
-      .filter((p) => p.value > 0)
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 8);
+    const memberName = new Map(members.map((m) => [m.id, m.name.split(" ")[0] || m.name]));
+    const revenueByAgent = topN(
+      dzdActive,
+      (b) => (b.createdById ? memberName.get(b.createdById) ?? "Unknown" : "Unassigned"),
+      (b) => num(b.totalAmount),
+      8
+    );
 
-    // 4) Monthly bookings — last 6 months in chronological order, by createdAt.
-    const SHORT_MONTHS = [
-      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-    ];
-    const monthBuckets: { key: string; label: string; value: number }[] = [];
-    const anchor = new Date();
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(anchor.getFullYear(), anchor.getMonth() - i, 1);
-      monthBuckets.push({
-        key: `${d.getFullYear()}-${d.getMonth()}`,
-        label: SHORT_MONTHS[d.getMonth()] ?? "",
-        value: 0,
-      });
-    }
-    const monthIndex = new Map(monthBuckets.map((m, i) => [m.key, i]));
-    for (const b of bookings) {
-      const created = new Date(b.createdAt);
-      const key = `${created.getFullYear()}-${created.getMonth()}`;
-      const idx = monthIndex.get(key);
-      if (idx !== undefined) monthBuckets[idx]!.value += 1;
-    }
-    const monthly: Point[] = monthBuckets.map(({ label, value }) => ({ label, value }));
+    // 4) Revenue evolution — last 6 months by createdAt, DZD (was: count).
+    const revenueMonthly = monthlyBuckets(dzdActive, (b) => b.createdAt, (b) => num(b.totalAmount), 6);
 
-    // 5) Finance KPIs.
-    // Total revenue: confirmed bookings' total amount.
-    const totalRevenue = bookings
+    // 5) Top clients by revenue.
+    const topClients = topN(dzdActive, (b) => b.client?.name, (b) => num(b.totalAmount), 8);
+
+    // 6) Lead-source breakdown (by client count). Uses free-text source today;
+    // becomes clean once Phase 2 makes it an enum.
+    const sourceRows = await db
+      .select({ source: clientTable.source })
+      .from(clientTable)
+      .where(eq(clientTable.agencyId, user.agencyId));
+    const leadSources = countBy(
+      sourceRows,
+      (r) => (r.source?.trim() ? r.source.trim() : "Unknown"),
+      6
+    );
+
+    // Finance KPIs.
+    const totalRevenue = dzdActive
       .filter((b) => b.status === "confirmed")
-      .reduce((s, b) => s + parseFloat(b.totalAmount || "0"), 0);
+      .reduce((s, b) => s + num(b.totalAmount), 0);
 
-    // Collected & outstanding: derived from completed payments (refunds netted).
     let collected = 0;
     let outstanding = 0;
     for (const b of bookings) {
-      const total = parseFloat(b.totalAmount || "0");
+      const total = num(b.totalAmount);
       const { paid, balance } = paymentSummary(b.payments, total);
       collected += paid;
       if (balance > 0) outstanding += balance;
     }
 
-    // Won pipeline: sum of opportunity value where stage = "won" (agency-scoped).
-    const wonOpportunities = await db
-      .select({ value: opportunity.value })
+    // Won pipeline + conversion rate (all opportunities, agency-scoped).
+    const allOpps = await db
+      .select({ value: opportunity.value, stage: opportunity.stage })
       .from(opportunity)
-      .where(
-        and(
-          eq(opportunity.agencyId, user.agencyId),
-          eq(opportunity.stage, "won")
-        )
-      );
-    const wonPipeline = wonOpportunities.reduce(
-      (s, o) => s + parseFloat(o.value || "0"),
-      0
-    );
+      .where(eq(opportunity.agencyId, user.agencyId));
+    const wonOpps = allOpps.filter((o) => o.stage === "won");
+    const wonPipeline = wonOpps.reduce((s, o) => s + num(o.value), 0);
+    // Conversion = won ÷ closed (won + lost) deals.
+    const closedOpps = allOpps.filter((o) => o.stage === "won" || o.stage === "lost").length;
+    const convRate = conversionRate(wonOpps.length, closedOpps);
+
+    // Average booking value (non-cancelled, DZD).
+    const avgBookingValue = dzdActive.length
+      ? Math.round(dzdActive.reduce((s, b) => s + num(b.totalAmount), 0) / dzdActive.length)
+      : 0;
+
+    // MoM revenue growth from the last two month buckets.
+    const lastTwo = revenueMonthly.slice(-2);
+    const revenueGrowth =
+      lastTwo.length === 2 ? growthPct(lastTwo[1]!.value, lastTwo[0]!.value) : null;
 
     insights = {
       byDestination,
       byStatus,
-      teamPerformance,
-      monthly,
+      revenueByAgent,
+      revenueMonthly,
+      topClients,
+      leadSources,
       totalRevenue,
       collected,
       outstanding,
       wonPipeline,
+      conversionRate: convRate,
+      avgBookingValue,
+      revenueGrowth,
     };
   }
 
@@ -526,21 +533,84 @@ export default async function DashboardPage() {
             />
           </div>
 
+          {/* Performance KPIs */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <StatCard
+              label="Conversion rate"
+              value={`${insights.conversionRate}%`}
+              hint="Won ÷ closed deals"
+              icon={Percent}
+            />
+            <StatCard
+              label="Avg booking value"
+              value={formatMoney(insights.avgBookingValue)}
+              hint="Across active bookings"
+              icon={Gauge}
+            />
+            <StatCard
+              label="Revenue growth"
+              value={
+                insights.revenueGrowth === null
+                  ? "—"
+                  : `${insights.revenueGrowth > 0 ? "+" : ""}${insights.revenueGrowth}%`
+              }
+              hint="Month over month"
+              icon={TrendingUp}
+            />
+          </div>
+
           {/* Charts — only shown when there is data to display */}
           {bookings.length > 0 && (
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Bookings by destination</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <TrendingUp className="size-4" /> Revenue evolution
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <BarInsight data={insights.byDestination} />
+                  <AreaInsight data={insights.revenueMonthly} format="currency" />
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Bookings by status</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <MapPin className="size-4" /> Top destinations by revenue
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <HBarInsight data={insights.byDestination} format="currency" />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Users className="size-4" /> Top clients by revenue
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <HBarInsight data={insights.topClients} format="currency" color="var(--chart-3)" />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <BarChart3 className="size-4" /> Revenue per agent
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <BarInsight data={insights.revenueByAgent} format="currency" color="var(--chart-2)" />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Briefcase className="size-4" /> Bookings by status
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <DonutInsight data={insights.byStatus} />
@@ -549,19 +619,12 @@ export default async function DashboardPage() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Team performance</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Tag className="size-4" /> Lead sources
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <BarInsight data={insights.teamPerformance} color="var(--chart-3)" />
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Monthly bookings</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <AreaInsight data={insights.monthly} />
+                  <DonutInsight data={insights.leadSources} />
                 </CardContent>
               </Card>
             </div>

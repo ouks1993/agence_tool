@@ -9,6 +9,8 @@ import {
   Receipt,
   BadgePercent,
   CheckCircle2,
+  Layers,
+  Building2,
 } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { EmptyState } from "@/components/app/empty-state";
@@ -19,6 +21,7 @@ import {
   AreaInsight,
   BarInsight,
   DonutInsight,
+  HBarInsight,
   type Point,
 } from "@/components/charts/insight-charts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,9 +42,10 @@ import {
   type PaymentKind,
 } from "@/lib/domain";
 import { formatDate, formatMoney } from "@/lib/format";
+import { agingBuckets, num, topN } from "@/lib/analytics";
 import { paymentSummary } from "@/lib/payments/summary";
 import { requireAgencyUser } from "@/lib/permissions";
-import { booking, opportunity, payment, product } from "@/lib/schema";
+import { booking, commission, opportunity, payment, product, supplier } from "@/lib/schema";
 
 export const metadata = { title: "Finance" };
 
@@ -221,6 +225,14 @@ export default async function FinancePage() {
     },
   ];
 
+  // 4) AR aging — outstanding balances bucketed by days past departure (DZD).
+  const arAging: Point[] = agingBuckets(
+    receivables
+      .filter((r) => (r.booking.currency || "DZD") === "DZD")
+      .map((r) => ({ balance: r.balance, refDate: r.booking.departDate })),
+    now
+  );
+
   // --- Revenue summary extras (each query agency-scoped) -------------------
   // Agency margin proxy: sum of (totalPrice - totalCost) across the agency's
   // products. Won opportunity value: sum of opportunity.value where stage=won.
@@ -265,6 +277,30 @@ export default async function FinancePage() {
   const wonValue = wonOpportunities.reduce(
     (sum, o) => sum + parseFloat(o.value || "0"),
     0
+  );
+
+  // Margin %: agency margin ÷ total proposal price across products.
+  const totalProposalPrice = products.reduce((s, p) => s + num(p.totalPrice), 0);
+  const marginPct = totalProposalPrice
+    ? Math.round((agencyMargin / totalProposalPrice) * 1000) / 10
+    : 0;
+
+  // Commission earned by supplier (supplier → agency, DZD), top 8.
+  const supplierCommissions = await db
+    .select({ amount: commission.amount, currency: commission.currency, name: supplier.name })
+    .from(commission)
+    .innerJoin(supplier, eq(commission.supplierId, supplier.id))
+    .where(
+      and(
+        eq(commission.agencyId, user.agencyId),
+        eq(commission.type, "supplier_to_agency")
+      )
+    );
+  const commissionBySupplier: Point[] = topN(
+    supplierCommissions.filter((c) => (c.currency || "DZD") === "DZD"),
+    (c) => c.name,
+    (c) => num(c.amount),
+    8
   );
 
   return (
@@ -340,6 +376,28 @@ export default async function FinancePage() {
               data={outstandingVsCollected}
               format="currency"
             />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Layers className="size-4" /> Accounts receivable aging
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <BarInsight data={arAging} format="currency" color="var(--chart-4)" />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Building2 className="size-4" /> Commission earned by supplier
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <HBarInsight data={commissionBySupplier} format="currency" color="var(--chart-2)" />
           </CardContent>
         </Card>
       </div>
@@ -519,6 +577,15 @@ export default async function FinancePage() {
                   </span>
                 </dt>
                 <dd className="font-semibold">{formatMoney(agencyMargin)}</dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-muted-foreground text-sm">
+                  Margin
+                  <span className="text-muted-foreground/70 ml-1 text-xs">
+                    (% of price)
+                  </span>
+                </dt>
+                <dd className="font-semibold">{marginPct}%</dd>
               </div>
               <div className="flex items-center justify-between gap-3">
                 <dt className="text-muted-foreground text-sm">

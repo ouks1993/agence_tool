@@ -69,7 +69,7 @@ async function main() {
     let u = await db.query.user.findFirst({ where: eq(user.email, a.email), columns: { id: true } });
     if (!u) {
       const id = crypto.randomUUID();
-      await db.insert(user).values({ id, name: a.name, email: a.email, agencyId: DEMO, role: "agent", emailVerified: true, commissionRatePercent: round(between(3, 7)) });
+      await db.insert(user).values({ id, name: a.name, email: a.email, agencyId: DEMO, role: "agent", emailVerified: true, commissionRatePercent: String(round(between(3, 7))) });
       u = { id };
     } else {
       await db.update(user).set({ agencyId: DEMO, role: "agent", active: true }).where(eq(user.id, u.id));

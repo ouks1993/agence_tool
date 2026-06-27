@@ -215,6 +215,103 @@ export function AreaInsight({
   );
 }
 
+/** Horizontal bars — good for long labels ("top destinations/clients/suppliers"). */
+export function HBarInsight({
+  data,
+  height = 240,
+  color = "var(--chart-1)",
+  format = "number",
+  currency = "DZD",
+}: {
+  data: Point[];
+  height?: number;
+  color?: string;
+  format?: ChartFormat;
+  currency?: string;
+}) {
+  const fmt = makeFormatter(format, currency);
+  if (data.length === 0) {
+    return <EmptyChart height={height} />;
+  }
+  return (
+    <div style={{ height }} className="w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart
+          data={data}
+          layout="vertical"
+          margin={{ top: 4, right: 12, left: 4, bottom: 4 }}
+        >
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+          <XAxis type="number" tick={axisTick} tickLine={false} axisLine={false} tickFormatter={fmt} />
+          <YAxis
+            type="category"
+            dataKey="label"
+            tick={axisTick}
+            tickLine={false}
+            axisLine={false}
+            width={120}
+            interval={0}
+          />
+          <Tooltip
+            cursor={{ fill: "var(--accent)", opacity: 0.4 }}
+            contentStyle={tooltipStyle}
+            formatter={(value) => fmt(Number(value))}
+          />
+          <Bar dataKey="value" fill={color} radius={[0, 6, 6, 0]} maxBarSize={28} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+/**
+ * Funnel — stacked horizontal stage bars that shrink as the pipeline narrows.
+ * Each row shows the stage label, value, and conversion vs the first stage.
+ * Pure CSS bars (no recharts) so it stays crisp at any width.
+ */
+export function FunnelInsight({
+  data,
+  format = "number",
+  currency = "DZD",
+}: {
+  data: Point[];
+  format?: ChartFormat;
+  currency?: string;
+}) {
+  const fmt = makeFormatter(format, currency);
+  if (data.length === 0 || data.every((d) => d.value === 0)) {
+    return <EmptyChart height={200} />;
+  }
+  const top = data[0]?.value || 1;
+  const max = Math.max(...data.map((d) => d.value), 1);
+  return (
+    <div className="flex w-full flex-col gap-2">
+      {data.map((d, i) => {
+        const widthPct = Math.max((d.value / max) * 100, 4);
+        const convPct = Math.round((d.value / top) * 100);
+        return (
+          <div key={d.label} className="flex items-center gap-3">
+            <span className="text-muted-foreground w-28 shrink-0 truncate text-xs">
+              {d.label}
+            </span>
+            <div className="bg-muted h-7 flex-1 overflow-hidden rounded-md">
+              <div
+                className="flex h-full items-center justify-end rounded-md px-2"
+                style={{ width: `${widthPct}%`, backgroundColor: colorAt(i) }}
+              >
+                <span className="text-xs font-medium text-white/95">{fmt(d.value)}</span>
+              </div>
+            </div>
+            <span className="text-muted-foreground w-10 shrink-0 text-right text-xs">
+              {i === 0 ? "—" : `${convPct}%`}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function EmptyChart({ height }: { height: number }) {
   return (
     <div
