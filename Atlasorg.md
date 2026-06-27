@@ -42,6 +42,7 @@ Atlas is a **multi-tenant SaaS for travel agencies**. Each agency runs its clien
 | Flights | Duffel (Amadeus self-service kept only as legacy fallback) |
 | Hotels | Hotelbeds (APITUDE: availability + content) |
 | PDF | `@react-pdf/renderer` (server-rendered proposals) |
+| Data export | `exceljs` (XLSX) + built-in CSV (UTF-8 BOM) for BI/Power BI |
 | Storage | Vercel Blob (optional) |
 | Hosting | Vercel + GitHub auto-deploy |
 
@@ -93,10 +94,13 @@ Capability helpers: `seesAllData`, `canManageTeam`, `canAssignAdmin`, `canManage
 - **Vendor platform console** (`/platform`) — create / suspend / reactivate agencies, provision first admin.
 - **Impersonation** — *View as agency* (act as agency admin) and *View as user* (act as a specific user with their role + scoped data), with an exit banner.
 - **Per-role workspaces** — `/finance` (payments/AR + revenue + commissions), `/support` (action queue + clients + ops), agency dashboard with analytics charts.
-- **Analytics** — bookings by country, team performance, status breakdown, monthly trend, finance KPIs, revenue/collection charts.
+- **Analytics** — decision-oriented dashboards: revenue evolution, top destinations/clients/markets by revenue, revenue per agent, conversion rate, avg booking value, MoM growth, pipeline funnel (by value) + weighted forecast/win rate, AR aging, margin %, commission-by-supplier. All currency-safe (group-by-currency, DZD headline) via `src/lib/analytics.ts`.
+- **Controlled vocabularies** — lead source, travel purpose, trip type, gender, title, lost reason, industry are enum dropdowns (codes stored, labels shown) for clean reporting; defined in `domain.ts`.
+- **Reference data** — ISO 3166-1 country + nationality pickers (full names stored, picked from canonical list so spellings never drift); city field with curated autocomplete suggestions. `src/lib/reference/countries.ts`.
+- **Data export** — `/reports` (admin/manager/finance): one-click CSV + Excel export of every core dataset, plus a full multi-sheet workbook; each enum field emits both `*_code` and `*_label` columns; DZD amounts, ISO dates, date-range filter.
 - **i18n** — English / French / Arabic with full RTL + Arabic font.
 - **Settings** — language, theme (light/dark/system), profile.
-- **Currencies** — EUR, USD, GBP, DZD, MAD, AED, CHF.
+- **Currencies** — DZD (default), EUR, USD. No FX conversion — the agency operates in DZD; analytics group by currency rather than summing across.
 
 ### CRM & pipeline
 - **Clients** — client records with contacts; funnel timeline (activity log + notifications + payments in one chronological view); linked opportunities, proposals, and bookings on the detail page.
@@ -135,6 +139,7 @@ Capability helpers: `seesAllData`, `canManageTeam`, `canAssignAdmin`, `canManage
 - **Flights (Duffel)** — airport autocomplete, one-way/round-trip, flight codes, connecting airports; falls back to sample data.
 - **Hotels (Hotelbeds)** — Booking.com-style search/results/details, dynamic occupancy pricing, filters, room photos, add-to-proposal/booking; content cache serves real photos quota-free.
 - **Hotel module** (`/hotels`) — full search bar with dynamic occupancy (rooms/adults/children + per-child ages), filter sidebar, sort + pagination + compare, details page with gallery/facilities/map.
+- **Search by hotel name** — optional free-text hotel-name field resolves matching hotels via the Hotelbeds Content API (`searchHotelbedsHotelsByName`), then prices them live; falls back to estimated rates.
 - **AI assistant** (`/assistant`) — chat with agency-scoped tools: find clients, bookings summary, create booking, search flights/hotels.
 
 ### AI inline features
@@ -167,6 +172,7 @@ Capability helpers: `seesAllData`, `canManageTeam`, `canAssignAdmin`, `canManage
 `products` (+ `new`, `[id]`, `[id]/edit`),
 `suppliers` (+ `new`, `[id]`, `[id]/edit`) (canManageTeam),
 `operations` (Pipeline board),
+`reports` (canViewFinance — BI export hub),
 `search`, `hotels` (+ `[code]` details), `assistant`,
 `team` (canManageTeam), `billing` (admin-only), `settings`, `profile`.
 
@@ -187,6 +193,7 @@ Capability helpers: `seesAllData`, `canManageTeam`, `canAssignAdmin`, `canManage
 `booking-docs/[id]/voucher`, `booking-docs/[id]/invoice`.
 
 **API:** `api/auth/[...all]` (Better Auth), `api/chat` (AI assistant),
+`api/export/[entity]` (BI export: CSV/XLSX per dataset + `workbook` = all sheets),
 `api/stripe/webhook` (subscription reconciliation),
 `api/stripe/connect-webhook` (Connect payment reconciliation),
 `api/portal/auth/request` · `verify` · `signout` (portal magic-link flow).
@@ -204,11 +211,11 @@ Capability helpers: `seesAllData`, `canManageTeam`, `canAssignAdmin`, `canManage
 | `user` | agencyId (nullable) | + `isPlatformAdmin`, `role`, `active`, `locale`, `commissionRatePercent` (Better Auth) |
 | `session`, `account`, `verification` | via user | Better Auth |
 | `portal_session` | via client | passwordless client portal sessions; token + expiresAt |
-| `client` | agencyId | + `client_contact` (child) |
-| `opportunity` | agencyId | pipeline stage, value, currency |
+| `client` | agencyId | + `client_contact` (child); `source` (lead-source code), `industry` (code), country stored as canonical ISO name |
+| `opportunity` | agencyId | pipeline stage, value, currency; `travel_purpose` code; `lost_reason` code |
 | `product` | agencyId | proposal; ref unique per agency; + `product_item` (child; `supplierId` FK optional); **e-sign**: shareToken (unique), acceptedAt/declinedAt, signerName/Email, signatureData, signerIp/UserAgent |
-| `booking` | agencyId | ref unique per agency; shareToken |
-| `booking_traveller`, `booking_item` (+ `supplierId` FK), `payment`, `booking_day` | via booking | children |
+| `booking` | agencyId | ref unique per agency; shareToken; `travel_purpose` + `trip_type` codes |
+| `booking_traveller` (+ `title`, `gender` codes), `booking_item` (+ `supplierId` FK), `payment`, `booking_day` | via booking | children |
 | `notification` | agencyId | comms log |
 | `activity_log` | agencyId | audit trail |
 | `supplier` | agencyId | managed supplier directory (hotels, airlines, DMC, etc.) |
@@ -232,6 +239,7 @@ Capability helpers: `seesAllData`, `canManageTeam`, `canAssignAdmin`, `canManage
 | `0014` | `supplier`, `supplier_contract`, `supplier_rate` tables; `supplierId` FK on `booking_item` + `product_item` |
 | `0015` | `commission` table; `user.commissionRatePercent` |
 | `0016` | `agency.onboardingDismissedAt` |
+| `0017` | Controlled-vocab columns: `client.industry`, `opportunity.travel_purpose`, `booking.travel_purpose`/`trip_type`, `booking_traveller.title`/`gender` (all nullable, additive) |
 
 Workflow: `db:generate` → `db:migrate` (**never** `db:push`).
 Run on prod: `POSTGRES_URL=<prod-url> npx drizzle-kit migrate`.
@@ -241,7 +249,10 @@ Run on prod: `POSTGRES_URL=<prod-url> npx drizzle-kit migrate`.
 ## Key modules
 
 **`src/lib/`**
-- `domain.ts` — roles, capabilities, enums (statuses, stages, item types, currencies), `roleHome`, status/role metadata.
+- `domain.ts` — roles, capabilities, enums (statuses, stages, item types, currencies + Phase 2 controlled vocabularies: lead source, travel purpose, trip type, gender, title, lost reason, industry), `roleHome`, status/role metadata.
+- `analytics.ts` — pure dashboard helpers: `sumByCurrency`, `monthlyBuckets`, `topN`/`countBy`, `conversionRate`, `growthPct`, `agingBuckets` (currency-safe, DZD headline).
+- `reference/countries.ts` — ISO 3166-1 list (name, demonym, derived flag) + `normalizeCountry()` alias mapping.
+- `export/` — `csv.ts` (RFC-4180 + UTF-8 BOM), `xlsx.ts` (exceljs workbook), `datasets.ts` (BI dataset registry with dual code/label columns).
 - `permissions.ts` — auth guards + impersonation resolution.
 - `auth.ts` / `auth-client.ts` — Better Auth config + client.
 - `invites.ts` — create/find/accept invite tokens (7-day TTL).
@@ -260,7 +271,7 @@ Run on prod: `POSTGRES_URL=<prod-url> npx drizzle-kit migrate`.
 
 **`src/i18n/`** — `config.ts` (locales, metadata, dir), `request.ts` (next-intl request config reading the `locale` cookie). Messages: `messages/{en,fr,ar}.json`.
 
-**`src/components/`** — `app/` (shell, page-header, stat-card, status-badge, getting-started-card), `charts/`, `settings/`, `team/`, `platform/`, `auth/`, `bookings/` (incl. lifecycle stepper, search sheet, board), `clients/` (incl. portal invite, timeline), `products/` (incl. convert-to-booking, AI quote builder), `opportunities/`, `billing/`, `commissions/`, `suppliers/`, `portal/`, `search/`, `documents/`, `ui/` (shadcn).
+**`src/components/`** — `app/` (shell, page-header, stat-card, status-badge, getting-started-card), `charts/` (insight-charts incl. `HBarInsight`, `FunnelInsight`), `reference/` (country-combobox, city-input), `reports/` (reports-export), `settings/`, `team/`, `platform/`, `auth/`, `bookings/` (incl. lifecycle stepper, search sheet, board), `clients/` (incl. portal invite, timeline), `products/` (incl. convert-to-booking, AI quote builder), `opportunities/`, `billing/`, `commissions/`, `suppliers/`, `portal/`, `search/`, `documents/`, `ui/` (shadcn).
 
 ---
 
@@ -307,6 +318,9 @@ npx tsx --env-file=.env scripts/seed-demo-data.ts
 
 # Cross-tenant isolation test (seeds 2 agencies, asserts no leak, cleans up)
 npx tsx --env-file=.env scripts/test-tenant-isolation.ts
+
+# Normalize legacy free-text country values to canonical ISO names
+npx tsx --env-file=.env scripts/backfill-countries.ts
 
 # Sync Hotelbeds hotel content (photos/facilities/coords) into the cache table.
 npx tsx --env-file=.env scripts/sync-hotel-content.ts            # curated destinations
@@ -361,6 +375,9 @@ AI itinerary generation · AI quote builder · AI email drafting · AI visa assi
 **UX overhaul ✅ COMPLETE** (20 changes across 4 size categories)
 Getting-started checklist · Lifecycle stepper · Board view toggle · Inline search · Portal invite · Convert proposal→booking · Client funnel timeline · Booking hard guards · Vocabulary pass · Role nav tooltips · Empty-state badges.
 
+**Data quality & BI ✅ COMPLETE** (4 phases)
+DZD-only currency (no FX) · **P1** richer analytics (revenue/conversion/pipeline funnel/AR aging/margin) · **P2** controlled-vocabulary enums (7 fields, codes+labels) · **P3** ISO country/nationality reference data + city suggestions · **P4** standardized CSV/Excel export (`/reports`, dual code+label columns). Hotel search-by-name added.
+
 ### Open items
 
 1. **Real supplier booking** — Duffel orders + Hotelbeds book API (currently search-only).
@@ -375,6 +392,12 @@ Getting-started checklist · Lifecycle stepper · Board view toggle · Inline se
 
 | Commit | Summary |
 |---|---|
+| `a6def26` | Phase 4: standardized BI data export (CSV + Excel) at `/reports` |
+| `148d1fb` | Phase 3: country/nationality reference data + city suggestions |
+| `e09289f` | Phase 2: controlled vocabularies (enums) for cleaner reporting |
+| `0f6840f` | Phase 1 analytics: revenue/conversion/pipeline insights (DZD) |
+| `bf71024` | Enrich demo seed: 100 clients, suppliers, commissions, notifications (DZD) |
+| `0b5de21` | Restrict currencies to DZD/EUR/USD, default DZD; add hotel name search |
 | `441fd6e` | UX large: persistent onboarding (DB), client timeline, booking hard guards |
 | `284d00e` | UX medium: lifecycle stepper, board view, inline search, getting-started card |
 | `805dbc8` | UX small: portal invite, convert proposal→booking, client funnel view, share consolidation |
@@ -390,4 +413,4 @@ Getting-started checklist · Lifecycle stepper · Board view toggle · Inline se
 | `1896596` | Per-role workspaces (Finance + Support) + role-based landing/nav |
 | `9e8fb4b` | Multi-tenant architecture + vendor platform console |
 
-Migrations: 16 (latest `0016`). Dev DB: `ep-dawn-voice-ai8d6q3o`. Prod DB: `ep-misty-thunder-aixz34vy`.
+Migrations: 17 (latest `0017`). Dev DB: `ep-dawn-voice-ai8d6q3o`. Prod DB: `ep-misty-thunder-aixz34vy`.
