@@ -128,7 +128,7 @@ Status: ✅ done · 🟡 partial · 🔴 not started
 | Automation triggers (welcome email, won→proposal, accepted→booking, confirmed→invoice, completed→review) | [business-rules](business-rules.md#automation-triggers) | 🟡 | Only commission auto-gen on confirm/ticket fires; rest manual/on-demand. |
 | AI mutation behind a hard confirm step | [ai](ai.md#ai-must-never) | 🔴 | `createBooking` is intent-gated by prompt only, not an enforced confirm gate. |
 | Performance instrumentation vs budgets | [ui-ux](ui-ux.md#performance-budgets) | 🔴 | Budgets defined; nothing measured. |
-| Real supplier booking (Duffel orders, Hotelbeds book) | [api-integrations](api-integrations.md) | 🔴 | Search-only today (also open item #1 above). |
+| Real supplier booking (Duffel orders, Hotelbeds book) | [api-integrations](api-integrations.md) | ✅ | Architecture complete (Sprint 1 + 2). Activate with production credentials (see open item #1). |
 | Cross-device locale sync | [architecture](architecture.md#internationalization) | 🔴 | English until re-pick on a fresh device (also open item #3 above). |
 | Rate limiting (auth + API) | [security](security.md#security-controls) | 🔴 | No throttling anywhere. |
 | GDPR subject export/erasure + consent | [security](security.md#security-controls) | 🔴 | No flow; erasure also blocked by missing soft delete. |
@@ -142,6 +142,7 @@ Status: ✅ done · 🟡 partial · 🔴 not started
 
 | Commit | Summary |
 |---|---|
+| `00c6885` | Sprint 2 Waves 1–4: Travel Platform facade — ContentCapable, AutocompleteCapable, `src/lib/travel-platform/index.ts`, consumer migration |
 | `b7eab1b` | Sprint 1 Wave 3: booking-service — quote→book lifecycle, idempotency, event log, supplier ref |
 | `cc65ce1` | Sprint 1 Wave 2: DuffelBookingProvider, HotelbedsBookingProvider, MockBookingProvider, registry wiring |
 | `bb571d2` | Sprint 1 Wave 1: booking_supplier_ref/event/document/idempotency schema + config module (migration 0019) |

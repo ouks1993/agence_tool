@@ -259,10 +259,32 @@ Sets `agency.onboardingDismissedAt` to close the getting-started card.
 
 ## search.ts
 
-### `searchFlights(params)` / `searchHotels(params)`
-Calls `safeSearch()` from `src/lib/suppliers/index.ts`. Returns offers
-or mock data on provider failure. No mutation; safe to call from Server
-Components or actions.
+### `searchAirportsAction(query)`
+Routes through the Travel Platform facade (`src/lib/travel-platform`).
+Uses the registry's `AutocompleteCapable` provider (Duffel when configured);
+falls back to a built-in airport list in dev.
+
+### `searchHotelDestinationsAction(query)`
+Filters the static `HOTEL_DESTINATIONS` list (no provider call).
+
+### `searchFlightsAction(params)`
+Delegates to `searchFlights(params, ctx)` from the Travel Platform facade.
+Returns `{ ok, results, source, degraded }`. Degrades to mock on provider error.
+
+### `searchHotelsAction(params)`
+Delegates to `searchHotels(params, ctx)` from the Travel Platform facade, which
+handles three paths internally: name-search (ContentCapable), availability search
+(HotelSearchCapable + thumbnail enrichment), and content fallback (DB cache →
+ContentCapable with city query). Returns `{ ok, results, source, degraded, estimatedPricing }`.
+
+### `getHotelDetailsAction(code)`
+Loads rich content (photos, description, address) for one hotel via
+`getHotelContentCached` — DB content cache, quota-free.
+
+### `searchHotelRoomsAction(params)`
+Re-prices every room of one hotel for a specific occupancy + date range.
+Calls `getHotelbedsRates` when Hotelbeds is configured; falls back to
+`mockHotelRates`. Returns `{ ok, rooms: HotelRoomRate[], degraded }`.
 
 ---
 
