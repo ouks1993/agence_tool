@@ -5,6 +5,52 @@ when its keys are unset, so the app runs end-to-end with only `POSTGRES_URL` +
 `BETTER_AUTH_SECRET`. Env vars are summarized in
 [development-guide.md](development-guide.md).
 
+## Provider architecture
+
+Booking providers plug into **one abstraction** so adding Hotelbeds, Amadeus,
+TravelgateX, Booking.com, or Expedia never touches calling code. Interfaces +
+registry live in `src/lib/suppliers/providers/` (architecture only — **no provider
+adapters implemented yet**).
+
+- **Capability-segmented interfaces** (`types.ts`) — a provider implements only
+  what it offers: `HotelSearchCapable`, `HotelBookingCapable`,
+  `FlightSearchCapable`, `FlightBookingCapable`, `CancelCapable`. A hotels-only
+  aggregator implements the hotel interfaces and nothing else (no empty stubs).
+- **Full booking lifecycle** — `search → quote (re-validate price/rate) → book
+  (idempotent) → cancel`. Real bedbank/GDS rates expire, so `quoteHotel`/
+  `quoteFlight` re-price immediately before `book*`; book requests carry an
+  `idempotencyKey` so replays never double-book.
+- **Normalized errors** — every provider throws `ProviderError` with a stable
+  `code` (`rate_expired`, `sold_out`, `rate_limited`, `provider_unavailable`, …)
+  and a `retryable` flag, so callers branch on the code, not provider strings.
+- **Tenant-aware context** — every call takes a `ProviderContext`
+  (`agencyId`, currency, locale, correlationId, abort signal); providers never
+  read globals.
+- **Registry** (`registry.ts`) — adapters `register()` themselves at startup;
+  callers resolve by vertical + capability + priority
+  (`providerRegistry.pick("hotels", "search")`) with capability type-guards
+  (`canSearchHotels`, `canBookFlights`, …). Replaces the hardcoded
+  `getFlightSupplier()/getHotelSupplier()` if/else.
+- **Provider catalog** (`PROVIDER_CATALOG`) — one logic-free source of truth for
+  which providers exist, their verticals/capabilities, env vars, and status
+  (`live` / `legacy` / `planned`):
+
+| Provider | Verticals | Status |
+|---|---|---|
+| Mock | flights + hotels | live |
+| Duffel | flights | live |
+| Amadeus | flights (+ hotels) | legacy |
+| Hotelbeds | hotels | live |
+| TravelgateX | hotels + flights | planned |
+| Booking.com | hotels | planned |
+| Expedia (Rapid) | hotels | planned |
+
+**Migration path:** the current `SupplierProvider` (search-only, both-verticals)
+keeps working; new adapters implement these interfaces and register into the
+registry, then `getFlightSupplier`/`getHotelSupplier` delegate to
+`providerRegistry.pick(...)`. Real booking (Open item #1) lands provider-by-
+provider against `quote`/`book`/`cancel` without further interface changes.
+
 ## Flights — Duffel
 
 - `src/lib/suppliers/duffel.ts`, behind `getFlightSupplier()` + `safeSearch()`.
