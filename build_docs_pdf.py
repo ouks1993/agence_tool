@@ -20,8 +20,14 @@ CORE = [
     "docs/tech-stack.md",
     "docs/architecture.md",
     "docs/domain.md",
+    # Database & schema
     "docs/database.md",
+    "docs/schema-reference.md",
+    # API integrations & booking architecture
     "docs/api-integrations.md",
+    "docs/booking-architecture.md",
+    # Developer reference
+    "docs/server-actions.md",
     "docs/development-guide.md",
     "docs/coding-standards.md",
     "docs/ui-ux.md",
@@ -50,10 +56,17 @@ AUDITS = [
     "docs/cto-review.md",
 ]
 
+# ── Architecture decision records ───────────────────────────────────────────
+DECISIONS = sorted(
+    str(p.relative_to(ROOT))
+    for p in ROOT.glob("docs/decisions/*.md")
+    if not p.name.startswith("_")
+)
+
 # ── Specs ───────────────────────────────────────────────────────────────────
 SPECS = sorted(str(p.relative_to(ROOT)) for p in ROOT.glob("specs/**/*.md"))
 
-ORDER = CORE + ROOT_DOCS + AUDITS + SPECS
+ORDER = CORE + ROOT_DOCS + AUDITS + DECISIONS + SPECS
 
 # Keep only files that actually exist
 ORDER = [f for f in ORDER if (ROOT / f).exists()]
@@ -98,7 +111,8 @@ title_md = (
     "".join(f"- {f}\n" for f in ROOT_DOCS if (ROOT / f).exists()) +
     "\n**Part 3 — Audits & Reviews**\n\n" +
     "".join(f"- {f}\n" for f in AUDITS if (ROOT / f).exists()) +
-    ("\n**Part 4 — Specs**\n\n" + "".join(f"- {f}\n" for f in SPECS if (ROOT / f).exists()) if SPECS else "")
+    ("\n**Part 4 — Architecture Decision Records**\n\n" + "".join(f"- {f}\n" for f in DECISIONS if (ROOT / f).exists()) if DECISIONS else "") +
+    ("\n**Part 5 — Specs**\n\n" + "".join(f"- {f}\n" for f in SPECS if (ROOT / f).exists()) if SPECS else "")
 )
 pdf.add_section(Section(title_md, toc=False), user_css=CSS)
 
