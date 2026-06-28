@@ -49,6 +49,7 @@ export default async function FlightsSourcingPage() {
         clients={clients}
         supplierLabel={supplierLabel}
         defaultTab="flights"
+        verticals={["flights"]}
       />
     </div>
   );

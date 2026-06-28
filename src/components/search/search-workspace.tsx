@@ -32,6 +32,7 @@ export function SearchWorkspace({
   defaultBookingId,
   defaultDestination,
   defaultTab = "flights",
+  verticals,
 }: {
   bookings: BookingOption[];
   clients: ClientOption[];
@@ -39,24 +40,33 @@ export function SearchWorkspace({
   defaultBookingId?: string | undefined;
   defaultDestination?: string | undefined;
   defaultTab?: Tab;
+  /** Restrict which vertical tabs are shown. Omit for both (default). */
+  verticals?: Tab[];
 }) {
   const [tab, setTab] = useState<Tab>(defaultTab);
+  const showFlights = !verticals || verticals.includes("flights");
+  const showHotels  = !verticals || verticals.includes("hotels");
+  const showTabs    = showFlights && showHotels;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
-        <TabButton active={tab === "flights"} onClick={() => setTab("flights")} icon={Plane}>
-          Flights
-        </TabButton>
-        <TabButton active={tab === "hotels"} onClick={() => setTab("hotels")} icon={BedDouble}>
-          Hotels
-        </TabButton>
+        {showTabs && (
+          <>
+            <TabButton active={tab === "flights"} onClick={() => setTab("flights")} icon={Plane}>
+              Flights
+            </TabButton>
+            <TabButton active={tab === "hotels"} onClick={() => setTab("hotels")} icon={BedDouble}>
+              Hotels
+            </TabButton>
+          </>
+        )}
         <span className="text-muted-foreground ml-auto text-xs">
           Source: {supplierLabel}
         </span>
       </div>
 
-      {tab === "flights" ? (
+      {(tab === "flights" && showFlights) ? (
         <FlightSearch
           bookings={bookings}
           clients={clients}
