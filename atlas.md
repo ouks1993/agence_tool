@@ -1,4 +1,4 @@
-# Atlas — Complete Reference
+# Atlas — Documentation Index
 
 Atlas is a **multi-tenant SaaS for travel agencies**. Each agency runs its
 clients, sales pipeline, proposals, bookings and finance in a fully isolated
@@ -10,8 +10,9 @@ workspace; the vendor manages every agency from a platform console. Multilingual
 - **Vendor console:** https://agencetool.vercel.app/platform
 
 This is the reference index. The detailed reference is split into focused docs
-under [`docs/atlas/`](docs/atlas/). See also `PROJECT.md` (short handbook),
-`DESIGN.md` (design system), `AGENTS.md`/`CLAUDE.md` (working conventions).
+under [`docs/`](docs/). See also `DESIGN.md` (design system) and
+`AGENTS.md`/`CLAUDE.md` (working conventions) — those remain the source of truth
+for UI and coding conventions respectively.
 
 ---
 
@@ -19,15 +20,20 @@ under [`docs/atlas/`](docs/atlas/). See also `PROJECT.md` (short handbook),
 
 | Doc | Covers |
 |---|---|
-| [Architecture](docs/atlas/architecture.md) | Tech stack · multi-tenancy · auth & onboarding · platform admin · impersonation · per-role landing · roles & permissions |
-| [Features](docs/atlas/features.md) | Full feature catalogue (RBAC, bookings, CRM, proposals, billing, travel sourcing, hotel module, AI, i18n) |
-| [Routes](docs/atlas/routes.md) | App / platform / auth / public / API route map |
-| [Database](docs/atlas/database.md) | Schema tables, tenancy columns, migrations |
-| [Key modules](docs/atlas/modules.md) | `src/lib`, server actions, i18n, components layout |
-| [Internationalization](docs/atlas/i18n.md) | Locales, RTL, how to translate a string |
-| [Local development](docs/atlas/development.md) | Setup, env vars, dev/build commands, maintenance scripts |
-| [Operations](docs/atlas/operations.md) | Deployment (Vercel) + demo accounts & demo flow |
-| [Roadmap & changelog](docs/atlas/roadmap.md) | Phase status, open items, commit changelog |
+| [Vision](docs/vision.md) | What Atlas is, who it's for, operating model, features at a glance |
+| [Architecture](docs/architecture.md) | Multi-tenancy · auth · platform admin · impersonation · roles · route map · module layout · i18n |
+| [Tech stack](docs/tech-stack.md) | Framework, libraries, services |
+| [Database](docs/database.md) | Schema tables, tenancy columns, migrations, ID convention |
+| [API integrations](docs/api-integrations.md) | Duffel · Hotelbeds · Stripe (billing + Connect) · Resend · OpenRouter · Blob |
+| [Development guide](docs/development-guide.md) | Setup, env vars, commands, scripts, DB workflow |
+| [Coding standards](docs/coding-standards.md) | → points to `AGENTS.md`; conventions summary |
+| [UI / UX](docs/ui-ux.md) | → points to `DESIGN.md`; product UX patterns |
+| [Business rules](docs/business-rules.md) | RBAC, currency, booking lifecycle, commissions, vocabularies |
+| [Deployment](docs/deployment.md) | Vercel, env, prod migrations, demo accounts |
+| [Roadmap & changelog](docs/roadmap.md) | Phase status, open items, commit changelog |
+| [Security](docs/security.md) | Tenant isolation, auth, guards, webhooks, DB safety, known risks |
+| [Analytics & BI](docs/analytics.md) | Dashboards, currency-safe metrics, CSV/Excel export |
+| [AI](docs/ai.md) | Assistant + inline AI features |
 
 ---
 
@@ -45,6 +51,6 @@ under [`docs/atlas/`](docs/atlas/). See also `PROJECT.md` (short handbook),
 - **DBs:** dev `ep-dawn-voice-ai8d6q3o` · prod `ep-misty-thunder-aixz34vy`.
   Run `POSTGRES_URL=<prod-url> npx drizzle-kit migrate` after each schema change.
 
-Phases 1–3 complete. Multi-tenant SaaS with live travel sourcing, billing,
-client portal, supplier/commission management, and inline AI features.
-Migrations: 16 (latest `0016`).
+Phases 1–3 + UX + Data-quality/BI complete. Multi-tenant SaaS with live travel
+sourcing, billing, client portal, supplier/commission management, and inline AI
+features. Migrations: 17 (latest `0017`).
