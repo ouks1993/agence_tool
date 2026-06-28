@@ -4,6 +4,30 @@ Schema lives in `src/lib/schema.ts`. PostgreSQL (Neon) + Drizzle ORM. Tenancy
 column shown where present; see [architecture.md](architecture.md#multi-tenancy)
 and [security.md](security.md) for how scoping is enforced.
 
+## Entity standard
+
+Every business entity should carry this baseline. It operationalizes the
+[never rules](business-rules.md#never-rules-hard-constraints) (one source of
+truth, no hard delete, no cross-tenant exposure) at the schema level.
+
+| Field | Purpose | Current state |
+|---|---|---|
+| **UUID** | Primary key, randomly generated (non-Better-Auth IDs) | ✅ convention in place |
+| **Reference** | Human-facing id unique per agency (`BKG-…`, `PRD-…`) | ⚠️ only `booking` + `product` today |
+| **createdAt** | Creation timestamp | ✅ widespread |
+| **updatedAt** | Last-modified timestamp | ⚠️ on roots, missing on some children |
+| **createdBy** | `createdById` → user | ✅ on main entities |
+| **agencyId** | Tenant scope (root) or inherited (child) | ✅ enforced everywhere |
+| **Status** | Lifecycle/state enum | ⚠️ per-entity, not universal |
+| **Activity log** | Audit trail of changes | ⚠️ shared `activity_log` table, not wired for every entity |
+| **Soft delete** | `deletedAt` — never hard delete | ❌ **no soft-delete column exists yet** |
+| **Notes** | Free-form internal notes | ⚠️ only some entities |
+
+> **Gap to close:** soft delete is **not implemented** — there is no `deletedAt`
+> anywhere, so the "never hard delete" rule is currently aspirational. Adding a
+> nullable `deletedAt` + filtering it out of reads (and a `reference` on the
+> remaining entities) would need a migration. Until then, deletes are real.
+
 ## Tables
 
 | Table | Tenancy | Notes |
