@@ -44,6 +44,42 @@ search-by-name added. See [analytics.md](analytics.md).
 7. **Convert proposal to booking guard** — add `convertedBookingId` column (needs
    migration).
 
+## Planned modules
+
+The longer-horizon module backlog, grouped. Some already have partial foundations
+(noted) — the rest are net-new.
+
+**Accounting**
+- Accounting · General Ledger · Payroll — net-new finance suite.
+- Invoices — ⚠️ on-demand invoice PDFs exist today; this is the move to managed,
+  numbered, ledgered invoices.
+
+**Marketing**
+- Marketing · Email campaigns — net-new (transactional email via Resend exists;
+  campaigns do not).
+- WhatsApp — ⚠️ adapter skeleton ready (open item #4); needs a Meta Business account.
+- SMS — net-new channel adapter.
+
+**Documents**
+- Document management — net-new (today: PDF generation + Vercel Blob uploads for
+  supplier contracts).
+
+**Travel products**
+- eVisa · Visa tracking — ⚠️ an AI visa assistant exists; these add structured
+  application + tracking.
+- Insurance — ⚠️ exists as a trip-service item type; this is a managed insurance
+  product/flow.
+- Vehicle rental · Cruises — net-new verticals (alongside flights/hotels).
+- Package builder — net-new (bundle multi-service trips).
+
+**Ecosystem**
+- Supplier portal — net-new (suppliers self-serve, parallel to the client portal).
+- Customer loyalty · Affiliate program — net-new growth modules.
+- API marketplace — net-new (expose/consume third-party integrations).
+
+> These are directional, not scheduled. Phase status and the active gap list are
+> above; this is the "what's next after the core is hardened" backlog.
+
 ## Spec vs. reality gap tracker
 
 The design system (principles, never-rules, page/table/entity standards, AI
