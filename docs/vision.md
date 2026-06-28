@@ -1,21 +1,30 @@
 # Vision
 
-Atlas is a **multi-tenant SaaS for travel agencies**. Each agency runs its
-clients, sales pipeline, proposals, bookings and finance in a fully isolated
-workspace; the vendor manages every agency from a platform console. Multilingual
-(EN/FR/AR with RTL), deployed on Vercel with GitHub auto-deploy.
+**Atlas exists to become the operating system of travel agencies.**
 
-- **Live:** https://agencetool.vercel.app
-- **Repo:** github.com/ouks1993/agence_tool
-- **Vendor console:** https://agencetool.vercel.app/platform
+Today an agency runs on a patchwork of tools:
 
-## Who it's for
+- Excel
+- WhatsApp
+- Email
+- Booking portals
+- Accounting software
 
-A travel agency that books trips for clients and needs one tool to run the whole
-lifecycle: capture leads, build and e-sign proposals, source flights/hotels,
-manage bookings and travellers, take payments, and track commissions — without
-juggling spreadsheets. The vendor (platform operator) sells the tool to many
-agencies and bills them by subscription.
+Everything should happen inside Atlas instead — **one workspace**.
+
+## Long-term goals
+
+- CRM
+- Sales
+- Quotations
+- Flight booking
+- Hotel booking
+- Supplier management
+- Accounting
+- Customer portal
+- AI assistant
+- BI
+- Automation
 
 ## Operating model
 
@@ -23,6 +32,9 @@ agencies and bills them by subscription.
   agencies never see each other's data. Reference numbers (`BKG-…`, `PRD-…`) are
   unique per agency. See [architecture.md](architecture.md) and
   [security.md](security.md).
+- **Vendor + tenants.** The vendor (platform operator) sells Atlas to many
+  agencies and bills them by subscription, managing all of them from a platform
+  console. Each agency is a fully isolated tenant.
 - **DZD-first, no FX.** The agency operates in Algerian Dinar. EUR/USD are
   supported for source data but Atlas never converts between currencies —
   analytics group by currency rather than summing across. See
@@ -32,26 +44,35 @@ agencies and bills them by subscription.
   the app runs end-to-end with only a database and an auth secret. See
   [api-integrations.md](api-integrations.md).
 
-## Features at a glance
+## Where it is today
 
-- **Core platform** — multi-tenancy, 5-role RBAC, invitation-only onboarding,
-  vendor platform console, impersonation, per-role workspaces.
-- **CRM & pipeline** — clients with contacts and a unified funnel timeline,
-  opportunities, proposals with PDF + e-signature, one-click convert→booking.
-- **Bookings** — full lifecycle with a visual stepper, trip services, travellers,
-  payments, itinerary, vouchers/invoices, list/board toggle.
+Atlas is a deployed, multi-tenant SaaS — multilingual (EN/FR/AR with RTL), live on
+Vercel with GitHub auto-deploy.
+
+- **Live:** https://agencetool.vercel.app
+- **Repo:** github.com/ouks1993/agence_tool
+- **Vendor console:** https://agencetool.vercel.app/platform
+
+Shipped against the long-term goals:
+
+- **CRM** — clients with contacts and a unified funnel timeline.
+- **Sales** — opportunities, pipeline stages, conversion analytics.
+- **Quotations** — proposals with PDF + e-signature, one-click convert→booking,
+  AI quote builder.
+- **Flight booking** — live Duffel search (real order placement is pending).
+- **Hotel booking** — live Hotelbeds search + content cache (real booking pending).
 - **Supplier management** — directory, contracts & rates, supplier picker.
-- **Commissions** — two-ledger tracking, auto-generated on confirm/ticket.
-- **Client portal** — magic-link login, trip view, online payments, proposal
+- **Customer portal** — magic-link login, trip view, online payments, proposal
   signing.
-- **Travel sourcing** — live flights (Duffel) and hotels (Hotelbeds), AI assistant.
-- **AI inline features** — itinerary generation, quote builder, email drafting,
-  visa assistant. See [ai.md](ai.md).
-- **Analytics & BI** — decision dashboards + standardized CSV/Excel export. See
+- **AI assistant** — agency-scoped chat + inline itinerary/quote/email/visa
+  features. See [ai.md](ai.md).
+- **BI** — decision dashboards + standardized CSV/Excel export. See
   [analytics.md](analytics.md).
-- **SaaS billing** — Stripe subscriptions (vendor→agency) + Stripe Connect
-  (traveler→agency).
-- **i18n** — English / French / Arabic with full RTL.
+- **Accounting** — partial: payments, two-ledger commissions, AR aging. Full
+  accounting is a long-term goal.
+- **Automation** — early: auto-generated commissions, lifecycle guards. Broader
+  automation (e.g. quote-on-stage-change, WhatsApp) is on the
+  [roadmap](roadmap.md).
 
 See [roadmap.md](roadmap.md) for phase status and open items, and the
 [index](../atlas.md) for the full documentation map.
