@@ -35,3 +35,26 @@
 
 - Always follow the UI design system when creating or reviewing components or pages.
 - Design System: @DESIGN.md
+
+## PRE-COMMIT DOCUMENTATION RULE
+
+Before every commit, you MUST:
+
+1. **Review all modified files** — understand the full scope of what changed.
+2. **Update affected documentation** — if the change touches behaviour, architecture,
+   business rules, APIs, DB schema, UI patterns, or config, update the relevant
+   file(s) in `docs/`, `atlas.md`, `DESIGN.md`, or `AGENTS.md` to stay in sync.
+3. **Ensure no contradictions** — the docs must not describe something that the code
+   no longer does. If they conflict, fix the docs before committing.
+4. **Record architectural/business decisions** — if the change introduces a new
+   architectural pattern, a significant tech choice, or a business-rule change,
+   create a record under `docs/decisions/` using the template at
+   `docs/decisions/_template.md`.
+5. **Summarize doc updates in the commit message** — include a "Docs:" line listing
+   which documentation files were updated and why.
+
+Example commit message footer:
+```
+Docs: updated docs/business-rules.md (new booking prerequisite),
+      docs/decisions/0001-soft-delete-strategy.md (new decision record)
+```
