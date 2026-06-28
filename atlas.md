@@ -52,7 +52,7 @@ for UI and coding conventions respectively.
 - **Roles:** admin · manager · finance · support · agent — each with a tailored
   landing and nav.
 - **Deploy:** push to `main` → Vercel auto-deploys production.
-- **DB:** prod `ep-misty-thunder-aixz34vy` (single branch; create a Neon child branch for dev).
+- **DBs:** dev `ep-wandering-sunset-aitlty78` · prod `ep-misty-thunder-aixz34vy`.
   Run `POSTGRES_URL=<prod-url> npx drizzle-kit migrate` after each schema change.
 
 Phases 1–3 + UX + Data-quality/BI complete. Multi-tenant SaaS with live travel

@@ -82,5 +82,5 @@ db:generate   →   db:migrate     # NEVER db:push
 ```
 
 Run on prod after deploy: `POSTGRES_URL=<prod-url> npx drizzle-kit migrate`.
-Branch: prod `ep-misty-thunder-aixz34vy` (dev branch removed; create a Neon child branch for local development).
+Branches: dev `ep-wandering-sunset-aitlty78` · prod `ep-misty-thunder-aixz34vy`.
 Full setup in [development-guide.md](development-guide.md).
