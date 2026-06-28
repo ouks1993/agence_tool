@@ -46,7 +46,7 @@ export default async function ProductsPage() {
         description="Travel packages and quotes assembled for your clients."
       >
         <Button asChild>
-          <Link href="/products/new">
+          <Link href="/proposals/new">
             <Plus className="mr-2 size-4" />
             New proposal
           </Link>
@@ -60,7 +60,7 @@ export default async function ProductsPage() {
           description="Build a proposal from search results, or start one from scratch."
           action={
             <Button asChild>
-              <Link href="/products/new">
+              <Link href="/proposals/new">
                 <Plus className="mr-2 size-4" />
                 New proposal
               </Link>
@@ -86,12 +86,12 @@ export default async function ProductsPage() {
                 return (
                   <TableRow key={p.id}>
                     <TableCell className="text-muted-foreground font-mono text-xs">
-                      <Link href={`/products/${p.id}`} className="hover:underline">
+                      <Link href={`/proposals/${p.id}`} className="hover:underline">
                         {p.reference}
                       </Link>
                     </TableCell>
                     <TableCell>
-                      <Link href={`/products/${p.id}`} className="font-medium hover:underline">
+                      <Link href={`/proposals/${p.id}`} className="font-medium hover:underline">
                         {p.title}
                       </Link>
                     </TableCell>

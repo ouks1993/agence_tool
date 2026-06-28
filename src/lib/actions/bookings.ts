@@ -971,6 +971,6 @@ export async function convertProposalToBooking(
   });
 
   revalidatePath("/bookings");
-  revalidatePath(`/products/${productId}`);
+  revalidatePath(`/proposals/${productId}`); revalidatePath(`/products/${productId}`);
   return { ok: true, data: { id: bookingId } };
 }

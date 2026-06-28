@@ -32,7 +32,7 @@ export default async function EditProductPage({
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6 px-4 py-8 sm:px-6">
       <Button asChild variant="ghost" size="sm" className="-ml-2">
-        <Link href={`/products/${id}`}>
+        <Link href={`/proposals/${id}`}>
           <ArrowLeft className="mr-1 size-4" />
           {p.reference}
         </Link>

@@ -31,14 +31,16 @@ export function SearchWorkspace({
   supplierLabel,
   defaultBookingId,
   defaultDestination,
+  defaultTab = "flights",
 }: {
   bookings: BookingOption[];
   clients: ClientOption[];
   supplierLabel: string;
   defaultBookingId?: string | undefined;
   defaultDestination?: string | undefined;
+  defaultTab?: Tab;
 }) {
-  const [tab, setTab] = useState<Tab>("flights");
+  const [tab, setTab] = useState<Tab>(defaultTab);
 
   return (
     <div className="space-y-6">

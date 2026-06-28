@@ -188,7 +188,7 @@ export default async function DashboardPage() {
             {
               label: "Build a proposal",
               description: "Quote a trip package and share it with your client.",
-              href: "/products/new",
+              href: "/proposals/new",
               done: productCount > 0,
             },
             {

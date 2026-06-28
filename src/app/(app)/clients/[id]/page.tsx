@@ -139,7 +139,7 @@ export default async function ClientDetailPage({
       case "opportunity":
         return `/opportunities/${entityId}`;
       case "product":
-        return `/products/${entityId}`;
+        return `/proposals/${entityId}`;
       case "booking":
         return `/bookings/${entityId}`;
       default:
@@ -326,7 +326,7 @@ export default async function ClientDetailPage({
                     return (
                       <li key={pr.id} className="py-3">
                         <Link
-                          href={`/products/${pr.id}`}
+                          href={`/proposals/${pr.id}`}
                           className="flex items-center justify-between gap-3 hover:underline"
                         >
                           <span className="min-w-0 truncate">

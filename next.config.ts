@@ -39,6 +39,33 @@ const nextConfig: NextConfig = {
   // Enable compression
   compress: true,
 
+  // URL canonicalization: rewrites serve new canonical URLs from existing page
+  // files without moving code. Redirects preserve old bookmarks.
+  async rewrites() {
+    return [
+      // /proposals/* → served by /products/* (canonical URL is /proposals)
+      { source: "/proposals", destination: "/products" },
+      { source: "/proposals/:path*", destination: "/products/:path*" },
+      // /sourcing/hotels/* → served by /hotels/* (canonical URL is /sourcing/hotels)
+      { source: "/sourcing/hotels", destination: "/hotels" },
+      { source: "/sourcing/hotels/:path*", destination: "/hotels/:path*" },
+    ];
+  },
+
+  async redirects() {
+    return [
+      // Old product URLs → canonical /proposals (permanent)
+      { source: "/products", destination: "/proposals", permanent: true },
+      { source: "/products/:path*", destination: "/proposals/:path*", permanent: true },
+      // Old sourcing URLs → canonical new paths (temporary during transition)
+      { source: "/search", destination: "/sourcing/flights", permanent: false },
+      { source: "/hotels", destination: "/sourcing/hotels", permanent: false },
+      { source: "/hotels/:path*", destination: "/sourcing/hotels/:path*", permanent: false },
+      // Operations → Bookings (the board view toggle lives there)
+      { source: "/operations", destination: "/bookings", permanent: false },
+    ];
+  },
+
   // Security headers
   async headers() {
     return [

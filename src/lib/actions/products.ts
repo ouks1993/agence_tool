@@ -177,7 +177,7 @@ export async function createProduct(
     entityLabel: `${reference} · ${d.title}`,
   });
 
-  revalidatePath("/products");
+  revalidatePath("/products"); revalidatePath("/proposals");
   return { ok: true, data: { id: row.id } };
 }
 
@@ -243,8 +243,8 @@ export async function updateProduct(
     entityLabel: `${existing.reference} · ${d.title}`,
   });
 
-  revalidatePath("/products");
-  revalidatePath(`/products/${id}`);
+  revalidatePath("/products"); revalidatePath("/proposals");
+  revalidatePath(`/proposals/${id}`);
   return { ok: true };
 }
 
@@ -273,8 +273,8 @@ export async function setProductStatus(
     metadata: { to: status },
   });
 
-  revalidatePath("/products");
-  revalidatePath(`/products/${id}`);
+  revalidatePath("/products"); revalidatePath("/proposals");
+  revalidatePath(`/proposals/${id}`);
   return { ok: true };
 }
 
@@ -308,8 +308,8 @@ export async function generateProposalLink(
     metadata: { sharedLink: true },
   });
 
-  revalidatePath("/products");
-  revalidatePath(`/products/${id}`);
+  revalidatePath("/products"); revalidatePath("/proposals");
+  revalidatePath(`/proposals/${id}`);
   return { ok: true, data: { token } };
 }
 
@@ -320,7 +320,7 @@ export async function revokeProposalLink(id: string): Promise<ActionResult> {
     .update(product)
     .set({ shareToken: null })
     .where(and(eq(product.id, id), eq(product.agencyId, user.agencyId)));
-  revalidatePath(`/products/${id}`);
+  revalidatePath(`/proposals/${id}`);
   return { ok: true };
 }
 
@@ -347,7 +347,7 @@ export async function deleteProduct(id: string): Promise<ActionResult> {
     entityLabel: `${existing.reference} · ${existing.title}`,
   });
 
-  revalidatePath("/products");
+  revalidatePath("/products"); revalidatePath("/proposals");
   return { ok: true };
 }
 
@@ -405,7 +405,7 @@ export async function addProductItem(
   });
 
   await recalcTotals(productId);
-  revalidatePath(`/products/${productId}`);
+  revalidatePath(`/proposals/${productId}`);
   return { ok: true };
 }
 
@@ -428,7 +428,7 @@ export async function removeProductItem(
   }
   await db.delete(productItem).where(eq(productItem.id, itemId));
   await recalcTotals(item.productId);
-  revalidatePath(`/products/${item.productId}`);
+  revalidatePath(`/proposals/${item.productId}`);
   return { ok: true };
 }
 
@@ -472,6 +472,6 @@ export async function addItemToProposal(input: {
     metadata: { itemAdded: input.item.type },
   });
 
-  revalidatePath(`/products/${productId}`);
+  revalidatePath(`/proposals/${productId}`);
   return { ok: true, data: { productId } };
 }

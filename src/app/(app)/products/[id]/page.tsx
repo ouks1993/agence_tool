@@ -63,7 +63,7 @@ export default async function ProductDetailPage({
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8 sm:px-6">
       <Button asChild variant="ghost" size="sm" className="-ml-2">
-        <Link href="/products">
+        <Link href="/proposals">
           <ArrowLeft className="mr-1 size-4" />
           Proposals
         </Link>
@@ -76,7 +76,7 @@ export default async function ProductDetailPage({
           <ConvertToBookingButton productId={p.id} />
         )}
         <Button asChild variant="outline" size="sm">
-          <Link href={`/products/${p.id}/edit`}>
+          <Link href={`/proposals/${p.id}/edit`}>
             <Pencil className="mr-2 size-4" />
             Edit
           </Link>

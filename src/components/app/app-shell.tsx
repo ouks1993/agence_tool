@@ -8,9 +8,10 @@ import {
   Wallet,
   LifeBuoy,
   Briefcase,
-  ClipboardList,
+  Target,
+  FileText,
   Users,
-  Search,
+  Plane,
   BedDouble,
   Sparkles,
   ShieldCheck,
@@ -43,39 +44,82 @@ import { cn } from "@/lib/utils";
 
 type NavItem = {
   href: string;
-  /** Key into the `nav` translation namespace. */
   labelKey: string;
   icon: React.ComponentType<{ className?: string }>;
-  /** When set, the item is only rendered if the predicate passes for the role. */
   show?: (role: UserRole) => boolean;
 };
 
-const NAV: NavItem[] = [
-  // Dashboard is the home for roles that don't have a dedicated workspace
-  // (admin, manager, agent); finance/support land on their own pages instead.
+type NavSection = {
+  /** Translation key for the section label, or null for unlabeled top section. */
+  labelKey: string | null;
+  items: NavItem[];
+  /** Hide the whole section if predicate returns false. */
+  show?: (role: UserRole) => boolean;
+};
+
+// Navigation follows the golden workflow order:
+//   WORK: the daily client/sales/booking flow
+//   SOURCING: find and price inventory (flights, hotels, ...)
+//   FINANCE: money and reporting (finance-role gated)
+//   TOOLS: AI assistant
+//   ADMIN: team management, billing (manager/admin gated)
+const NAV_SECTIONS: NavSection[] = [
   {
-    href: "/dashboard",
-    labelKey: "dashboard",
-    icon: LayoutDashboard,
-    show: (r) => roleHome(r) === "/dashboard",
+    labelKey: null,
+    items: [
+      {
+        href: "/dashboard",
+        labelKey: "dashboard",
+        icon: LayoutDashboard,
+        show: (r) => roleHome(r) === "/dashboard",
+      },
+      { href: "/support", labelKey: "support", icon: LifeBuoy, show: canViewSupport },
+    ],
   },
-  { href: "/finance", labelKey: "finance", icon: Wallet, show: canViewFinance },
-  { href: "/commissions", labelKey: "commissions", icon: BadgePercent, show: canViewFinance },
-  { href: "/reports", labelKey: "reports", icon: FileBarChart, show: canViewFinance },
-  { href: "/support", labelKey: "support", icon: LifeBuoy, show: canViewSupport },
-  { href: "/bookings", labelKey: "bookings", icon: Briefcase },
-  { href: "/operations", labelKey: "operations", icon: ClipboardList },
-  { href: "/clients", labelKey: "clients", icon: Users },
-  { href: "/search", labelKey: "search", icon: Search },
-  { href: "/hotels", labelKey: "hotels", icon: BedDouble },
-  { href: "/assistant", labelKey: "assistant", icon: Sparkles },
-  { href: "/suppliers", labelKey: "suppliers", icon: Truck, show: canManageTeam },
-  { href: "/team", labelKey: "team", icon: ShieldCheck, show: canManageTeam },
-  // Billing is admin-only (manages the agency's SaaS subscription).
-  { href: "/billing", labelKey: "billing", icon: CreditCard, show: (r) => r === "admin" },
-  // Settings is available to every role.
-  { href: "/settings", labelKey: "settings", icon: Settings },
+  {
+    labelKey: "sectionWork",
+    items: [
+      { href: "/clients",    labelKey: "clients",   icon: Users },
+      { href: "/opportunities", labelKey: "pipeline",  icon: Target },
+      { href: "/proposals",  labelKey: "proposals", icon: FileText },
+      { href: "/bookings",   labelKey: "bookings",  icon: Briefcase },
+    ],
+  },
+  {
+    labelKey: "sectionSourcing",
+    items: [
+      { href: "/sourcing/flights", labelKey: "flights", icon: Plane },
+      { href: "/sourcing/hotels",  labelKey: "hotels",  icon: BedDouble },
+    ],
+  },
+  {
+    labelKey: "sectionFinance",
+    show: canViewFinance,
+    items: [
+      { href: "/finance",     labelKey: "finance",     icon: Wallet },
+      { href: "/commissions", labelKey: "commissions", icon: BadgePercent },
+      { href: "/reports",     labelKey: "reports",     icon: FileBarChart },
+    ],
+  },
+  {
+    labelKey: "sectionTools",
+    items: [
+      { href: "/assistant", labelKey: "assistant", icon: Sparkles },
+    ],
+  },
+  {
+    labelKey: "sectionAdmin",
+    show: canManageTeam,
+    items: [
+      { href: "/suppliers", labelKey: "suppliers", icon: Truck,       show: canManageTeam },
+      { href: "/team",      labelKey: "team",      icon: ShieldCheck, show: canManageTeam },
+      { href: "/billing",   labelKey: "billing",   icon: CreditCard,  show: (r) => r === "admin" },
+    ],
+  },
 ];
+
+// Flat list of all items — used for "locked" items logic.
+const ALL_ITEMS: NavItem[] = NAV_SECTIONS.flatMap((s) => s.items);
 
 export type ShellUser = {
   id: string;
@@ -98,16 +142,51 @@ export function AppShell({
   const tNav = useTranslations("nav");
   const tCommon = useTranslations("common");
 
-  const visibleItems = NAV.filter((i) => !i.show || i.show(user.role));
-  const lockedItems = NAV.filter((i) => i.show && !i.show(user.role));
+  // Map canonical nav URLs to the underlying page paths served via rewrites
+  // so the active highlight stays correct even while the rewrite is in effect.
+  const REWRITE_ALIASES: Record<string, string> = {
+    "/proposals": "/products",
+    "/sourcing/hotels": "/hotels",
+  };
 
-  const isActive = (href: string) =>
-    pathname === href || pathname.startsWith(`${href}/`);
+  const isActive = (href: string) => {
+    if (pathname === href || pathname.startsWith(`${href}/`)) return true;
+    const alias = REWRITE_ALIASES[href];
+    if (alias && (pathname === alias || pathname.startsWith(`${alias}/`))) return true;
+    return false;
+  };
 
   const handleSignOut = async () => {
     await signOut();
     router.replace("/login");
     router.refresh();
+  };
+
+  // Items the current role cannot access — shown dimmed at the bottom.
+  const lockedItems = ALL_ITEMS.filter(
+    (i) => i.show && !i.show(user.role)
+  );
+
+  const renderNavItem = (item: NavItem) => {
+    const Icon = item.icon;
+    const active = isActive(item.href);
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        onClick={() => setMobileOpen(false)}
+        aria-current={active ? "page" : undefined}
+        className={cn(
+          "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+          active
+            ? "bg-primary text-primary-foreground"
+            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+        )}
+      >
+        <Icon className="size-4 shrink-0" />
+        {tNav(item.labelKey)}
+      </Link>
+    );
   };
 
   const SidebarContent = (
@@ -124,49 +203,59 @@ export function AppShell({
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 space-y-1 overflow-y-auto p-3" aria-label="Primary">
-        {visibleItems.map((item) => {
-          const Icon = item.icon;
-          const active = isActive(item.href);
+      <nav className="flex-1 overflow-y-auto p-3 space-y-4" aria-label="Primary">
+        {NAV_SECTIONS.map((section) => {
+          // Hide whole section if role predicate fails.
+          if (section.show && !section.show(user.role)) return null;
+
+          // Filter items the role can't see.
+          const visible = section.items.filter(
+            (i) => !i.show || i.show(user.role)
+          );
+          if (visible.length === 0) return null;
+
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={() => setMobileOpen(false)}
-              aria-current={active ? "page" : undefined}
-              className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                active
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            <div key={section.labelKey ?? "_top"}>
+              {section.labelKey && (
+                <p className="text-muted-foreground mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest">
+                  {tNav(section.labelKey)}
+                </p>
               )}
-            >
-              <Icon className="size-4 shrink-0" />
-              {tNav(item.labelKey)}
-            </Link>
+              <div className="space-y-0.5">
+                {visible.map((item) => renderNavItem(item))}
+              </div>
+            </div>
           );
         })}
+
+        {/* Locked items — dimmed, role-gated */}
         {lockedItems.length > 0 && (
-          <div className="mt-2 border-t pt-2">
-            {lockedItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <div
-                  key={item.href}
-                  title="Not available for your role"
-                  className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium opacity-35 cursor-not-allowed select-none"
-                >
-                  <Icon className="size-4 shrink-0" />
-                  {tNav(item.labelKey)}
-                </div>
-              );
-            })}
+          <div className="border-t pt-3">
+            <p className="text-muted-foreground mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest">
+              {tNav("sectionAdmin")}
+            </p>
+            <div className="space-y-0.5">
+              {lockedItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <div
+                    key={item.href}
+                    title="Not available for your role"
+                    className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium opacity-35 cursor-not-allowed select-none"
+                  >
+                    <Icon className="size-4 shrink-0" />
+                    {tNav(item.labelKey)}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </nav>
 
-      {/* User footer */}
-      <div className="border-t p-3">
+      {/* Settings + User footer */}
+      <div className="border-t p-3 space-y-1">
+        {renderNavItem({ href: "/settings", labelKey: "settings", icon: Settings })}
         <div className="flex items-center gap-3 rounded-md px-2 py-2">
           <Avatar className="size-8">
             <AvatarImage src={user.image || ""} alt={user.name} />
@@ -179,7 +268,7 @@ export function AppShell({
             </p>
           </div>
         </div>
-        <div className="mt-1 flex items-center gap-1">
+        <div className="flex items-center gap-1">
           <Button
             asChild
             variant="ghost"

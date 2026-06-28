@@ -108,7 +108,7 @@ export default async function OpportunityDetailPage({
               </CardTitle>
               <Button asChild size="sm" variant="outline">
                 <Link
-                  href={`/products/new?opportunityId=${o.id}${
+                  href={`/proposals/new?opportunityId=${o.id}${
                     o.client ? `&clientId=${o.client.id}` : ""
                   }`}
                 >
@@ -129,7 +129,7 @@ export default async function OpportunityDetailPage({
                     return (
                       <li key={p.id} className="py-3">
                         <Link
-                          href={`/products/${p.id}`}
+                          href={`/proposals/${p.id}`}
                           className="flex items-center justify-between gap-3 hover:underline"
                         >
                           <span className="min-w-0 truncate">

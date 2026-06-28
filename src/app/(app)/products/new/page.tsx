@@ -23,7 +23,7 @@ export default async function NewProductPage({
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6 px-4 py-8 sm:px-6">
       <Button asChild variant="ghost" size="sm" className="-ml-2">
-        <Link href="/products">
+        <Link href="/proposals">
           <ArrowLeft className="mr-1 size-4" />
           Proposals
         </Link>
