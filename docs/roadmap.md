@@ -76,6 +76,8 @@ Status: ✅ done · 🟡 partial · 🔴 not started
 | GDPR subject export/erasure + consent | [security](security.md#security-controls) | 🔴 | No flow; erasure also blocked by missing soft delete. |
 | Disaster recovery runbook + RTO/RPO | [security](security.md#security-controls) | 🔴 | Neon has provider backups; no documented DR plan. |
 | Universal audit-log coverage | [security](security.md#security-controls) | 🟡 | `logActivity` in ~11 action files; not all mutations logged. |
+| `activity_log` partitioning + retention (500M-row target) | [architecture](architecture.md#scale-targets) | 🔴 | Single unpartitioned table; no archival. |
+| Search concurrency/backpressure (100 concurrent) | [architecture](architecture.md#scale-targets) | 🔴 | No queue or rate control on hotel/flight search. |
 
 ## Changelog
 

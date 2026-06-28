@@ -62,6 +62,25 @@ Capability helpers: `seesAllData`, `canManageTeam`, `canAssignAdmin`,
 `canManagePayments`, `canViewFinance`, `canViewSupport`, `canDeleteRecords`,
 `roleHome`. Only an **admin** can assign/change the admin role.
 
+## Scale targets
+
+The capacity Atlas is designed toward, with implications for the current
+architecture (single Neon Postgres + Vercel serverless).
+
+| Target | Implication / current state |
+|---|---|
+| **1,000 agencies** | Multi-tenant single DB; fine with `agencyId` indexes (present). |
+| **50,000 users** | Better Auth + Postgres; fine at this scale. |
+| **5,000,000 bookings** | Needs solid indexing + pagination (currently hardcoded `limit`s — see [tracker](roadmap.md#spec-vs-reality-gap-tracker)). |
+| **500,000,000 activities** | `activity_log` at this size needs **partitioning + archival/retention** — not in place today (single unpartitioned table). |
+| **99.9% uptime** | Relies on Vercel + Neon SLAs; no DR runbook yet (see [security.md](security.md#security-controls)). |
+| **100 concurrent hotel searches** | Bound by Hotelbeds quota; content cache serves photos quota-free. No concurrency/queue control or [rate limiting](security.md#security-controls) yet. |
+| **100 concurrent flight searches** | Bound by Duffel quota; `safeSearch` degrades to sample data on error. No queue/backpressure yet. |
+
+> These are design targets. The gating work to reach them — table partitioning for
+> `activity_log`, real pagination, rate limiting/backpressure on search, and a DR
+> plan — is in the [gap tracker](roadmap.md#spec-vs-reality-gap-tracker).
+
 ## Route map
 
 **Authenticated app** (`(app)/`, gated by `requireAgencyUser`):
