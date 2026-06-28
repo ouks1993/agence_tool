@@ -433,7 +433,7 @@ export async function searchHotelbedsHotelsByName(
 
   // Try live availability for the matching hotel codes.
   const codes = contentHotels.map((h) => h.code);
-  let liveRates: Record<number, { net: number; room: HbRoom; rate: HbRate; currency: string }> = {};
+  const liveRates: Record<number, { net: number; room: HbRoom; rate: HbRate; currency: string }> = {};
 
   try {
     const availability = await hotelbeds<HbAvailability>("/hotel-api/1.0/hotels", {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -97,9 +98,9 @@ export function BookingForm({
             {clients.length === 0 ? (
               <p className="text-muted-foreground text-sm">
                 No clients yet.{" "}
-                <a href="/clients/new" className="text-primary underline underline-offset-2">
+                <Link href="/clients/new" className="text-primary underline underline-offset-2">
                   Add a client first
-                </a>{" "}
+                </Link>{" "}
                 before creating a booking.
               </p>
             ) : (

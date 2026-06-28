@@ -1,7 +1,16 @@
-allowBuilds:
-  '@parcel/watcher': set this to true or false
-  '@swc/core': set this to true or false
-  esbuild: set this to true or false
-  msw: set this to true or false
-  sharp: set this to true or false
-  unrs-resolver: set this to true or false
+# pnpm v11 moved settings here from the package.json "pnpm" field.
+# Acknowledge dependencies whose build scripts we intentionally don't run,
+# so the pre-run deps check stops failing with ERR_PNPM_IGNORED_BUILDS
+# (keeps `npm run check` = pnpm lint && typecheck working).
+ignoredBuiltDependencies:
+  - "@parcel/watcher"
+  - "@swc/core"
+  - esbuild
+  - msw
+  - sharp
+  - unrs-resolver
+
+# Migrated from the package.json "pnpm.overrides" field (no longer read by pnpm v11).
+overrides:
+  "@types/react": "19.2.5"
+  "@types/react-dom": "19.2.3"
