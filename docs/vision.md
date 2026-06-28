@@ -74,13 +74,31 @@ Shipped against the long-term goals:
   automation (e.g. quote-on-stage-change, WhatsApp) is on the
   [roadmap](roadmap.md).
 
-## Design principles
+## Atlas principles
 
-Ten guardrails shape how Atlas is built — never ask twice, everything starts from
-the client, every action reversible, one source of truth, automation before manual
-work, every page answers "what next?", managers want insights / agents want speed,
-no empty pages, data quality over flexibility, mobile friendly. Full list in
-[ui-ux.md](ui-ux.md#atlas-design-principles).
+The ten founding principles. Everything else — the design system, the never-rules,
+the golden workflow — is an expression of these.
+
+1. **Client first.** The client record is the spine; every workflow starts there.
+2. **Every entity belongs to an agency.** Multi-tenancy is non-negotiable —
+   `agencyId` on every business row, enforced on every read/write.
+3. **No duplicated data.** One source of truth; canonical values over free text.
+4. **Automation over manual work.** Generate, don't ask — quotes, itineraries,
+   commissions, documents.
+5. **Every workflow has one happy path.** A single, obvious golden route through
+   each flow ([business-rules.md](business-rules.md#golden-workflow)).
+6. **Managers need insight.** Decision-oriented analytics where managers land.
+7. **Agents need speed.** Fast, scoped surfaces — minimal clicks, minimal waiting.
+8. **Data quality > flexibility.** Constrain inputs to keep reporting clean.
+9. **Everything is reversible.** Prefer soft state and undo over destructive
+   operations.
+10. **Every page answers "What do I do next?"** Always surface the next action;
+    never a dead end.
+
+These are operationalized as UI guardrails in
+[ui-ux.md](ui-ux.md#atlas-design-principles), hard constraints in
+[business-rules.md](business-rules.md#never-rules-hard-constraints), and tracked
+against the code in the [gap tracker](roadmap.md#spec-vs-reality-gap-tracker).
 
 See [roadmap.md](roadmap.md) for phase status and open items, and the
 [index](../atlas.md) for the full documentation map.

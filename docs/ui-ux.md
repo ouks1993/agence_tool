@@ -8,7 +8,9 @@
 
 ## Atlas design principles
 
-The product guardrails every page and feature is measured against:
+The UI-level expression of the ten founding
+[Atlas principles](vision.md#atlas-principles). The product guardrails every page
+and feature is measured against:
 
 1. **Never ask the user twice for the same information.** Reuse what's already
    captured (controlled vocabularies, reference data, client records) instead of
