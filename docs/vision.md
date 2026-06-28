@@ -7,6 +7,11 @@ It is the north star: a feature, a design choice, or a piece of scope earns its
 place only if it makes Atlas more of an agency's single operating system. If it
 doesn't support the sentence, it doesn't ship.
 
+> **No OTA knows agency behaviour. No agency knows market behaviour. Only Atlas sees both.**
+>
+> That information asymmetry — across thousands of agencies, in real time — is the business.
+> Not the software. Not the AI features. The information.
+
 Today an agency runs on a patchwork of tools:
 
 - Excel

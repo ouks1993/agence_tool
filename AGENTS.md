@@ -36,6 +36,25 @@
 - Always follow the UI design system when creating or reviewing components or pages.
 - Design System: @DESIGN.md
 
+## FEATURE FILTER RULE
+
+Before any feature is committed to the roadmap, it must satisfy at least one of:
+
+1. **Reduces time to booking** — the agent completes the booking workflow faster
+2. **Increases booking conversion** — more proposals become bookings, more searches become proposals
+3. **Increases agency retention** — the agency becomes more operationally dependent on Atlas
+
+If a proposed feature cannot clearly satisfy at least one criterion, it does not move forward.
+Apply this rule before design, before estimation, before any engineering discussion.
+
+Examples:
+- Supplier booking ✅ (reduces time to booking + increases conversion)
+- Client portal depth ✅ (increases conversion + increases retention)
+- Marketing campaigns module ❌ (does not directly satisfy any criterion — do not build)
+- WhatsApp messaging platform ❌ (build as output channel/integration, not a messaging system)
+- Accounting workflows (invoice generation + export) ✅ (reduces time to booking)
+- Full GL accounting module ❌ (does not satisfy any criterion — partner instead)
+
 ## PRE-COMMIT DOCUMENTATION RULE
 
 Before every commit, you MUST:
