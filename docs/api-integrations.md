@@ -32,6 +32,14 @@ config; no other file reads `process.env` for supplier credentials directly.
   (`providerRegistry.pick("hotels", "search")`) with capability type-guards
   (`canSearchHotels`, `canBookFlights`, …). Replaces the hardcoded
   `getFlightSupplier()/getHotelSupplier()` if/else.
+- **Registration** (`register.ts`, Wave 2) — `registerBuiltInProviders()` wires
+  the three shipped adapters into the registry: `MockBookingProvider` (both
+  verticals, priority 0, always configured — the fallback),
+  `DuffelBookingProvider` (flights, priority 50) and `HotelbedsBookingProvider`
+  (hotels, priority 50). It is idempotent (module-level guard) and runs as a
+  side effect when the providers barrel is imported, so the registry is
+  self-wiring. The mock outranks nothing, so `pick()` returns a real provider
+  whenever one is configured and falls back to the mock otherwise.
 - **Provider catalog** (`PROVIDER_CATALOG`) — one logic-free source of truth for
   which providers exist, their verticals/capabilities, env vars, and status
   (`live` / `legacy` / `planned`):
@@ -47,10 +55,11 @@ config; no other file reads `process.env` for supplier credentials directly.
 | Expedia (Rapid) | hotels | planned |
 
 **Migration path:** the current `SupplierProvider` (search-only, both-verticals)
-keeps working; new adapters implement these interfaces and register into the
-registry, then `getFlightSupplier`/`getHotelSupplier` delegate to
-`providerRegistry.pick(...)`. Real booking (Open item #1) lands provider-by-
-provider against `quote`/`book`/`cancel` without further interface changes.
+keeps working. **Wave 2 done** — the Mock/Duffel/Hotelbeds adapters now implement
+the capability interfaces and register into the populated registry. **Next
+(Wave 3)** — `getFlightSupplier`/`getHotelSupplier` delegate to
+`providerRegistry.pick(...)`, and the booking actions call `quote`/`book`/`cancel`
+(closing Open item #1) without further interface changes.
 
 ## Flights — Duffel
 
