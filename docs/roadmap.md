@@ -29,6 +29,26 @@ codes+labels) · **P3** ISO country/nationality reference data + city suggestion
 **P4** standardized CSV/Excel export (`/reports`, dual code+label columns). Hotel
 search-by-name added. See [analytics.md](analytics.md).
 
+## Module maturity
+
+Maturity levels: **Production** (stable, in daily use) · **Beta** (works, hardening)
+· **Alpha** (functional, evolving) · **Planned** (not built).
+
+| Module | Status |
+|---|---|
+| CRM | Production |
+| Sales | Production |
+| Hotels | Beta |
+| Flights | Planned |
+| Accounting | Planned |
+| AI | Alpha |
+| Supplier Portal | Planned |
+
+> **Flights/Hotels nuance:** live *search* is shipped for both (Duffel + Hotelbeds);
+> the maturity above reflects the end-to-end **booking** flow — Hotels is further
+> along (Beta), real Flights booking is Planned (Duffel orders). See
+> [api-integrations.md](api-integrations.md) and Open item #1.
+
 ## Open items
 
 1. **Real supplier booking** — Duffel orders + Hotelbeds book API (currently
