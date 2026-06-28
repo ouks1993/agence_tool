@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { Plus, Target, Wallet, Gauge, Percent, TrendingUp, Filter } from "lucide-react";
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
@@ -13,6 +13,7 @@ import {
   OPEN_STAGES,
   OPPORTUNITY_STAGES,
   OPPORTUNITY_STAGE_META,
+  seesAllData,
   type OpportunityStage,
 } from "@/lib/domain";
 import { formatMoney } from "@/lib/format";
@@ -26,7 +27,11 @@ export default async function OpportunitiesPage() {
   const user = await requireAgencyUser();
 
   const rows = await db.query.opportunity.findMany({
-    where: eq(opportunity.agencyId, user.agencyId),
+    // Agents see only opportunities assigned to them (others see all).
+    where: and(
+      eq(opportunity.agencyId, user.agencyId),
+      seesAllData(user.role) ? undefined : eq(opportunity.assignedToId, user.id)
+    ),
     with: {
       client: { columns: { name: true } },
       assignedTo: { columns: { name: true } },

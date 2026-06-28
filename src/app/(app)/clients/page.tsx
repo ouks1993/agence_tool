@@ -19,6 +19,7 @@ import {
 import { db } from "@/lib/db";
 import {
   CLIENT_STATUS_META,
+  seesAllData,
   type ClientStatus,
 } from "@/lib/domain";
 import { formatDate } from "@/lib/format";
@@ -41,6 +42,8 @@ export default async function ClientsPage({
   const team = await listTeamMembers(user.agencyId);
 
   const conditions: SQL[] = [eq(client.agencyId, user.agencyId)];
+  // Agents see only their own clients (admin/manager/finance/support see all).
+  if (!seesAllData(user.role)) conditions.push(eq(client.ownerId, user.id));
   if (sp.q) {
     const q = or(
       ilike(client.name, `%${sp.q}%`),

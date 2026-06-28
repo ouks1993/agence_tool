@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { Plus, FileText } from "lucide-react";
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
@@ -14,7 +14,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { db } from "@/lib/db";
-import { PRODUCT_STATUS_META, type ProductStatus } from "@/lib/domain";
+import {
+  PRODUCT_STATUS_META,
+  seesAllData,
+  type ProductStatus,
+} from "@/lib/domain";
 import { formatDate, formatMoney } from "@/lib/format";
 import { requireAgencyUser } from "@/lib/permissions";
 import { product } from "@/lib/schema";
@@ -25,7 +29,11 @@ export default async function ProductsPage() {
   const user = await requireAgencyUser();
 
   const products = await db.query.product.findMany({
-    where: eq(product.agencyId, user.agencyId),
+    // Agents see only proposals they created (others see all).
+    where: and(
+      eq(product.agencyId, user.agencyId),
+      seesAllData(user.role) ? undefined : eq(product.createdById, user.id)
+    ),
     with: { client: { columns: { name: true } } },
     orderBy: [desc(product.createdAt)],
     limit: 200,

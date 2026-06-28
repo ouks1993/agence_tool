@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { Plus, Briefcase, Users } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { EmptyState } from "@/components/app/empty-state";
@@ -17,7 +17,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { db } from "@/lib/db";
-import { BOOKING_STATUS_META, type BookingStatus } from "@/lib/domain";
+import {
+  BOOKING_STATUS_META,
+  seesAllData,
+  type BookingStatus,
+} from "@/lib/domain";
 import { formatDate, formatMoney } from "@/lib/format";
 import { requireAgencyUser } from "@/lib/permissions";
 import { booking, bookingTraveller } from "@/lib/schema";
@@ -35,7 +39,11 @@ export default async function BookingsPage({
   const view = viewParam === "board" ? "board" : "list";
 
   const bookings = await db.query.booking.findMany({
-    where: eq(booking.agencyId, user.agencyId),
+    // Agents see only bookings they created (admin/manager/finance/support see all).
+    where: and(
+      eq(booking.agencyId, user.agencyId),
+      seesAllData(user.role) ? undefined : eq(booking.createdById, user.id)
+    ),
     with: { client: { columns: { name: true } } },
     orderBy: [desc(booking.createdAt)],
     limit: 200,
