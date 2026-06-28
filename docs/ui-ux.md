@@ -45,6 +45,26 @@ These principles inform the patterns below and the
   merging.
 - See [`DESIGN.md`](../DESIGN.md) for every value.
 
+## Performance budgets
+
+Target response times — what "fast enough" means per surface. These back design
+principle #6 (agents want speed) and dictate where to lean on caching, streaming,
+and loading states.
+
+| Surface | Budget |
+|---|---|
+| Dashboard | < 1 s |
+| Search (in-app lookup) | < 500 ms |
+| Booking creation | < 2 s |
+| Hotel search (live Hotelbeds) | < 5 s |
+| Reports / export | < 10 s |
+
+> Budgets are **targets, not yet measured** — there's no perf instrumentation in
+> place. The slow surfaces (hotel search, reports) are I/O-bound on external APIs
+> and the export workbook; the content cache already keeps hotel photos quota- and
+> latency-free ([api-integrations.md](api-integrations.md)). Every surface over its
+> budget must show a [loading state](#page-requirements-checklist).
+
 ## Data table standard
 
 The target capabilities for every data table (clients, bookings, opportunities,
