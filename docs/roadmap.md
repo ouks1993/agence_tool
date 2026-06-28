@@ -44,6 +44,35 @@ search-by-name added. See [analytics.md](analytics.md).
 7. **Convert proposal to booking guard** — add `convertedBookingId` column (needs
    migration).
 
+## Spec vs. reality gap tracker
+
+The design system (principles, never-rules, page/table/entity standards, AI
+guardrails, automation triggers, perf budgets) describes a **target state**. This
+table consolidates every item where the spec is ahead of the code, so the gaps are
+one punch list instead of scattered "current state" notes.
+
+Status: ✅ done · 🟡 partial · 🔴 not started
+
+| Item | Spec | Status | Notes |
+|---|---|---|---|
+| Agent visibility scoped to own records on list pages | [security](security.md) | ✅ | Fixed — clients/bookings/opportunities/products now scope by owner column (commit `134ceb3`). |
+| Quality gate `npm run check` works (pnpm v11) | [development-guide](development-guide.md) | ✅ | Fixed — config moved to `pnpm-workspace.yaml`; 0 lint/type errors (commit `7d5f4e1`). |
+| Soft delete (`deletedAt`, filtered reads) | [database](database.md#entity-standard) | 🔴 | No soft-delete column anywhere; "never hard delete" is currently aspirational. Needs migration. |
+| `reference` on all entities | [database](database.md#entity-standard) | 🟡 | Only `booking` + `product`; missing on clients/opportunities/suppliers. Needs migration. |
+| Consistent `updatedAt`/`status`/`notes` on children | [database](database.md#entity-standard) | 🟡 | Present on roots, inconsistent on child tables. |
+| Page systemic-five: per-page **Export** | [ui-ux](ui-ux.md#page-requirements-checklist) | 🔴 | Endpoint exists (`/api/export`); list pages lack buttons. |
+| Page systemic-five: **Bulk actions** | [ui-ux](ui-ux.md#page-requirements-checklist) | 🔴 | No `Checkbox` primitive exists; nothing built. |
+| Page systemic-five: **Loading** states | [ui-ux](ui-ux.md#page-requirements-checklist) | 🔴 | Only `assistant`/`dashboard` have `loading.tsx`. `skeleton.tsx` exists, unused. |
+| Page systemic-five: **Error** states | [ui-ux](ui-ux.md#page-requirements-checklist) | 🔴 | Only `assistant` has `error.tsx`. |
+| Page systemic-five: **Pagination** | [ui-ux](ui-ux.md#page-requirements-checklist) | 🔴 | Hardcoded `limit` (200/500) silently truncates. |
+| Shared **DataTable** (sort, filter, column chooser, infinite scroll, sticky header, shortcuts, context menu) | [ui-ux](ui-ux.md#data-table-standard) | 🔴 | Tables are plain shadcn markup. Building this clears most of the systemic-five. |
+| Mobile-friendly tables (`overflow-x-auto`) | [ui-ux](ui-ux.md#atlas-design-principles) | 🔴 | Tables overflow on phones; only `assistant` wraps for scroll. |
+| Automation triggers (welcome email, won→proposal, accepted→booking, confirmed→invoice, completed→review) | [business-rules](business-rules.md#automation-triggers) | 🟡 | Only commission auto-gen on confirm/ticket fires; rest manual/on-demand. |
+| AI mutation behind a hard confirm step | [ai](ai.md#ai-must-never) | 🔴 | `createBooking` is intent-gated by prompt only, not an enforced confirm gate. |
+| Performance instrumentation vs budgets | [ui-ux](ui-ux.md#performance-budgets) | 🔴 | Budgets defined; nothing measured. |
+| Real supplier booking (Duffel orders, Hotelbeds book) | [api-integrations](api-integrations.md) | 🔴 | Search-only today (also open item #1 above). |
+| Cross-device locale sync | [architecture](architecture.md#internationalization) | 🔴 | English until re-pick on a fresh device (also open item #3 above). |
+
 ## Changelog
 
 | Commit | Summary |
