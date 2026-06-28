@@ -45,6 +45,31 @@ These principles inform the patterns below and the
   merging.
 - See [`DESIGN.md`](../DESIGN.md) for every value.
 
+## Data table standard
+
+The target capabilities for every data table (clients, bookings, opportunities,
+proposals, suppliers, commissions). These belong in **one reusable `DataTable`
+component**, not re-implemented per page:
+
+- **Sorting** — click a column header to sort; multi-column where useful.
+- **Filtering** — per-column filters plus the page-level search/filter bar.
+- **Column chooser** — show/hide columns; remember the user's choice.
+- **Export** — export the current view (respecting sort/filter) to CSV/Excel via
+  the existing [`/api/export`](analytics.md) endpoint.
+- **Infinite scrolling** — load more on scroll instead of hard `limit` truncation
+  (fixes the silent-cap issue in the page audit).
+- **Sticky header** — header stays visible while the body scrolls.
+- **Keyboard shortcuts** — arrow-key row navigation, Enter to open, `/` to focus
+  search.
+- **Context menu** — right-click a row for quick actions (open, edit, duplicate,
+  delete — gated by [permissions](business-rules.md#roles--capabilities)).
+
+> **Current state:** tables today are plain shadcn `Table` markup with none of the
+> above — no sorting, column chooser, infinite scroll, sticky header, shortcuts or
+> context menu, and a hardcoded row `limit`. This standard is the target for a
+> shared `DataTable`; building it also clears most of the systemic gaps in the
+> page audit (export, pagination, bulk actions).
+
 ## Page requirements checklist
 
 Every list/index page must ship with all of these — a page missing any of them is
