@@ -18,6 +18,25 @@
 - **Testing** — use available testing tools; never assume changes work; if no
   tooling exists for a change, ask whether to skip.
 
+## Engineering rules
+
+Hard rules for how code is written. Status reflects the current codebase
+(✅ holds · 🟡 partial).
+
+| Rule | Status | Notes |
+|---|---|---|
+| **Never duplicate logic** | 🟡 | Shared helpers in `src/lib` (`queries`, `analytics`, `domain`); enforce by review. |
+| **Always use server actions** | ✅ | 20/21 files in `src/lib/actions` are `"use server"`; mutations go through them. |
+| **Always validate input** | 🟡 | Validated where it matters, not universally. |
+| **Always use Zod** | 🟡 | Zod v4 present, used in ~13 files; not every action yet. |
+| **No business logic inside components** | 🟡 | Logic lives in actions/lib; enforce by review. |
+| **No direct SQL in UI** | ✅ | Pages call Drizzle queries server-side / via actions, not raw SQL in client components. |
+| **Every action logs activity** | 🟡 | `logActivity` in ~11/21 action files — not yet every mutation (see [security.md](security.md#security-controls)). |
+| **Every mutation is tenant scoped** | ✅ | All actions go through `requireAgencyUser()` → `agencyId` scope (see [business-rules.md](business-rules.md#never-rules-hard-constraints)). |
+
+> The 🟡 rows (universal Zod validation, universal activity logging) are in the
+> [spec-vs-reality gap tracker](roadmap.md#spec-vs-reality-gap-tracker).
+
 ## Database changes
 
 - After any schema change, run **drizzle generate + migrate**. **Never**

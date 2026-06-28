@@ -75,7 +75,8 @@ Status: ✅ done · 🟡 partial · 🔴 not started
 | Rate limiting (auth + API) | [security](security.md#security-controls) | 🔴 | No throttling anywhere. |
 | GDPR subject export/erasure + consent | [security](security.md#security-controls) | 🔴 | No flow; erasure also blocked by missing soft delete. |
 | Disaster recovery runbook + RTO/RPO | [security](security.md#security-controls) | 🔴 | Neon has provider backups; no documented DR plan. |
-| Universal audit-log coverage | [security](security.md#security-controls) | 🟡 | `logActivity` in ~11 action files; not all mutations logged. |
+| Universal audit-log coverage | [security](security.md#security-controls) · [coding-standards](coding-standards.md#engineering-rules) | 🟡 | `logActivity` in ~11/21 action files; not all mutations logged. |
+| Universal Zod input validation | [coding-standards](coding-standards.md#engineering-rules) | 🟡 | Zod in ~13/21 action files; not every action validates. |
 | `activity_log` partitioning + retention (500M-row target) | [architecture](architecture.md#scale-targets) | 🔴 | Single unpartitioned table; no archival. |
 | Search concurrency/backpressure (100 concurrent) | [architecture](architecture.md#scale-targets) | 🔴 | No queue or rate control on hotel/flight search. |
 
