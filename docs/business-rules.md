@@ -4,6 +4,25 @@ Domain logic and constraints. Enums and capability helpers are defined in
 `src/lib/domain.ts`; server-side enforcement lives in the actions under
 `src/lib/actions/`.
 
+## Never rules (hard constraints)
+
+Invariants Atlas must never violate. Each maps to an enforcement point — a
+violation is a bug, not a preference.
+
+| Never | Why / where enforced |
+|---|---|
+| **Never use free text when a dropdown exists** | Controlled vocabularies + reference pickers keep reporting clean (data quality > flexibility). See [vocabularies](#controlled-vocabularies). |
+| **Never duplicate client information** | One source of truth — the client record is the spine; reuse it, don't re-enter it. |
+| **Never create a booking without a client** | Every booking hangs off a client; the spine is mandatory. |
+| **Never hard delete data** | Reversibility — prefer soft state / archival + the activity log; deletes are gated to admin/manager only. |
+| **Never expose another tenant** | Every read/write is scoped by `agencyId` via `requireAgencyUser()`; verified by `test-tenant-isolation.ts`. See [security.md](security.md). |
+| **Never sum different currencies** | No FX — group by currency with a DZD headline. See [Currency](#currency) and [analytics.md](analytics.md). |
+| **Never make users navigate five pages** | Surface work where it happens — inline search sheets, detail-page panels, "what next?" CTAs. |
+| **Never require more than three clicks** | Key actions (advance lifecycle, convert proposal→booking, share, pay) are one-to-three clicks. |
+
+These are the enforcement edge of the
+[design principles](ui-ux.md#atlas-design-principles).
+
 ## Golden workflow
 
 The canonical end-to-end happy path Atlas is built around. Everything starts from
