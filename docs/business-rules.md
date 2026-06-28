@@ -4,6 +4,27 @@ Domain logic and constraints. Enums and capability helpers are defined in
 `src/lib/domain.ts`; server-side enforcement lives in the actions under
 `src/lib/actions/`.
 
+## Automation triggers
+
+The event → action automation layer Atlas is targeting (design principle #5,
+*automation before manual work*). Each is a domain event that should fire a
+follow-up action:
+
+| Event | Action | Current state |
+|---|---|---|
+| Client created | Send welcome email | ❌ not implemented (Resend only sends invites/reset/proposal/portal) |
+| Opportunity won | Generate proposal | ❌ manual (new proposal + AI quote builder) |
+| Proposal accepted | Generate booking | ⚠️ one-click *convert proposal → booking*, not automatic |
+| Booking confirmed | Generate invoice | ❌ invoices are on-demand PDFs, not auto-generated |
+| Payment received / booking confirmed | Update accounting | ⚠️ partial — `autoGenerateCommissions` fires on confirm/ticket ([bookings.ts](../src/lib/actions/bookings.ts)); no full accounting |
+| Travel completed | Request review | ❌ not implemented |
+
+> **Current state:** the only true event-driven automation today is commission
+> generation on booking confirm/ticket (idempotent). The rest are manual or
+> on-demand. Building this trigger layer is the heart of the "Automation" pillar in
+> the [vision](vision.md) and the automated-quotation item in the
+> [roadmap](roadmap.md).
+
 ## Never rules (hard constraints)
 
 Invariants Atlas must never violate. Each maps to an enforcement point — a
