@@ -74,5 +74,13 @@ Shipped against the long-term goals:
   automation (e.g. quote-on-stage-change, WhatsApp) is on the
   [roadmap](roadmap.md).
 
+## Design principles
+
+Ten guardrails shape how Atlas is built — never ask twice, everything starts from
+the client, every action reversible, one source of truth, automation before manual
+work, every page answers "what next?", managers want insights / agents want speed,
+no empty pages, data quality over flexibility, mobile friendly. Full list in
+[ui-ux.md](ui-ux.md#atlas-design-principles).
+
 See [roadmap.md](roadmap.md) for phase status and open items, and the
 [index](../atlas.md) for the full documentation map.

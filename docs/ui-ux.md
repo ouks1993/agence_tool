@@ -6,6 +6,36 @@
 > new components and pages **must** follow it. This doc points there and captures
 > product-level UX patterns only; it does not duplicate the token tables.
 
+## Atlas design principles
+
+The product guardrails every page and feature is measured against:
+
+1. **Never ask the user twice for the same information.** Reuse what's already
+   captured (controlled vocabularies, reference data, client records) instead of
+   re-prompting.
+2. **Everything starts from the client.** The client record is the spine — leads,
+   opportunities, proposals, bookings and payments all hang off it.
+3. **Every action must be reversible.** Prefer soft states, confirmations and undo
+   over destructive, irreversible operations.
+4. **One source of truth.** No duplicated or conflicting data; canonical values
+   (ISO countries, enums, references unique per agency) over free text.
+5. **Automation before manual work.** Default to generating (commissions,
+   itineraries, quotes, documents) rather than asking the user to do it by hand.
+6. **Every page should answer "What should I do next?"** Surface the next action —
+   stepper advance, CTA, empty-state prompt — never leave a dead end.
+7. **Managers want insights; agents want speed.** Tailor each role's surface —
+   analytics-dense for managers, fast and scoped for agents.
+8. **No empty pages.** Every list/chart/detail has an empty state with a clear
+   next step, never blank space.
+9. **Data quality is more important than flexibility.** Constrain inputs
+   (dropdowns, pickers, validation) to keep reporting clean.
+10. **Everything should be mobile friendly.** Layouts work on small screens and in
+    both LTR and RTL.
+
+These principles inform the patterns below and the
+[business rules](business-rules.md). See also the product
+[vision](vision.md).
+
 ## Design system summary
 
 - **Stack:** Next.js + Tailwind v4 (CSS-first `@theme inline`, no config file),
