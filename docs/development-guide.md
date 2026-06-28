@@ -33,7 +33,7 @@ unset — see [api-integrations.md](api-integrations.md)):
 
 ## Database
 
-- Branches: dev `ep-dawn-voice-ai8d6q3o` · prod `ep-misty-thunder-aixz34vy`.
+- Branch: prod `ep-misty-thunder-aixz34vy` (currently single branch — dev branch was removed; create a child branch in Neon for local dev).
 - After schema changes: `db:generate` → `db:migrate` (**never** `db:push`).
   `db:studio` to browse. See [database.md](database.md).
 - **Always run migrations on prod after deploy:**

@@ -161,5 +161,4 @@ Status: ✅ done · 🟡 partial · 🔴 not started
 | `1896596` | Per-role workspaces (Finance + Support) + role-based landing/nav |
 | `9e8fb4b` | Multi-tenant architecture + vendor platform console |
 
-Migrations: 17 (latest `0017`). Dev DB: `ep-dawn-voice-ai8d6q3o`. Prod DB:
-`ep-misty-thunder-aixz34vy`.
+Migrations: 18 (latest `0018`). Prod DB: `ep-misty-thunder-aixz34vy`.
