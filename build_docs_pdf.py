@@ -17,6 +17,7 @@ ORDER = [
     "docs/vision.md",
     "docs/tech-stack.md",
     "docs/architecture.md",
+    "docs/domain.md",
     "docs/database.md",
     "docs/api-integrations.md",
     "docs/development-guide.md",

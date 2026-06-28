@@ -23,6 +23,7 @@ for UI and coding conventions respectively.
 | [Vision](docs/vision.md) | What Atlas is, who it's for, operating model, features at a glance |
 | [Architecture](docs/architecture.md) | Multi-tenancy · auth · platform admin · impersonation · roles · route map · module layout · i18n |
 | [Tech stack](docs/tech-stack.md) | Framework, libraries, services |
+| [Domain model](docs/domain.md) | Core entities, the Lead→…→Feedback chain, aggregates & ownership |
 | [Database](docs/database.md) | Schema tables, tenancy columns, migrations, ID convention |
 | [API integrations](docs/api-integrations.md) | Duffel · Hotelbeds · Stripe (billing + Connect) · Resend · OpenRouter · Blob |
 | [Development guide](docs/development-guide.md) | Setup, env vars, commands, scripts, DB workflow |
