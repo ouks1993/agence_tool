@@ -4,6 +4,35 @@ Domain logic and constraints. Enums and capability helpers are defined in
 `src/lib/domain.ts`; server-side enforcement lives in the actions under
 `src/lib/actions/`.
 
+## Golden workflow
+
+The canonical end-to-end happy path Atlas is built around. Everything starts from
+the client (design principle #2) and ends by feeding the next trip — a loop, not a
+line.
+
+```
+Lead → Client → Opportunity → Proposal → Customer accepts → Booking →
+Supplier reservation → Payment → Ticketing → Travel → Feedback → Repeat client
+```
+
+| Step | In Atlas | Notes |
+|---|---|---|
+| **Lead** | `client` with a `source` (lead-source code) | captured as an early-stage client |
+| **Client** | `client` (+ contacts) | the spine; all records hang off it |
+| **Opportunity** | `opportunity` (pipeline stage, value, `travel_purpose`) | shown on the Pipeline board |
+| **Proposal** | `product` (PDF + e-sign) | shareable `/p/[token]` or in-portal |
+| **Customer accepts** | e-sign stamps signer + flips opportunity to **won** | also acceptable in the client portal |
+| **Booking** | `booking`, one-click **convert proposal → booking** | lifecycle starts at `draft` |
+| **Supplier reservation** | `booking_item` + `supplier` picker | live Duffel/Hotelbeds search; real reservation is an open item ([roadmap.md](roadmap.md)) |
+| **Payment** | `payment` (deposit/installments, Stripe Connect) | `confirmed` requires zero balance |
+| **Ticketing** | lifecycle `ticketed` | requires trip items; auto-generates commissions |
+| **Travel** | lifecycle `completed`; itinerary `/i/[token]` | day-by-day timeline, vouchers/invoices |
+| **Feedback** | activity log / notes on the client timeline | closes the loop |
+| **Repeat client** | back to **Opportunity** on the same client | retention, not re-acquisition |
+
+This maps onto the [booking lifecycle](#booking-lifecycle) below and the role
+landings in [architecture.md](architecture.md#per-role-landing).
+
 ## Roles & capabilities
 
 Five roles: **admin, manager, finance, support, agent**. The capability matrix is
