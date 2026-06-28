@@ -72,6 +72,10 @@ Status: ✅ done · 🟡 partial · 🔴 not started
 | Performance instrumentation vs budgets | [ui-ux](ui-ux.md#performance-budgets) | 🔴 | Budgets defined; nothing measured. |
 | Real supplier booking (Duffel orders, Hotelbeds book) | [api-integrations](api-integrations.md) | 🔴 | Search-only today (also open item #1 above). |
 | Cross-device locale sync | [architecture](architecture.md#internationalization) | 🔴 | English until re-pick on a fresh device (also open item #3 above). |
+| Rate limiting (auth + API) | [security](security.md#security-controls) | 🔴 | No throttling anywhere. |
+| GDPR subject export/erasure + consent | [security](security.md#security-controls) | 🔴 | No flow; erasure also blocked by missing soft delete. |
+| Disaster recovery runbook + RTO/RPO | [security](security.md#security-controls) | 🔴 | Neon has provider backups; no documented DR plan. |
+| Universal audit-log coverage | [security](security.md#security-controls) | 🟡 | `logActivity` in ~11 action files; not all mutations logged. |
 
 ## Changelog
 

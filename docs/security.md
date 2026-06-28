@@ -1,5 +1,27 @@
 # Security
 
+## Security controls
+
+The control areas Atlas is held to, with honest current status
+(✅ in place · 🟡 partial / provider-level · 🔴 not implemented). Details for the
+implemented ones follow in the sections below.
+
+| Control | Status | Notes |
+|---|---|---|
+| **Tenant isolation** | ✅ | `agencyId` scoping via `requireAgencyUser()`; verified by `test-tenant-isolation.ts`. |
+| **RBAC** | ✅ | 5 roles + capability helpers; agent visibility now scoped on list pages too. |
+| **Audit logs** | 🟡 | `activity_log` + `logActivity` used in ~11 action files; not yet universal. |
+| **Encryption** | 🟡 | TLS in transit + Neon at-rest (provider); Better Auth hashes passwords. No app-level field encryption. |
+| **Password policy** | 🟡 | Better Auth defaults only; no enforced strength/rotation policy. |
+| **Secrets management** | 🟡 | Vercel env vars; **demo credentials committed in the repo** (rotate before prod). No vault. |
+| **Backups** | 🟡 | Neon automatic backups + branching (provider-level); not app-managed or restore-tested. |
+| **Rate limiting** | 🔴 | None on auth or API routes. |
+| **GDPR** | 🔴 | No subject data-export/erasure flow or consent tracking; right-to-erasure also blocked by missing soft delete. |
+| **Disaster recovery** | 🔴 | No documented DR runbook or RTO/RPO targets. |
+
+> The 🔴/🟡 rows are tracked in the
+> [spec-vs-reality gap tracker](roadmap.md#spec-vs-reality-gap-tracker).
+
 ## Tenant isolation
 
 Every business table carries `agencyId` (root) or inherits it via a parent
