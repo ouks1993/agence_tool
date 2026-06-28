@@ -2,13 +2,16 @@ import { Info } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { HotelSearchExperience } from "@/components/hotels/hotel-search-experience";
 import { requireAgencyUser } from "@/lib/permissions";
-import { getHotelSupplier, isHotelbedsConfigured } from "@/lib/suppliers";
+import {
+  getActiveHotelProvider,
+  isHotelProviderConfigured,
+} from "@/lib/travel-platform";
 
 export const metadata = { title: "Hotels" };
 
 export default async function HotelsPage() {
   await requireAgencyUser();
-  const live = isHotelbedsConfigured();
+  const live = isHotelProviderConfigured();
 
   return (
     <div className="container mx-auto space-y-6 px-4 py-8">
@@ -17,7 +20,7 @@ export default async function HotelsPage() {
         description="Search, compare and select hotels, then add them to a proposal."
       >
         <span className="text-muted-foreground text-xs">
-          Source: {getHotelSupplier().label}
+          Source: {getActiveHotelProvider().label}
         </span>
       </PageHeader>
 

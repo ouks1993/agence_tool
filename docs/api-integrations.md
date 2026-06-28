@@ -15,8 +15,10 @@ config; no other file reads `process.env` for supplier credentials directly.
 
 - **Capability-segmented interfaces** (`types.ts`) — a provider implements only
   what it offers: `HotelSearchCapable`, `HotelBookingCapable`,
-  `FlightSearchCapable`, `FlightBookingCapable`, `CancelCapable`. A hotels-only
-  aggregator implements the hotel interfaces and nothing else (no empty stubs).
+  `FlightSearchCapable`, `FlightBookingCapable`, `CancelCapable`,
+  `ContentCapable` (hotel enrichment / name-search), `AutocompleteCapable`
+  (airport suggestions). A hotels-only aggregator implements the hotel interfaces
+  and nothing else (no empty stubs).
 - **Full booking lifecycle** — `search → quote (re-validate price/rate) → book
   (idempotent) → cancel`. Real bedbank/GDS rates expire, so `quoteHotel`/
   `quoteFlight` re-price immediately before `book*`; book requests carry an
@@ -54,14 +56,23 @@ config; no other file reads `process.env` for supplier credentials directly.
 | Booking.com | hotels | planned |
 | Expedia (Rapid) | hotels | planned |
 
-**Migration complete (Wave 3):** the booking actions now go through the registry
-and the full `quote → book → cancel` lifecycle. `getFlightSupplier`/
-`getHotelSupplier` remain for search; booking uses `serviceBookFlight`/
-`serviceBookHotel` (`src/lib/suppliers/booking-service.ts`) which picks the best
-configured provider via `providerRegistry.pick(...)`, runs `quote*` (price
-revalidation), then `book*` (idempotent), and writes to `booking_supplier_ref`,
-`booking_event`, and `booking_idempotency`. Open item #1 (real supplier booking)
-is now closed — swap in production credentials and booking flows go live.
+**Travel Platform sprint complete (Sprint 2):** search, content, autocomplete,
+and booking are all routed through the registry. Business logic no longer calls
+provider-specific functions; adding a new provider is a `register()` call only.
+
+- **Booking** (`booking-service.ts`) — full `quote → book → cancel` lifecycle
+  via `providerRegistry.pick(...)`, idempotent, writes `booking_supplier_ref` /
+  `booking_event` / `booking_idempotency`.
+- **Search + content** (`src/lib/travel-platform/index.ts`) — single facade for
+  `searchFlights`, `searchHotels` (availability, name-search, content fallback,
+  thumbnail enrichment), `searchAirports`, `searchHotelDestinations`. Server
+  actions delegate here; the `getFlightSupplier` / `getHotelSupplier` / `safeSearch`
+  layer is no longer imported by consumer code (kept for backward compatibility only).
+- **New capabilities registered:** `ContentCapable` (Hotelbeds: name-search,
+  enrichment, room rates) and `AutocompleteCapable` (Duffel: airport suggestions).
+
+Open item #1 (real supplier booking) is closed — swap in production credentials
+and both search and booking flows go live.
 
 ## Flights — Duffel
 
@@ -87,14 +98,28 @@ is now closed — swap in production credentials and booking flows go live.
 - **Sprint 1:** `HotelbedsBookingProvider` implements `HotelSearchCapable` +
   `HotelBookingCapable` through the registry, adding `quoteHotel` + `bookHotel`.
 
-## Supplier abstraction
+## Travel Platform facade
 
-`src/lib/suppliers/index.ts` exposes per-vertical `getFlightSupplier` /
-`getHotelSupplier` and a `safeSearch` wrapper that catches provider errors and
-returns mock results, so the UI never hard-fails. `mock.ts` provides the sample
-data; `types.ts` the shared shapes. This is separate from the managed
-**supplier directory** (the `supplier` table — agency's own hotel/airline/DMC
-contacts; see [business-rules.md](business-rules.md)).
+`src/lib/travel-platform/index.ts` is the single entry point for all travel
+operations. Server actions import from here only; no supplier-specific code
+leaks into the action or page layer.
+
+Key exports: `searchFlights`, `searchHotels`, `searchAirports`,
+`searchHotelDestinations`, `getActiveFlightProvider`, `getActiveHotelProvider`,
+`isFlightProviderConfigured`, `isHotelProviderConfigured`.
+
+The hotel search path handles three cases internally:
+1. Name search → `ContentCapable.searchHotelsByName`
+2. Availability search → `HotelSearchCapable.searchHotels` + content enrichment via `ContentCapable.fetchHotelContent`
+3. Content fallback (empty/degraded availability) → DB cache (`listHotelOffersCached`) → `ContentCapable.searchHotelsByName` with city as query
+
+## Supplier abstraction (legacy)
+
+`src/lib/suppliers/index.ts` — `getFlightSupplier` / `getHotelSupplier` /
+`safeSearch` — is kept for backward compatibility. New code must use the
+Travel Platform facade instead. This is separate from the managed **supplier
+directory** (the `supplier` table — agency's own hotel/airline/DMC contacts;
+see [business-rules.md](business-rules.md)).
 
 ## Billing — Stripe subscriptions (vendor → agency)
 

@@ -9,11 +9,8 @@ import {
   listDraftProposals,
   listOpenBookings,
 } from "@/lib/queries";
-import {
-  isHotelbedsConfigured,
-  mockHotelContent,
-  type HotelDetails,
-} from "@/lib/suppliers";
+import { mockHotelContent, type HotelDetails } from "@/lib/suppliers";
+import { isHotelProviderConfigured } from "@/lib/travel-platform";
 import { getHotelContentCached } from "@/lib/suppliers/content-cache";
 
 export const metadata = { title: "Hotel details" };
@@ -59,7 +56,7 @@ export default async function HotelDetailsPage({
   // the live content call is unavailable (e.g. quota exhausted), so the gallery
   // and per-room photos never render blank.
   let content: HotelDetails | null = null;
-  if (isHotelbedsConfigured() && !hotelCode.startsWith("mock-")) {
+  if (isHotelProviderConfigured() && !hotelCode.startsWith("mock-")) {
     // Cache-first: serves real photos quota-free, fetching live only on a miss.
     content = await getHotelContentCached(hotelCode);
   }

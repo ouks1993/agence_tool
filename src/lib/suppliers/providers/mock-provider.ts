@@ -21,15 +21,20 @@
 import { MockSupplier } from "../mock";
 import {
   ProviderError,
+  type AutocompleteCapable,
   type BookingResult,
   type CancelCapable,
   type CancelResult,
+  type ContentCapable,
   type FlightBookingCapable,
   type FlightBookingRequest,
   type FlightSearchCapable,
   type HotelBookingCapable,
   type HotelBookingRequest,
+  type HotelContentParams,
+  type HotelEnrichment,
   type HotelSearchCapable,
+  type PlaceSuggestion,
   type ProviderBookingRef,
   type ProviderContext,
   type ProviderDescriptor,
@@ -66,12 +71,21 @@ export class MockBookingProvider
     FlightBookingCapable,
     HotelSearchCapable,
     HotelBookingCapable,
-    CancelCapable
+    CancelCapable,
+    ContentCapable,
+    AutocompleteCapable
 {
   readonly id = "mock" as const;
   readonly label = "Mock";
   readonly verticals = ["flights", "hotels"] as const;
-  readonly capabilities = ["search", "quote", "book", "cancel"] as const;
+  readonly capabilities = [
+    "search",
+    "quote",
+    "book",
+    "cancel",
+    "content",
+    "autocomplete",
+  ] as const;
   /** Lowest priority — the fallback. Real providers at priority 50 outrank it. */
   readonly priority = 0;
 
@@ -182,5 +196,103 @@ export class MockBookingProvider
   ): Promise<CancelResult> {
     // The mock never charges a penalty and always cancels successfully.
     return { cancelled: true };
+  }
+
+  // --- ContentCapable -------------------------------------------------------
+
+  /**
+   * Name-based hotel search. Delegates to the deterministic supplier using the
+   * query as the city, so results are stable HotelOffers whose names embed the
+   * query (the supplier composes names as `{brand} {city} {suffix}`).
+   */
+  async searchHotelsByName(
+    query: string,
+    _ctx: ProviderContext
+  ): Promise<HotelOffer[]> {
+    const today = new Date();
+    const checkIn = today.toISOString().slice(0, 10);
+    const checkOut = new Date(today.getTime() + 86400000)
+      .toISOString()
+      .slice(0, 10);
+    const offers = await this.supplier.searchHotels({
+      city: query,
+      checkIn,
+      checkOut,
+      adults: 2,
+      rooms: 1,
+    });
+    return offers.slice(0, 3);
+  }
+
+  /**
+   * Static enrichment for each requested code — no live content provider, so we
+   * return sensible placeholders keyed to the code (name, 4 stars, empty media).
+   */
+  async fetchHotelContent(
+    codes: string[],
+    _ctx: ProviderContext
+  ): Promise<HotelEnrichment[]> {
+    return codes.map((code) => ({
+      code,
+      name: "Mock Hotel",
+      stars: 4,
+      images: [],
+      facilities: [],
+    }));
+  }
+
+  /**
+   * Room rates for a single hotel. Delegates to the supplier using the content
+   * params (check-in/out + occupancy) so the returned HotelOffers are
+   * deterministic and priced for the stay.
+   */
+  async fetchRoomRates(
+    params: HotelContentParams,
+    _ctx: ProviderContext
+  ): Promise<HotelOffer[]> {
+    const offers = await this.supplier.searchHotels({
+      city: params.hotelCode,
+      checkIn: params.checkIn,
+      checkOut: params.checkOut,
+      adults: params.adults ?? 2,
+      rooms: params.rooms ?? 1,
+      currency: params.currency,
+    });
+    return offers.slice(0, 3);
+  }
+
+  // --- AutocompleteCapable --------------------------------------------------
+
+  /**
+   * Static airport suggestions whose names embed the query, so autocomplete is
+   * demoable offline without a live places provider.
+   */
+  async searchAirports(
+    query: string,
+    _ctx: ProviderContext
+  ): Promise<PlaceSuggestion[]> {
+    return [
+      {
+        iataCode: "CDG",
+        name: `Paris Charles de Gaulle (${query})`,
+        cityName: "Paris",
+        countryName: "France",
+        type: "airport",
+      },
+      {
+        iataCode: "ALG",
+        name: `Algiers Houari Boumediene (${query})`,
+        cityName: "Algiers",
+        countryName: "Algeria",
+        type: "airport",
+      },
+      {
+        iataCode: "LHR",
+        name: `London Heathrow (${query})`,
+        cityName: "London",
+        countryName: "United Kingdom",
+        type: "airport",
+      },
+    ];
   }
 }

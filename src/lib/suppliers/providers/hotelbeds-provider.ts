@@ -30,14 +30,22 @@ import {
   type BookingResult,
   type CancelCapable,
   type CancelResult,
+  type ContentCapable,
   type HotelBookingCapable,
   type HotelBookingRequest,
+  type HotelContentParams,
+  type HotelEnrichment,
   type HotelSearchCapable,
   type ProviderBookingRef,
   type ProviderContext,
   type ProviderDescriptor,
   type RateQuote,
 } from "./types";
+import {
+  getHotelbedsContentBatch,
+  getHotelbedsRates,
+  searchHotelbedsHotelsByName,
+} from "../hotelbeds";
 import { nightsBetween } from "../types";
 import type { HotelOffer, HotelSearchParams } from "../types";
 
@@ -47,6 +55,28 @@ const FETCH_TIMEOUT_MS = 15000;
 
 /** A CheckRate quote is valid for 15 minutes before it must be re-priced. */
 const QUOTE_TTL_MS = 15 * 60 * 1000;
+
+/** Default occupancy when a content call doesn't carry one (name search). */
+const DEFAULT_ADULTS = 2;
+
+/** How far out to default a synthesized stay window when none is supplied. */
+const DEFAULT_STAY_OFFSET_DAYS = 30;
+
+/**
+ * The Content name-search endpoint needs a stay window to price results, but
+ * `ContentCapable.searchHotelsByName` only carries the query. Synthesize a
+ * single-night window ~30 days out so callers still get live (not estimated)
+ * pricing when availability exists. Dates are ISO `YYYY-MM-DD`.
+ */
+function defaultStayWindow(): { checkIn: string; checkOut: string } {
+  const day = 24 * 60 * 60 * 1000;
+  const checkIn = new Date(Date.now() + DEFAULT_STAY_OFFSET_DAYS * day);
+  const checkOut = new Date(checkIn.getTime() + day);
+  return {
+    checkIn: checkIn.toISOString().slice(0, 10),
+    checkOut: checkOut.toISOString().slice(0, 10),
+  };
+}
 
 // --- Hotelbeds API shapes (only the fields we consume) ----------------------
 
@@ -150,12 +180,19 @@ export class HotelbedsBookingProvider
     ProviderDescriptor,
     HotelSearchCapable,
     HotelBookingCapable,
-    CancelCapable
+    CancelCapable,
+    ContentCapable
 {
   readonly id = "hotelbeds" as const;
   readonly label = "Hotelbeds";
   readonly verticals = ["hotels"] as const;
-  readonly capabilities = ["search", "quote", "book", "cancel"] as const;
+  readonly capabilities = [
+    "search",
+    "quote",
+    "book",
+    "cancel",
+    "content",
+  ] as const;
   readonly priority = 50;
 
   /** Configured when credentials resolve to the live Hotelbeds provider. */
@@ -500,5 +537,133 @@ export class HotelbedsBookingProvider
       ...(penalty && penalty > 0 ? { penaltyAmount: penalty } : {}),
       // We don't have the booking's currency at cancel time — leave undefined.
     };
+  }
+
+  // --- ContentCapable -------------------------------------------------------
+
+  /**
+   * Free-text hotel name search backed by the Hotelbeds Content API (with live
+   * availability when possible). `ContentCapable` only passes the query string,
+   * but the underlying `searchHotelbedsHotelsByName` needs a stay window and
+   * occupancy to price results — synthesize a sensible default window (a single
+   * night ~30 days out, 2 adults) and carry the locale's currency from `ctx`.
+   */
+  async searchHotelsByName(
+    query: string,
+    ctx: ProviderContext
+  ): Promise<HotelOffer[]> {
+    const { checkIn, checkOut } = defaultStayWindow();
+    const params: HotelSearchParams & { hotelName: string } = {
+      hotelName: query,
+      city: "",
+      checkIn,
+      checkOut,
+      adults: DEFAULT_ADULTS,
+      ...(ctx.currency ? { currency: ctx.currency } : {}),
+    };
+
+    try {
+      return await searchHotelbedsHotelsByName(params);
+    } catch (error) {
+      if (error instanceof ProviderError) throw error;
+      throw new ProviderError(
+        "hotelbeds",
+        "unknown",
+        "Hotelbeds hotel name search failed",
+        false,
+        error
+      );
+    }
+  }
+
+  /**
+   * Enrichment (thumbnail + accommodation type) for a batch of hotel codes via
+   * the Content API. The batch helper returns only a thumbnail and type per
+   * code, so the resulting `HotelEnrichment` carries `code` plus a single-image
+   * list derived from the thumbnail; richer fields stay undefined.
+   */
+  async fetchHotelContent(
+    codes: string[],
+    _ctx: ProviderContext
+  ): Promise<HotelEnrichment[]> {
+    let batch: Awaited<ReturnType<typeof getHotelbedsContentBatch>>;
+    try {
+      batch = await getHotelbedsContentBatch(codes);
+    } catch (error) {
+      if (error instanceof ProviderError) throw error;
+      throw new ProviderError(
+        "hotelbeds",
+        "unknown",
+        "Hotelbeds content batch fetch failed",
+        false,
+        error
+      );
+    }
+
+    return Object.entries(batch).map(([code, enrichment]) => ({
+      code,
+      // The batch helper only exposes a single thumbnail — surface it as the
+      // first (and only) image so callers get a uniform image list.
+      ...(enrichment.thumbnail
+        ? { images: [{ url: enrichment.thumbnail }] }
+        : {}),
+    }));
+  }
+
+  /**
+   * Live room rates for a single hotel. `getHotelbedsRates` returns
+   * `HotelRoomRate[]` (a room-table shape); map each to the provider-neutral
+   * `HotelOffer` the `ContentCapable` contract expects.
+   */
+  async fetchRoomRates(
+    params: HotelContentParams,
+    ctx: ProviderContext
+  ): Promise<HotelOffer[]> {
+    const searchParams: HotelSearchParams & { hotelCode: string } = {
+      hotelCode: params.hotelCode,
+      city: "",
+      checkIn: params.checkIn,
+      checkOut: params.checkOut,
+      adults: params.adults ?? DEFAULT_ADULTS,
+      ...(params.rooms !== undefined ? { rooms: params.rooms } : {}),
+      ...(params.currency ?? ctx.currency
+        ? { currency: params.currency ?? ctx.currency }
+        : {}),
+    };
+
+    let rates: Awaited<ReturnType<typeof getHotelbedsRates>>;
+    try {
+      rates = await getHotelbedsRates(searchParams);
+    } catch (error) {
+      if (error instanceof ProviderError) throw error;
+      throw new ProviderError(
+        "hotelbeds",
+        "unknown",
+        "Hotelbeds room rate fetch failed",
+        false,
+        error
+      );
+    }
+
+    const currency = params.currency ?? ctx.currency ?? "EUR";
+    // Map each bookable room+rate onto the offer shape, keying the offer id by
+    // the rate's stable id so distinct rates for the same hotel stay unique.
+    return rates.map((rate) => ({
+      id: `hotelbeds-rate-${rate.id}`,
+      source: "hotelbeds" as const,
+      name: rate.roomName,
+      stars: 0,
+      city: "",
+      ...(rate.boardType !== undefined ? { boardType: rate.boardType } : {}),
+      refundable: rate.refundable,
+      pricePerNight: rate.pricePerNight,
+      priceTotal: rate.priceTotal,
+      nights: rate.nights,
+      currency: rate.currency || currency,
+      roomName: rate.roomName,
+      ...(rate.roomCode !== undefined ? { roomCode: rate.roomCode } : {}),
+      ...(rate.rateKey !== undefined ? { rateKey: rate.rateKey } : {}),
+      hotelCode: params.hotelCode,
+    }));
   }
 }

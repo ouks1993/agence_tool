@@ -54,7 +54,8 @@ export type ProviderCapability =
   | "quote"
   | "book"
   | "cancel"
-  | "content";
+  | "content"
+  | "autocomplete";
 
 // --- Call context -----------------------------------------------------------
 
@@ -222,9 +223,72 @@ export interface CancelCapable {
   cancel(ref: ProviderBookingRef, ctx: ProviderContext): Promise<CancelResult>;
 }
 
+// --- Content & enrichment capability ----------------------------------------
+
+/**
+ * Provider-neutral hotel enrichment payload (photos, facilities, coordinates).
+ * Providers map their own content schema to this shape.
+ */
+export type HotelEnrichment = {
+  code: string;
+  name?: string | undefined;
+  stars?: number | undefined;
+  images?: { url: string; roomCode?: string }[] | undefined;
+  facilities?: string[] | undefined;
+  latitude?: number | undefined;
+  longitude?: number | undefined;
+  destinationCode?: string | undefined;
+};
+
+/** Parameters for fetching per-hotel room rates (single-property detail page). */
+export type HotelContentParams = {
+  hotelCode: string;
+  checkIn: string;
+  checkOut: string;
+  adults?: number | undefined;
+  rooms?: number | undefined;
+  currency?: string | undefined;
+};
+
+/**
+ * Content, enrichment, and name-search capabilities.
+ * Implemented by providers that expose a hotel content/metadata API
+ * (e.g. Hotelbeds Content API, Expedia Content API).
+ */
+export interface ContentCapable {
+  /** Search hotels by name string → returns priced offers (or estimated). */
+  searchHotelsByName(query: string, ctx: ProviderContext): Promise<HotelOffer[]>;
+  /** Fetch enrichment data (photos, facilities, coords) for a list of hotel codes. */
+  fetchHotelContent(codes: string[], ctx: ProviderContext): Promise<HotelEnrichment[]>;
+  /** Fetch room rates for a single hotel (detail/room-picker page). */
+  fetchRoomRates(params: HotelContentParams, ctx: ProviderContext): Promise<HotelOffer[]>;
+}
+
+// --- Autocomplete capability -------------------------------------------------
+
+/** A single airport/place suggestion (provider-neutral). */
+export type PlaceSuggestion = {
+  iataCode: string;
+  name: string;
+  cityName?: string | undefined;
+  countryName?: string | undefined;
+  type?: string | undefined;
+};
+
+/**
+ * Airport and destination autocomplete.
+ * Implemented by providers that have a places/suggestions API (e.g. Duffel).
+ */
+export interface AutocompleteCapable {
+  /** Suggest airports / cities matching a free-text query. */
+  searchAirports(query: string, ctx: ProviderContext): Promise<PlaceSuggestion[]>;
+}
+
+// --- Composed provider type -------------------------------------------------
+
 /**
  * A concrete provider is its descriptor plus whichever capability interfaces it
- * supports. Callers narrow with the `supports*` type guards in ./registry.ts
+ * supports. Callers narrow with the type guards in ./registry.ts
  * (e.g. `if (canSearchHotels(p)) p.searchHotels(...)`).
  */
 export type BookingProvider = ProviderDescriptor &
@@ -233,5 +297,7 @@ export type BookingProvider = ProviderDescriptor &
       HotelBookingCapable &
       FlightSearchCapable &
       FlightBookingCapable &
-      CancelCapable
+      CancelCapable &
+      ContentCapable &
+      AutocompleteCapable
   >;

@@ -49,7 +49,10 @@ import { paymentSummary } from "@/lib/payments/summary";
 import { requireAgencyUser } from "@/lib/permissions";
 import { listClientOptions, listOpenBookings } from "@/lib/queries";
 import { booking } from "@/lib/schema";
-import { getFlightSupplier, getHotelSupplier } from "@/lib/suppliers";
+import {
+  getActiveFlightProvider,
+  getActiveHotelProvider,
+} from "@/lib/travel-platform";
 
 export default async function BookingWorkspace({
   params,
@@ -84,8 +87,8 @@ export default async function BookingWorkspace({
   ]);
   if (!b) notFound();
 
-  const flightLabel = getFlightSupplier().label;
-  const hotelLabel = getHotelSupplier().label;
+  const flightLabel = getActiveFlightProvider().label;
+  const hotelLabel = getActiveHotelProvider().label;
   const supplierLabel =
     flightLabel === hotelLabel ? flightLabel : `${flightLabel} · ${hotelLabel}`;
 

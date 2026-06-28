@@ -3,11 +3,11 @@ import { PageHeader } from "@/components/app/page-header";
 import { SearchWorkspace } from "@/components/search/search-workspace";
 import { requireAgencyUser } from "@/lib/permissions";
 import { listClientOptions, listOpenBookings } from "@/lib/queries";
+import { isLiveSupplierConfigured } from "@/lib/suppliers";
 import {
-  getFlightSupplier,
-  getHotelSupplier,
-  isLiveSupplierConfigured,
-} from "@/lib/suppliers";
+  getActiveFlightProvider,
+  getActiveHotelProvider,
+} from "@/lib/travel-platform";
 
 export const metadata = { title: "Flights" };
 
@@ -18,8 +18,8 @@ export default async function FlightsSourcingPage() {
     listOpenBookings(user.agencyId),
   ]);
   const live = isLiveSupplierConfigured();
-  const flightLabel = getFlightSupplier().label;
-  const hotelLabel = getHotelSupplier().label;
+  const flightLabel = getActiveFlightProvider().label;
+  const hotelLabel = getActiveHotelProvider().label;
   const supplierLabel =
     flightLabel === hotelLabel
       ? flightLabel

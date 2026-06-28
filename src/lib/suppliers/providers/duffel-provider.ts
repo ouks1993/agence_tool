@@ -15,17 +15,20 @@
 import { getFlightProviderConfig } from "../config";
 import {
   ProviderError,
+  type AutocompleteCapable,
   type BookingResult,
   type CancelCapable,
   type CancelResult,
   type FlightBookingCapable,
   type FlightBookingRequest,
   type FlightSearchCapable,
+  type PlaceSuggestion,
   type ProviderBookingRef,
   type ProviderContext,
   type ProviderDescriptor,
   type RateQuote,
 } from "./types";
+import { searchDuffelPlaces } from "../duffel";
 import type {
   CabinClass,
   FlightOffer,
@@ -217,12 +220,19 @@ export class DuffelBookingProvider
     ProviderDescriptor,
     FlightSearchCapable,
     FlightBookingCapable,
-    CancelCapable
+    CancelCapable,
+    AutocompleteCapable
 {
   readonly id = "duffel" as const;
   readonly label = "Duffel";
   readonly verticals = ["flights"] as const;
-  readonly capabilities = ["search", "quote", "book", "cancel"] as const;
+  readonly capabilities = [
+    "search",
+    "quote",
+    "book",
+    "cancel",
+    "autocomplete",
+  ] as const;
   readonly priority = 50;
 
   isConfigured(): boolean {
@@ -464,5 +474,33 @@ export class DuffelBookingProvider
     }
 
     return { cancelled: true };
+  }
+
+  /**
+   * Airport / place autocomplete. Credentials are resolved inside
+   * searchDuffelPlaces from env/config, so the provider context is unused here.
+   * Failures are normalized to a `ProviderError` so callers branch on `code`.
+   */
+  async searchAirports(
+    query: string,
+    _ctx: ProviderContext
+  ): Promise<PlaceSuggestion[]> {
+    try {
+      const results = await searchDuffelPlaces(query);
+      return results.map((r) => ({
+        iataCode: r.iata,
+        name: r.name,
+        cityName: r.city,
+        countryName: r.country,
+      }));
+    } catch (error) {
+      throw new ProviderError(
+        "duffel",
+        "unknown",
+        `Duffel airport autocomplete failed for "${query}"`,
+        false,
+        error
+      );
+    }
   }
 }

@@ -17,8 +17,10 @@
  */
 
 import type {
+  AutocompleteCapable,
   BookingProvider,
   CancelCapable,
+  ContentCapable,
   FlightBookingCapable,
   FlightSearchCapable,
   HotelBookingCapable,
@@ -58,6 +60,18 @@ export function canCancel(
   p: BookingProvider
 ): p is BookingProvider & CancelCapable {
   return typeof (p as Partial<CancelCapable>).cancel === "function";
+}
+
+export function canProvideContent(
+  p: BookingProvider
+): p is BookingProvider & ContentCapable {
+  return typeof (p as Partial<ContentCapable>).searchHotelsByName === "function";
+}
+
+export function canAutocomplete(
+  p: BookingProvider
+): p is BookingProvider & AutocompleteCapable {
+  return typeof (p as Partial<AutocompleteCapable>).searchAirports === "function";
 }
 
 // --- Registry ---------------------------------------------------------------
@@ -141,7 +155,7 @@ export const PROVIDER_CATALOG: ProviderCatalogEntry[] = [
     id: "mock",
     label: "Mock",
     verticals: ["flights", "hotels"],
-    capabilities: ["search", "quote", "book", "cancel", "content"],
+    capabilities: ["search", "quote", "book", "cancel", "content", "autocomplete"],
     priority: 0,
     status: "live",
     envVars: [],
@@ -150,7 +164,7 @@ export const PROVIDER_CATALOG: ProviderCatalogEntry[] = [
     id: "duffel",
     label: "Duffel",
     verticals: ["flights"],
-    capabilities: ["search", "book", "cancel"],
+    capabilities: ["search", "quote", "book", "cancel", "autocomplete"],
     priority: 50,
     status: "live",
     envVars: ["DUFFEL_API_TOKEN"],
