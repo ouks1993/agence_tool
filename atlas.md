@@ -1,5 +1,8 @@
 # Atlas — Documentation Index
 
+> **Atlas is the operating system for modern travel agencies.**
+> Every decision should support that sentence.
+
 Atlas is a **multi-tenant SaaS for travel agencies**. Each agency runs its
 clients, sales pipeline, proposals, bookings and finance in a fully isolated
 workspace; the vendor manages every agency from a platform console. Multilingual

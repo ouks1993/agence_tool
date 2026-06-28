@@ -1,6 +1,11 @@
 # Vision
 
-**Atlas exists to become the operating system of travel agencies.**
+> ## Atlas is the operating system for modern travel agencies.
+> **Every decision should support that sentence.**
+
+It is the north star: a feature, a design choice, or a piece of scope earns its
+place only if it makes Atlas more of an agency's single operating system. If it
+doesn't support the sentence, it doesn't ship.
 
 Today an agency runs on a patchwork of tools:
 
