@@ -41,7 +41,11 @@ truth, no hard delete, no cross-tenant exposure) at the schema level.
 | `opportunity` | agencyId | pipeline stage, value, currency; `travel_purpose` code; `lost_reason` code |
 | `product` | agencyId | proposal; ref unique per agency; + `product_item` (child; `supplierId` FK optional); **e-sign**: shareToken (unique), acceptedAt/declinedAt, signerName/Email, signatureData, signerIp/UserAgent |
 | `booking` | agencyId | ref unique per agency; shareToken; `travel_purpose` + `trip_type` codes |
-| `booking_traveller` (+ `title`, `gender` codes), `booking_item` (+ `supplierId` FK), `payment`, `booking_day` | via booking | children |
+| `booking_traveller` (+ `title`, `gender` codes), `booking_item` (+ `supplierId` FK), `payment`, `booking_day` | via booking | children; `booking_traveller` carries `email` + `phone` (required by supplier APIs for the lead passenger) |
+| `booking_supplier_ref` | via booking + booking_item | structured supplier confirmation: `providerId`, `confirmationNumber`, `pnr`, `supplierOrderId`, `rawPayload`; replaces untyped JSONB in `booking_item.details` |
+| `booking_event` | bookingId + agencyId | append-only event log (audit + analytics); stable `event` codes: `search_initiated`, `offer_selected`, `price_validated`, `price_changed`, `booking_submitted`, `booking_confirmed`, `booking_failed`, `booking_cancelled`, `payment_started`, `payment_completed` |
+| `booking_document` | via booking (+ optional booking_item) | documents: `type` (voucher/ticket/invoice/itinerary/receipt), `url` (Vercel Blob), `rawData` (supplier payload for re-generation) |
+| `booking_idempotency` | via booking (+ optional booking_item) | idempotency key registry; key = sha256(bookingId+itemId+offerId); prevents duplicate supplier orders on retry; `expiresAt` (24 h TTL) |
 | `notification` | agencyId | comms log |
 | `activity_log` | agencyId | audit trail |
 | `supplier` | agencyId | managed supplier directory (hotels, airlines, DMC, etc.) |
@@ -71,6 +75,8 @@ All ID columns **not** related to Better Auth use UUIDs, randomly generated. See
 | `0015` | `commission` table; `user.commissionRatePercent` |
 | `0016` | `agency.onboardingDismissedAt` |
 | `0017` | Controlled-vocab columns: `client.industry`, `opportunity.travel_purpose`, `booking.travel_purpose`/`trip_type`, `booking_traveller.title`/`gender` (all nullable, additive) |
+| `0018` | (see existing) |
+| `0019` | Sprint 1 booking architecture: `booking_supplier_ref`, `booking_event`, `booking_document`, `booking_idempotency` tables; `booking_traveller.email` + `.phone` columns |
 
 > Migrations `0000`–`0005` predate the multi-tenant rework (the pre-tenancy base
 > schema) and are not itemized here.

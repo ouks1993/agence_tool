@@ -511,6 +511,9 @@ export const bookingTraveller = pgTable(
     dateOfBirth: timestamp("date_of_birth"),
     passportIssueDate: timestamp("passport_issue_date"),
     passportIssuePlace: text("passport_issue_place"),
+    // Contact details required by supplier APIs (e.g. Duffel requires email + phone on lead).
+    email: text("email"),
+    phone: text("phone"),
     isLead: boolean("is_lead").default(false).notNull(),
     sortOrder: integer("sort_order").default(0).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -642,6 +645,158 @@ export const bookingDay = pgTable(
     notes: text("notes"),
   },
   (table) => [index("booking_day_booking_idx").on(table.bookingId)]
+);
+
+// ---------------------------------------------------------------------------
+// Booking lifecycle: supplier references, events, documents, idempotency
+// ---------------------------------------------------------------------------
+
+/**
+ * Structured supplier-side confirmation for a booking item.
+ *
+ * Replaces the ad-hoc JSONB in booking_item.details — supplier references must
+ * be queryable for status polling, cancellation, and voucher retrieval.
+ */
+export const bookingSupplierRef = pgTable(
+  "booking_supplier_ref",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    bookingId: uuid("booking_id")
+      .notNull()
+      .references(() => booking.id, { onDelete: "cascade" }),
+    bookingItemId: uuid("booking_item_id")
+      .notNull()
+      .references(() => bookingItem.id, { onDelete: "cascade" }),
+    // Provider that created this confirmation (e.g. "duffel", "hotelbeds", "mock").
+    providerId: text("provider_id").notNull(),
+    // Supplier confirmation/locator shown to the client.
+    confirmationNumber: text("confirmation_number").notNull(),
+    // PNR / record locator when available (flights).
+    pnr: text("pnr"),
+    // Provider's internal order id (e.g. Duffel "order_xxxxx").
+    supplierOrderId: text("supplier_order_id"),
+    // Full raw response payload — kept for debugging and future re-parsing.
+    rawPayload: jsonb("raw_payload"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("booking_supplier_ref_booking_idx").on(table.bookingId),
+    index("booking_supplier_ref_item_idx").on(table.bookingItemId),
+    index("booking_supplier_ref_provider_idx").on(table.providerId),
+  ]
+);
+
+/**
+ * Immutable event log for each booking — one row per meaningful step.
+ *
+ * Serves two purposes:
+ *   1. Compliance audit trail — every state transition is permanently recorded.
+ *   2. Analytics source — booking funnel metrics without a third-party SDK.
+ *
+ * Events are append-only: never update or delete rows.
+ */
+export const bookingEvent = pgTable(
+  "booking_event",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    bookingId: uuid("booking_id")
+      .notNull()
+      .references(() => booking.id, { onDelete: "cascade" }),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agency.id, { onDelete: "cascade" }),
+    // Stable event name — callers branch on this, never on free-text.
+    // "search_initiated" | "offer_selected" | "price_validated" | "price_changed"
+    // | "booking_submitted" | "booking_confirmed" | "booking_failed"
+    // | "booking_cancelled" | "payment_started" | "payment_completed"
+    event: text("event").notNull(),
+    // Provider that handled this step ("duffel", "hotelbeds", "mock", null for UI events).
+    providerId: text("provider_id"),
+    // Correlation id for tracing a request across logs.
+    correlationId: text("correlation_id"),
+    // Structured payload (offer id, price, error code, duration, etc.).
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("booking_event_booking_idx").on(table.bookingId),
+    index("booking_event_agency_idx").on(table.agencyId),
+    index("booking_event_event_idx").on(table.event),
+    index("booking_event_created_idx").on(table.createdAt),
+    index("booking_event_booking_created_idx").on(table.bookingId, table.createdAt),
+  ]
+);
+
+/**
+ * Documents generated for a booking: vouchers, e-tickets, invoices, itineraries.
+ *
+ * `url` stores a Vercel Blob URL when the document is persisted externally.
+ * `rawData` stores the supplier's original payload for re-generation.
+ */
+export const bookingDocument = pgTable(
+  "booking_document",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    bookingId: uuid("booking_id")
+      .notNull()
+      .references(() => booking.id, { onDelete: "cascade" }),
+    // Optional: document may belong to a specific line item (flight, hotel room).
+    bookingItemId: uuid("booking_item_id").references(() => bookingItem.id, {
+      onDelete: "set null",
+    }),
+    // "voucher" | "ticket" | "invoice" | "itinerary" | "receipt"
+    type: text("type").notNull(),
+    // Provider that issued the document, if applicable.
+    providerId: text("provider_id"),
+    // Vercel Blob URL or supplier CDN link. Null when document is in rawData only.
+    url: text("url"),
+    // Supplier's original document payload (base64, JSON, etc.) for re-generation.
+    rawData: jsonb("raw_data"),
+    generatedAt: timestamp("generated_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("booking_document_booking_idx").on(table.bookingId),
+    index("booking_document_item_idx").on(table.bookingItemId),
+    index("booking_document_type_idx").on(table.type),
+  ]
+);
+
+/**
+ * Idempotency key registry for supplier booking API calls.
+ *
+ * Prevents duplicate supplier orders on network timeouts, browser re-submission,
+ * or server-action re-execution. Key derivation:
+ *   sha256(bookingId + bookingItemId + offerId/rateKey)
+ *
+ * On retry the same key is generated; the stored result is returned without
+ * calling the supplier again.
+ */
+export const bookingIdempotency = pgTable(
+  "booking_idempotency",
+  {
+    // Derived key is the primary key — prevents duplicate rows on replay.
+    key: text("key").primaryKey(),
+    bookingId: uuid("booking_id")
+      .notNull()
+      .references(() => booking.id, { onDelete: "cascade" }),
+    bookingItemId: uuid("booking_item_id").references(() => bookingItem.id, {
+      onDelete: "cascade",
+    }),
+    // Provider this key was sent to.
+    providerId: text("provider_id").notNull(),
+    // "pending" | "success" | "failed"
+    status: text("status").default("pending").notNull(),
+    // Supplier confirmation reference when the call succeeded.
+    supplierRef: text("supplier_ref"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    // Keys are short-lived (24h). Expired rows may be cleaned up by a cron job.
+    expiresAt: timestamp("expires_at").notNull(),
+  },
+  (table) => [
+    index("booking_idempotency_booking_idx").on(table.bookingId),
+    index("booking_idempotency_expires_idx").on(table.expiresAt),
+  ]
 );
 
 // ---------------------------------------------------------------------------
@@ -821,6 +976,9 @@ export const bookingRelations = relations(booking, ({ one, many }) => ({
   payments: many(payment),
   days: many(bookingDay),
   notifications: many(notification),
+  supplierRefs: many(bookingSupplierRef),
+  events: many(bookingEvent),
+  documents: many(bookingDocument),
 }));
 
 export const notificationRelations = relations(notification, ({ one }) => ({
@@ -855,10 +1013,56 @@ export const bookingTravellerRelations = relations(bookingTraveller, ({ one }) =
   }),
 }));
 
-export const bookingItemRelations = relations(bookingItem, ({ one }) => ({
+export const bookingItemRelations = relations(bookingItem, ({ one, many }) => ({
   booking: one(booking, {
     fields: [bookingItem.bookingId],
     references: [booking.id],
+  }),
+  supplierRefs: many(bookingSupplierRef),
+  documents: many(bookingDocument),
+}));
+
+export const bookingSupplierRefRelations = relations(bookingSupplierRef, ({ one }) => ({
+  booking: one(booking, {
+    fields: [bookingSupplierRef.bookingId],
+    references: [booking.id],
+  }),
+  bookingItem: one(bookingItem, {
+    fields: [bookingSupplierRef.bookingItemId],
+    references: [bookingItem.id],
+  }),
+}));
+
+export const bookingEventRelations = relations(bookingEvent, ({ one }) => ({
+  booking: one(booking, {
+    fields: [bookingEvent.bookingId],
+    references: [booking.id],
+  }),
+  agency: one(agency, {
+    fields: [bookingEvent.agencyId],
+    references: [agency.id],
+  }),
+}));
+
+export const bookingDocumentRelations = relations(bookingDocument, ({ one }) => ({
+  booking: one(booking, {
+    fields: [bookingDocument.bookingId],
+    references: [booking.id],
+  }),
+  bookingItem: one(bookingItem, {
+    fields: [bookingDocument.bookingItemId],
+    references: [bookingItem.id],
+  }),
+}));
+
+export const bookingIdempotencyRelations = relations(bookingIdempotency, ({ one }) => ({
+  booking: one(booking, {
+    fields: [bookingIdempotency.bookingId],
+    references: [booking.id],
+  }),
+  bookingItem: one(bookingItem, {
+    fields: [bookingIdempotency.bookingItemId],
+    references: [bookingItem.id],
   }),
 }));
 

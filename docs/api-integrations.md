@@ -9,8 +9,9 @@ when its keys are unset, so the app runs end-to-end with only `POSTGRES_URL` +
 
 Booking providers plug into **one abstraction** so adding Hotelbeds, Amadeus,
 TravelgateX, Booking.com, or Expedia never touches calling code. Interfaces +
-registry live in `src/lib/suppliers/providers/` (architecture only — **no provider
-adapters implemented yet**).
+registry live in `src/lib/suppliers/providers/`. Environment resolution lives in
+`src/lib/suppliers/config.ts` — the single entry point for credential/hostname
+config; no other file reads `process.env` for supplier credentials directly.
 
 - **Capability-segmented interfaces** (`types.ts`) — a provider implements only
   what it offers: `HotelSearchCapable`, `HotelBookingCapable`,
@@ -57,7 +58,7 @@ provider against `quote`/`book`/`cancel` without further interface changes.
 - Airport autocomplete, one-way/round-trip, flight codes, connecting airports.
 - Falls back to sample data when `DUFFEL_API_TOKEN` is unset.
 - Amadeus self-service (`amadeus.ts`) is kept **only as a legacy fallback**.
-- **Search-only today** — placing real orders is an open item ([roadmap.md](roadmap.md)).
+- **Sprint 1:** `DuffelBookingProvider` implements `FlightSearchCapable` + `FlightBookingCapable` through the registry, adding `quoteFlight` (price revalidation) + `bookFlight` (idempotent order creation) to the existing search capability.
 
 ## Hotels — Hotelbeds (APITUDE)
 
@@ -69,8 +70,11 @@ provider against `quote`/`book`/`cancel` without further interface changes.
 - **Search by hotel name** resolves matching hotels via the Content API
   (`searchHotelbedsHotelsByName`) then prices them live; falls back to estimated
   rates.
-- Keys: `HOTELBEDS_API_KEY` / `HOTELBEDS_SECRET`. Falls back to sample data when
-  unset. **Search-only today** (real booking is an open item).
+- Keys: `HOTELBEDS_API_KEY` / `HOTELBEDS_SECRET`. Hostname: `HOTELBEDS_HOSTNAME`
+  (defaults to test endpoint; set to `https://api.hotelbeds.com` for production).
+  Falls back to sample data when keys are unset.
+- **Sprint 1:** `HotelbedsBookingProvider` implements `HotelSearchCapable` +
+  `HotelBookingCapable` through the registry, adding `quoteHotel` + `bookHotel`.
 
 ## Supplier abstraction
 
