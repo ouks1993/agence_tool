@@ -6,6 +6,21 @@
 
 import { APP_NAME } from "@/lib/config";
 
+/**
+ * Escape user-sourced text before interpolating it into an HTML email body.
+ * Prevents stored content (client/agency names, role labels) from breaking out
+ * of the surrounding markup or injecting tags. Only apply to untrusted values —
+ * not to URLs or markup we build ourselves.
+ */
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function shell(bodyHtml: string): string {
   return `<!doctype html><html><body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#18181b;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:32px 0;">
@@ -53,10 +68,12 @@ export function portalMagicLinkEmail(params: {
   agencyName: string;
   magicLinkUrl: string;
 }): { subject: string; html: string; text: string } {
+  const clientName = escapeHtml(params.clientName);
+  const agencyName = escapeHtml(params.agencyName);
   const subject = `Your login link for ${params.agencyName}`;
   const html = shell(
-    `<p style="margin:0 0 16px;font-size:16px;font-weight:600;color:#18181b;">Hello, ${params.clientName}</p>
-     <p style="margin:0 0 24px;">Click the button below to access your travel portal for <strong>${params.agencyName}</strong>. This link expires in 15 minutes.</p>
+    `<p style="margin:0 0 16px;font-size:16px;font-weight:600;color:#18181b;">Hello, ${clientName}</p>
+     <p style="margin:0 0 24px;">Click the button below to access your travel portal for <strong>${agencyName}</strong>. This link expires in 15 minutes.</p>
      <p style="margin:0 0 24px;">${button(params.magicLinkUrl, "Access my trips")}</p>
      <p style="margin:0;font-size:12px;color:#a1a1aa;">If you didn't request this link, you can safely ignore this email.</p>`
   );
@@ -70,9 +87,11 @@ export function inviteEmailHtml(params: {
   roleLabel: string;
   url: string;
 }): string {
+  const agencyName = escapeHtml(params.agencyName);
+  const roleLabel = escapeHtml(params.roleLabel);
   return shell(
-    `<p style="margin:0 0 16px;font-size:16px;font-weight:600;color:#18181b;">You've been invited to ${params.agencyName}</p>
-     <p style="margin:0 0 24px;">You've been invited to join <strong>${params.agencyName}</strong> on ${APP_NAME} as <strong>${params.roleLabel}</strong>. Accept the invite to create your account.</p>
+    `<p style="margin:0 0 16px;font-size:16px;font-weight:600;color:#18181b;">You've been invited to ${agencyName}</p>
+     <p style="margin:0 0 24px;">You've been invited to join <strong>${agencyName}</strong> on ${APP_NAME} as <strong>${roleLabel}</strong>. Accept the invite to create your account.</p>
      <p style="margin:0 0 24px;">${button(params.url, "Accept invite")}</p>
      <p style="margin:0;font-size:12px;color:#a1a1aa;">This invite expires in 7 days. If you weren't expecting it, you can ignore this email.</p>`
   );

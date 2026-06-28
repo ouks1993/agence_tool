@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq } from "drizzle-orm";
+import { and, eq, max, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { ActionResult } from "@/lib/actions/types";
 import { logActivity } from "@/lib/activity";
@@ -33,16 +33,23 @@ function isUniqueViolation(e: unknown): boolean {
  * reference. Callers retry on the rare concurrent-insert collision.
  */
 async function nextReference(agencyId: string): Promise<string> {
-  const rows = await db
-    .select({ reference: product.reference })
+  // Aggregate the highest numeric suffix in SQL instead of fetching every row.
+  // `regexp_replace(reference, '\D', '', 'g')` mirrors the previous JS
+  // `replace(/\D/g, "")`; rows whose digits don't parse to an int yield NULL and
+  // are ignored by max(). Floor stays 1000 so the first reference is PRD-1001.
+  const [row] = await db
+    .select({
+      maxRef: max(
+        sql<number>`nullif(regexp_replace(${product.reference}, '\\D', '', 'g'), '')::int`
+      ),
+    })
     .from(product)
     .where(eq(product.agencyId, agencyId));
-  let max = 1000;
-  for (const r of rows) {
-    const n = Number.parseInt(r.reference.replace(/\D/g, ""), 10);
-    if (Number.isFinite(n) && n > max) max = n;
-  }
-  return `PRD-${max + 1}`;
+  // max() over a numeric column comes back as a string (or null when no rows);
+  // parse it back, falling through to the 1000 floor on null/NaN.
+  const parsed = Number.parseInt(String(row?.maxRef ?? ""), 10);
+  const highest = Math.max(1000, Number.isFinite(parsed) ? parsed : 1000);
+  return `PRD-${highest + 1}`;
 }
 
 /** Recompute per-item client prices and product totals from item costs + markup. */
@@ -54,17 +61,24 @@ async function recalcTotals(productId: string): Promise<void> {
   if (!p) return;
   const markup = parseFloat(p.markupPercent || "0");
   let totalCost = 0;
+  // Collect the per-item price corrections, then issue them in parallel instead
+  // of awaiting one UPDATE per item sequentially (N+1). Only items whose price
+  // actually changed are updated, exactly as before.
+  const itemUpdates: Promise<unknown>[] = [];
   for (const item of p.items) {
     const cost = parseFloat(item.unitCost || "0") * item.quantity;
     totalCost += cost;
     const unitPrice = round2(parseFloat(item.unitCost || "0") * (1 + markup / 100));
     if (unitPrice !== parseFloat(item.unitPrice || "0")) {
-      await db
-        .update(productItem)
-        .set({ unitPrice: String(unitPrice) })
-        .where(eq(productItem.id, item.id));
+      itemUpdates.push(
+        db
+          .update(productItem)
+          .set({ unitPrice: String(unitPrice) })
+          .where(eq(productItem.id, item.id))
+      );
     }
   }
+  await Promise.all(itemUpdates);
   const totalPrice = round2(totalCost * (1 + markup / 100));
   await db
     .update(product)

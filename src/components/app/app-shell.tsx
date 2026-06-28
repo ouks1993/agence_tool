@@ -220,7 +220,7 @@ export function AppShell({
             onClick={() => setMobileOpen(false)}
             aria-hidden="true"
           />
-          <div className="bg-sidebar animate-in slide-in-from-left-2 absolute top-0 left-0 h-full w-64 border-r">
+          <div className="bg-sidebar animate-in slide-in-from-left-2 rtl:slide-in-from-right-2 absolute top-0 left-0 h-full w-64 border-r rtl:right-0 rtl:left-auto rtl:border-r-0 rtl:border-l">
             <button
               onClick={() => setMobileOpen(false)}
               className="hover:bg-accent absolute top-4 right-3 rounded-md p-1"

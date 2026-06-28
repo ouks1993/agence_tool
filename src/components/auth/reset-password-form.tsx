@@ -22,7 +22,7 @@ export function ResetPasswordForm() {
   if (error === "invalid_token" || !token) {
     return (
       <div className="space-y-4 w-full max-w-sm text-center">
-        <p className="text-sm text-destructive">
+        <p role="alert" className="text-sm text-destructive">
           {error === "invalid_token"
             ? "This password reset link is invalid or has expired."
             : "No reset token provided."}
@@ -97,7 +97,7 @@ export function ResetPasswordForm() {
         />
       </div>
       {formError && (
-        <p className="text-sm text-destructive">{formError}</p>
+        <p role="alert" className="text-sm text-destructive">{formError}</p>
       )}
       <Button type="submit" className="w-full" disabled={isPending}>
         {isPending ? "Resetting..." : "Reset password"}

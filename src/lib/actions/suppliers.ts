@@ -56,38 +56,43 @@ export async function createSupplier(
   }
   const d = parsed.data;
 
-  const [row] = await db
-    .insert(supplier)
-    .values({
+  try {
+    const [row] = await db
+      .insert(supplier)
+      .values({
+        agencyId: user.agencyId,
+        name: d.name,
+        type: d.type,
+        status: d.status,
+        email: d.email || null,
+        phone: d.phone || null,
+        website: d.website || null,
+        address: d.address || null,
+        city: d.city || null,
+        country: d.country || null,
+        contactName: d.contactName || null,
+        notes: d.notes || null,
+        createdById: user.id,
+      })
+      .returning({ id: supplier.id });
+
+    if (!row) return { ok: false, error: "Failed to create supplier" };
+
+    await logActivity({
       agencyId: user.agencyId,
-      name: d.name,
-      type: d.type,
-      status: d.status,
-      email: d.email || null,
-      phone: d.phone || null,
-      website: d.website || null,
-      address: d.address || null,
-      city: d.city || null,
-      country: d.country || null,
-      contactName: d.contactName || null,
-      notes: d.notes || null,
-      createdById: user.id,
-    })
-    .returning({ id: supplier.id });
+      userId: user.id,
+      action: "created",
+      entityType: "supplier",
+      entityId: row.id,
+      entityLabel: d.name,
+    });
 
-  if (!row) return { ok: false, error: "Failed to create supplier" };
-
-  await logActivity({
-    agencyId: user.agencyId,
-    userId: user.id,
-    action: "created",
-    entityType: "supplier",
-    entityId: row.id,
-    entityLabel: d.name,
-  });
-
-  revalidatePath("/suppliers");
-  return { ok: true, data: { id: row.id } };
+    revalidatePath("/suppliers");
+    return { ok: true, data: { id: row.id } };
+  } catch (err) {
+    console.error("[createSupplier]", err);
+    return { ok: false, error: "Could not create supplier. Please try again." };
+  }
 }
 
 export async function updateSupplier(
@@ -111,36 +116,41 @@ export async function updateSupplier(
   });
   if (!existing) return { ok: false, error: "Supplier not found" };
 
-  await db
-    .update(supplier)
-    .set({
-      name: d.name,
-      type: d.type,
-      status: d.status,
-      email: d.email || null,
-      phone: d.phone || null,
-      website: d.website || null,
-      address: d.address || null,
-      city: d.city || null,
-      country: d.country || null,
-      contactName: d.contactName || null,
-      notes: d.notes || null,
-      updatedAt: new Date(),
-    })
-    .where(and(eq(supplier.id, id), eq(supplier.agencyId, user.agencyId)));
+  try {
+    await db
+      .update(supplier)
+      .set({
+        name: d.name,
+        type: d.type,
+        status: d.status,
+        email: d.email || null,
+        phone: d.phone || null,
+        website: d.website || null,
+        address: d.address || null,
+        city: d.city || null,
+        country: d.country || null,
+        contactName: d.contactName || null,
+        notes: d.notes || null,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(supplier.id, id), eq(supplier.agencyId, user.agencyId)));
 
-  await logActivity({
-    agencyId: user.agencyId,
-    userId: user.id,
-    action: "updated",
-    entityType: "supplier",
-    entityId: id,
-    entityLabel: d.name,
-  });
+    await logActivity({
+      agencyId: user.agencyId,
+      userId: user.id,
+      action: "updated",
+      entityType: "supplier",
+      entityId: id,
+      entityLabel: d.name,
+    });
 
-  revalidatePath("/suppliers");
-  revalidatePath(`/suppliers/${id}`);
-  return { ok: true };
+    revalidatePath("/suppliers");
+    revalidatePath(`/suppliers/${id}`);
+    return { ok: true };
+  } catch (err) {
+    console.error("[updateSupplier]", err);
+    return { ok: false, error: "Could not update supplier. Please try again." };
+  }
 }
 
 export async function deleteSupplier(id: string): Promise<ActionResult> {
@@ -155,24 +165,29 @@ export async function deleteSupplier(id: string): Promise<ActionResult> {
   });
   if (!existing) return { ok: false, error: "Supplier not found" };
 
-  // Soft-delete: booking items reference suppliers, so we deactivate rather than
-  // hard-delete to preserve those links (FK is set null on hard delete).
-  await db
-    .update(supplier)
-    .set({ status: "inactive", updatedAt: new Date() })
-    .where(and(eq(supplier.id, id), eq(supplier.agencyId, user.agencyId)));
+  try {
+    // Soft-delete: booking items reference suppliers, so we deactivate rather than
+    // hard-delete to preserve those links (FK is set null on hard delete).
+    await db
+      .update(supplier)
+      .set({ status: "inactive", updatedAt: new Date() })
+      .where(and(eq(supplier.id, id), eq(supplier.agencyId, user.agencyId)));
 
-  await logActivity({
-    agencyId: user.agencyId,
-    userId: user.id,
-    action: "deleted",
-    entityType: "supplier",
-    entityId: id,
-    entityLabel: existing.name,
-  });
+    await logActivity({
+      agencyId: user.agencyId,
+      userId: user.id,
+      action: "deleted",
+      entityType: "supplier",
+      entityId: id,
+      entityLabel: existing.name,
+    });
 
-  revalidatePath("/suppliers");
-  return { ok: true };
+    revalidatePath("/suppliers");
+    return { ok: true };
+  } catch (err) {
+    console.error("[deleteSupplier]", err);
+    return { ok: false, error: "Could not delete supplier. Please try again." };
+  }
 }
 
 export type SupplierFilters = {
@@ -319,39 +334,44 @@ export async function createSupplierContract(
   });
   if (!parent) return { ok: false, error: "Supplier not found" };
 
-  const [row] = await db
-    .insert(supplierContract)
-    .values({
-      supplierId: d.supplierId,
+  try {
+    const [row] = await db
+      .insert(supplierContract)
+      .values({
+        supplierId: d.supplierId,
+        agencyId: user.agencyId,
+        name: d.name,
+        reference: d.reference || null,
+        commissionBasis: d.commissionBasis || null,
+        commissionRate:
+          d.commissionRate != null ? String(d.commissionRate) : null,
+        currency: d.currency,
+        validFrom: d.validFrom ?? null,
+        validTo: d.validTo ?? null,
+        fileUrl: d.fileUrl || null,
+        status: d.status,
+        notes: d.notes || null,
+      })
+      .returning({ id: supplierContract.id });
+
+    if (!row) return { ok: false, error: "Failed to create contract" };
+
+    await logActivity({
       agencyId: user.agencyId,
-      name: d.name,
-      reference: d.reference || null,
-      commissionBasis: d.commissionBasis || null,
-      commissionRate:
-        d.commissionRate != null ? String(d.commissionRate) : null,
-      currency: d.currency,
-      validFrom: d.validFrom ?? null,
-      validTo: d.validTo ?? null,
-      fileUrl: d.fileUrl || null,
-      status: d.status,
-      notes: d.notes || null,
-    })
-    .returning({ id: supplierContract.id });
+      userId: user.id,
+      action: "updated",
+      entityType: "supplier",
+      entityId: d.supplierId,
+      entityLabel: parent.name,
+      metadata: { contractAdded: d.name },
+    });
 
-  if (!row) return { ok: false, error: "Failed to create contract" };
-
-  await logActivity({
-    agencyId: user.agencyId,
-    userId: user.id,
-    action: "updated",
-    entityType: "supplier",
-    entityId: d.supplierId,
-    entityLabel: parent.name,
-    metadata: { contractAdded: d.name },
-  });
-
-  revalidatePath(`/suppliers/${d.supplierId}`);
-  return { ok: true, data: { id: row.id } };
+    revalidatePath(`/suppliers/${d.supplierId}`);
+    return { ok: true, data: { id: row.id } };
+  } catch (err) {
+    console.error("[createSupplierContract]", err);
+    return { ok: false, error: "Could not create contract. Please try again." };
+  }
 }
 
 export async function updateSupplierContract(
@@ -379,41 +399,46 @@ export async function updateSupplierContract(
   });
   if (!existing) return { ok: false, error: "Contract not found" };
 
-  await db
-    .update(supplierContract)
-    .set({
-      name: d.name,
-      reference: d.reference || null,
-      commissionBasis: d.commissionBasis || null,
-      commissionRate:
-        d.commissionRate != null ? String(d.commissionRate) : null,
-      currency: d.currency,
-      validFrom: d.validFrom ?? null,
-      validTo: d.validTo ?? null,
-      fileUrl: d.fileUrl || null,
-      status: d.status,
-      notes: d.notes || null,
-      updatedAt: new Date(),
-    })
-    .where(
-      and(
-        eq(supplierContract.id, id),
-        eq(supplierContract.agencyId, user.agencyId)
-      )
-    );
+  try {
+    await db
+      .update(supplierContract)
+      .set({
+        name: d.name,
+        reference: d.reference || null,
+        commissionBasis: d.commissionBasis || null,
+        commissionRate:
+          d.commissionRate != null ? String(d.commissionRate) : null,
+        currency: d.currency,
+        validFrom: d.validFrom ?? null,
+        validTo: d.validTo ?? null,
+        fileUrl: d.fileUrl || null,
+        status: d.status,
+        notes: d.notes || null,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(supplierContract.id, id),
+          eq(supplierContract.agencyId, user.agencyId)
+        )
+      );
 
-  await logActivity({
-    agencyId: user.agencyId,
-    userId: user.id,
-    action: "updated",
-    entityType: "supplier",
-    entityId: existing.supplierId,
-    entityLabel: d.name,
-    metadata: { contractUpdated: d.name },
-  });
+    await logActivity({
+      agencyId: user.agencyId,
+      userId: user.id,
+      action: "updated",
+      entityType: "supplier",
+      entityId: existing.supplierId,
+      entityLabel: d.name,
+      metadata: { contractUpdated: d.name },
+    });
 
-  revalidatePath(`/suppliers/${existing.supplierId}`);
-  return { ok: true };
+    revalidatePath(`/suppliers/${existing.supplierId}`);
+    return { ok: true };
+  } catch (err) {
+    console.error("[updateSupplierContract]", err);
+    return { ok: false, error: "Could not update contract. Please try again." };
+  }
 }
 
 export async function deleteSupplierContract(
@@ -433,28 +458,33 @@ export async function deleteSupplierContract(
   });
   if (!existing) return { ok: false, error: "Contract not found" };
 
-  // Hard delete — rates cascade away with the contract (FK onDelete cascade).
-  await db
-    .delete(supplierContract)
-    .where(
-      and(
-        eq(supplierContract.id, id),
-        eq(supplierContract.agencyId, user.agencyId)
-      )
-    );
+  try {
+    // Hard delete — rates cascade away with the contract (FK onDelete cascade).
+    await db
+      .delete(supplierContract)
+      .where(
+        and(
+          eq(supplierContract.id, id),
+          eq(supplierContract.agencyId, user.agencyId)
+        )
+      );
 
-  await logActivity({
-    agencyId: user.agencyId,
-    userId: user.id,
-    action: "updated",
-    entityType: "supplier",
-    entityId: existing.supplierId,
-    entityLabel: existing.name,
-    metadata: { contractDeleted: existing.name },
-  });
+    await logActivity({
+      agencyId: user.agencyId,
+      userId: user.id,
+      action: "updated",
+      entityType: "supplier",
+      entityId: existing.supplierId,
+      entityLabel: existing.name,
+      metadata: { contractDeleted: existing.name },
+    });
 
-  revalidatePath(`/suppliers/${existing.supplierId}`);
-  return { ok: true };
+    revalidatePath(`/suppliers/${existing.supplierId}`);
+    return { ok: true };
+  } catch (err) {
+    console.error("[deleteSupplierContract]", err);
+    return { ok: false, error: "Could not delete contract. Please try again." };
+  }
 }
 
 export async function getSupplierContracts(
@@ -533,23 +563,28 @@ export async function createSupplierRate(
   const contract = await assertContractOwnership(d.contractId, user.agencyId);
   if (!contract) return { ok: false, error: "Contract not found" };
 
-  const [row] = await db
-    .insert(supplierRate)
-    .values({
-      contractId: d.contractId,
-      description: d.description,
-      netRate: d.netRate != null ? String(d.netRate) : null,
-      sellRate: d.sellRate != null ? String(d.sellRate) : null,
-      currency: d.currency,
-      validFrom: d.validFrom ?? null,
-      validTo: d.validTo ?? null,
-    })
-    .returning({ id: supplierRate.id });
+  try {
+    const [row] = await db
+      .insert(supplierRate)
+      .values({
+        contractId: d.contractId,
+        description: d.description,
+        netRate: d.netRate != null ? String(d.netRate) : null,
+        sellRate: d.sellRate != null ? String(d.sellRate) : null,
+        currency: d.currency,
+        validFrom: d.validFrom ?? null,
+        validTo: d.validTo ?? null,
+      })
+      .returning({ id: supplierRate.id });
 
-  if (!row) return { ok: false, error: "Failed to create rate" };
+    if (!row) return { ok: false, error: "Failed to create rate" };
 
-  revalidatePath(`/suppliers/${contract.supplierId}`);
-  return { ok: true, data: { id: row.id } };
+    revalidatePath(`/suppliers/${contract.supplierId}`);
+    return { ok: true, data: { id: row.id } };
+  } catch (err) {
+    console.error("[createSupplierRate]", err);
+    return { ok: false, error: "Could not create rate. Please try again." };
+  }
 }
 
 export async function updateSupplierRate(
@@ -572,25 +607,30 @@ export async function updateSupplierRate(
   const contract = await assertContractOwnership(d.contractId, user.agencyId);
   if (!contract) return { ok: false, error: "Contract not found" };
 
-  await db
-    .update(supplierRate)
-    .set({
-      description: d.description,
-      netRate: d.netRate != null ? String(d.netRate) : null,
-      sellRate: d.sellRate != null ? String(d.sellRate) : null,
-      currency: d.currency,
-      validFrom: d.validFrom ?? null,
-      validTo: d.validTo ?? null,
-    })
-    .where(
-      and(
-        eq(supplierRate.id, id),
-        eq(supplierRate.contractId, d.contractId)
-      )
-    );
+  try {
+    await db
+      .update(supplierRate)
+      .set({
+        description: d.description,
+        netRate: d.netRate != null ? String(d.netRate) : null,
+        sellRate: d.sellRate != null ? String(d.sellRate) : null,
+        currency: d.currency,
+        validFrom: d.validFrom ?? null,
+        validTo: d.validTo ?? null,
+      })
+      .where(
+        and(
+          eq(supplierRate.id, id),
+          eq(supplierRate.contractId, d.contractId)
+        )
+      );
 
-  revalidatePath(`/suppliers/${contract.supplierId}`);
-  return { ok: true };
+    revalidatePath(`/suppliers/${contract.supplierId}`);
+    return { ok: true };
+  } catch (err) {
+    console.error("[updateSupplierRate]", err);
+    return { ok: false, error: "Could not update rate. Please try again." };
+  }
 }
 
 export async function deleteSupplierRate(id: string): Promise<ActionResult> {
@@ -613,8 +653,13 @@ export async function deleteSupplierRate(id: string): Promise<ActionResult> {
   );
   if (!contract) return { ok: false, error: "Rate not found" };
 
-  await db.delete(supplierRate).where(eq(supplierRate.id, id));
+  try {
+    await db.delete(supplierRate).where(eq(supplierRate.id, id));
 
-  revalidatePath(`/suppliers/${contract.supplierId}`);
-  return { ok: true };
+    revalidatePath(`/suppliers/${contract.supplierId}`);
+    return { ok: true };
+  } catch (err) {
+    console.error("[deleteSupplierRate]", err);
+    return { ok: false, error: "Could not delete rate. Please try again." };
+  }
 }

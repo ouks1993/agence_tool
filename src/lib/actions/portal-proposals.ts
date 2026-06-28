@@ -53,59 +53,64 @@ export async function acceptProposalFromPortal(
   const { ip, userAgent } = await signerMeta();
   const now = new Date();
 
-  await db
-    .update(product)
-    .set({
-      status: "accepted",
-      acceptedAt: now,
-      signerName: session.client.name,
-      signerEmail: session.client.email,
-      signatureData: signature.trim(),
-      signerIp: ip,
-      signerUserAgent: userAgent,
-    })
-    .where(eq(product.id, p.id));
-
-  // Close the linked opportunity as won.
-  if (p.opportunityId) {
+  try {
     await db
-      .update(opportunity)
-      .set({ stage: "won" })
-      .where(eq(opportunity.id, p.opportunityId));
+      .update(product)
+      .set({
+        status: "accepted",
+        acceptedAt: now,
+        signerName: session.client.name,
+        signerEmail: session.client.email,
+        signatureData: signature.trim(),
+        signerIp: ip,
+        signerUserAgent: userAgent,
+      })
+      .where(eq(product.id, p.id));
+
+    // Close the linked opportunity as won.
+    if (p.opportunityId) {
+      await db
+        .update(opportunity)
+        .set({ stage: "won" })
+        .where(eq(opportunity.id, p.opportunityId));
+    }
+
+    // Confirmation email (best-effort) + audit log. The client `email` column is
+    // NOT NULL in the schema, so fall back to an empty string only to satisfy the
+    // (over-wide) nullable session type.
+    const recipientEmail = session.client.email ?? "";
+    const subject = `Proposal ${p.reference} accepted`;
+    const text = `Hi ${session.client.name},\n\nThank you — we've recorded your acceptance of proposal ${p.reference} ("${p.title}").\n\nOur team will be in touch with the next steps.\n\nKind regards,\n${APP_NAME}`;
+    const result = await sendEmail({ to: recipientEmail, subject, text });
+
+    await db.insert(notification).values({
+      agencyId: p.agencyId,
+      channel: "email",
+      recipient: recipientEmail,
+      subject,
+      body: text,
+      kind: "proposal",
+      status: result.status,
+      error: result.error ?? null,
+    });
+
+    await logActivity({
+      agencyId: p.agencyId,
+      userId: null,
+      action: "status_changed",
+      entityType: "product",
+      entityId: p.id,
+      entityLabel: `${p.reference} · ${p.title}`,
+      metadata: { acceptedBy: session.client.name, via: "client_portal" },
+    });
+
+    revalidatePath(`/portal/proposals/${productId}`);
+    revalidatePath("/portal/proposals");
+    return { ok: true };
+  } catch (err) {
+    console.error("[acceptProposalFromPortal]", err);
+    return { ok: false, error: "Could not accept the proposal. Please try again." };
   }
-
-  // Confirmation email (best-effort) + audit log. The client `email` column is
-  // NOT NULL in the schema, so fall back to an empty string only to satisfy the
-  // (over-wide) nullable session type.
-  const recipientEmail = session.client.email ?? "";
-  const subject = `Proposal ${p.reference} accepted`;
-  const text = `Hi ${session.client.name},\n\nThank you — we've recorded your acceptance of proposal ${p.reference} ("${p.title}").\n\nOur team will be in touch with the next steps.\n\nKind regards,\n${APP_NAME}`;
-  const result = await sendEmail({ to: recipientEmail, subject, text });
-
-  await db.insert(notification).values({
-    agencyId: p.agencyId,
-    channel: "email",
-    recipient: recipientEmail,
-    subject,
-    body: text,
-    kind: "proposal",
-    status: result.status,
-    error: result.error ?? null,
-  });
-
-  await logActivity({
-    agencyId: p.agencyId,
-    userId: null,
-    action: "status_changed",
-    entityType: "product",
-    entityId: p.id,
-    entityLabel: `${p.reference} · ${p.title}`,
-    metadata: { acceptedBy: session.client.name, via: "client_portal" },
-  });
-
-  revalidatePath(`/portal/proposals/${productId}`);
-  revalidatePath("/portal/proposals");
-  return { ok: true };
 }
 
 /**
@@ -127,27 +132,32 @@ export async function declineProposalFromPortal(productId: string): Promise<Acti
 
   const { ip, userAgent } = await signerMeta();
 
-  await db
-    .update(product)
-    .set({
-      status: "rejected",
-      declinedAt: new Date(),
-      signerIp: ip,
-      signerUserAgent: userAgent,
-    })
-    .where(eq(product.id, p.id));
+  try {
+    await db
+      .update(product)
+      .set({
+        status: "rejected",
+        declinedAt: new Date(),
+        signerIp: ip,
+        signerUserAgent: userAgent,
+      })
+      .where(eq(product.id, p.id));
 
-  await logActivity({
-    agencyId: p.agencyId,
-    userId: null,
-    action: "status_changed",
-    entityType: "product",
-    entityId: p.id,
-    entityLabel: `${p.reference} · ${p.title}`,
-    metadata: { declined: true, via: "client_portal" },
-  });
+    await logActivity({
+      agencyId: p.agencyId,
+      userId: null,
+      action: "status_changed",
+      entityType: "product",
+      entityId: p.id,
+      entityLabel: `${p.reference} · ${p.title}`,
+      metadata: { declined: true, via: "client_portal" },
+    });
 
-  revalidatePath(`/portal/proposals/${productId}`);
-  revalidatePath("/portal/proposals");
-  return { ok: true };
+    revalidatePath(`/portal/proposals/${productId}`);
+    revalidatePath("/portal/proposals");
+    return { ok: true };
+  } catch (err) {
+    console.error("[declineProposalFromPortal]", err);
+    return { ok: false, error: "Could not decline the proposal. Please try again." };
+  }
 }

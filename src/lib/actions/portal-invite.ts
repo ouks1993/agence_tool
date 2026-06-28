@@ -41,39 +41,44 @@ export async function sendPortalInvite(
   const token = crypto.randomBytes(32).toString("hex");
   const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
 
-  await db.insert(portalSession).values({
-    clientId: c.id,
-    token,
-    expiresAt,
-  });
+  try {
+    await db.insert(portalSession).values({
+      clientId: c.id,
+      token,
+      expiresAt,
+    });
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  // The verify endpoint consumes the magic token and establishes the session.
-  const portalUrl = `${appUrl}/api/portal/auth/verify?token=${token}`;
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    // The verify endpoint consumes the magic token and establishes the session.
+    const portalUrl = `${appUrl}/api/portal/auth/verify?token=${token}`;
 
-  const subject = "Your trip portal access";
-  const text =
-    `Hi ${c.name},\n\n` +
-    `You can now access your trip portal to view your bookings and documents.\n\n` +
-    `Open your portal: ${portalUrl}\n\n` +
-    `This link is personal to you — please don't share it.`;
+    const subject = "Your trip portal access";
+    const text =
+      `Hi ${c.name},\n\n` +
+      `You can now access your trip portal to view your bookings and documents.\n\n` +
+      `Open your portal: ${portalUrl}\n\n` +
+      `This link is personal to you — please don't share it.`;
 
-  const result = await sendEmail({ to: c.email, subject, text });
+    const result = await sendEmail({ to: c.email, subject, text });
 
-  // Record the invite in the communications log. `bookingId` is null because an
-  // invite is scoped to the client, not a single booking.
-  await db.insert(notification).values({
-    agencyId: user.agencyId,
-    bookingId: null,
-    channel: "email",
-    recipient: c.email,
-    subject,
-    body: text,
-    kind: "portal_invite",
-    status: result.status,
-    error: result.error ?? null,
-    createdById: user.id,
-  });
+    // Record the invite in the communications log. `bookingId` is null because an
+    // invite is scoped to the client, not a single booking.
+    await db.insert(notification).values({
+      agencyId: user.agencyId,
+      bookingId: null,
+      channel: "email",
+      recipient: c.email,
+      subject,
+      body: text,
+      kind: "portal_invite",
+      status: result.status,
+      error: result.error ?? null,
+      createdById: user.id,
+    });
 
-  return { ok: true, data: { portalUrl } };
+    return { ok: true, data: { portalUrl } };
+  } catch (err) {
+    console.error("[sendPortalInvite]", err);
+    return { ok: false, error: "Could not send the portal invite. Please try again." };
+  }
 }

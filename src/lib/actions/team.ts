@@ -69,23 +69,28 @@ export async function setUserRole(
     }
   }
 
-  await db
-    .update(user)
-    .set({ role })
-    .where(and(eq(user.id, userId), eq(user.agencyId, me.agencyId)));
+  try {
+    await db
+      .update(user)
+      .set({ role })
+      .where(and(eq(user.id, userId), eq(user.agencyId, me.agencyId)));
 
-  await logActivity({
-    agencyId: me.agencyId,
-    userId: me.id,
-    action: "updated",
-    entityType: "user",
-    entityId: userId,
-    entityLabel: target.name,
-    metadata: { roleChangedTo: role },
-  });
+    await logActivity({
+      agencyId: me.agencyId,
+      userId: me.id,
+      action: "updated",
+      entityType: "user",
+      entityId: userId,
+      entityLabel: target.name,
+      metadata: { roleChangedTo: role },
+    });
 
-  revalidatePath("/team");
-  return { ok: true };
+    revalidatePath("/team");
+    return { ok: true };
+  } catch (err) {
+    console.error("[setUserRole]", err);
+    return { ok: false, error: "Could not update the user's role. Please try again." };
+  }
 }
 
 export async function setUserActive(
@@ -118,21 +123,26 @@ export async function setUserActive(
     }
   }
 
-  await db
-    .update(user)
-    .set({ active })
-    .where(and(eq(user.id, userId), eq(user.agencyId, me.agencyId)));
+  try {
+    await db
+      .update(user)
+      .set({ active })
+      .where(and(eq(user.id, userId), eq(user.agencyId, me.agencyId)));
 
-  await logActivity({
-    agencyId: me.agencyId,
-    userId: me.id,
-    action: "updated",
-    entityType: "user",
-    entityId: userId,
-    entityLabel: target.name,
-    metadata: { active },
-  });
+    await logActivity({
+      agencyId: me.agencyId,
+      userId: me.id,
+      action: "updated",
+      entityType: "user",
+      entityId: userId,
+      entityLabel: target.name,
+      metadata: { active },
+    });
 
-  revalidatePath("/team");
-  return { ok: true };
+    revalidatePath("/team");
+    return { ok: true };
+  } catch (err) {
+    console.error("[setUserActive]", err);
+    return { ok: false, error: "Could not update the user. Please try again." };
+  }
 }

@@ -62,11 +62,24 @@ async function nextReference(agencyId: string): Promise<string> {
   return `BKG-${max + 1}`;
 }
 
-async function recalcTotal(bookingId: string): Promise<void> {
+/**
+ * Recompute and persist a booking's total from its line items. Scoped to the
+ * caller's agency: items are summed only when their parent booking belongs to
+ * `agencyId`, and the total is written only to that agency's booking. Callers
+ * must pass the already-validated `agencyId` so this can never be triggered with
+ * an attacker-controlled `bookingId` from another tenant.
+ */
+async function recalcTotal(
+  bookingId: string,
+  agencyId: string
+): Promise<void> {
   const items = await db
     .select({ amount: bookingItem.amount, quantity: bookingItem.quantity })
     .from(bookingItem)
-    .where(eq(bookingItem.bookingId, bookingId));
+    .innerJoin(booking, eq(bookingItem.bookingId, booking.id))
+    .where(
+      and(eq(bookingItem.bookingId, bookingId), eq(booking.agencyId, agencyId))
+    );
   const total = items.reduce(
     (s, i) => s + parseFloat(i.amount || "0") * i.quantity,
     0
@@ -74,7 +87,7 @@ async function recalcTotal(bookingId: string): Promise<void> {
   await db
     .update(booking)
     .set({ totalAmount: String(round2(total)) })
-    .where(eq(booking.id, bookingId));
+    .where(and(eq(booking.id, bookingId), eq(booking.agencyId, agencyId)));
 }
 
 /**
@@ -357,32 +370,62 @@ async function buildFlightPassengers(
   });
 }
 
-/** Book one item with the active supplier and store its confirmation number. */
+/**
+ * Outcome of booking a single item with its supplier. `confirmed` is the
+ * discriminator: it is `true` ONLY when the live provider returned a real PNR,
+ * and `false` when the provider call failed (or the item type can't be booked
+ * automatically) and we fell back to a provisional in-house reference. Callers
+ * MUST use this to decide the item/booking status — a provisional reference is
+ * never a real confirmation.
+ */
+type ItemBookingResult =
+  | { confirmed: true; confirmationNumber: string }
+  | { confirmed: false; confirmationNumber: string; reason: string };
+
+/**
+ * Book one item with the active supplier. On success returns the real supplier
+ * confirmation number with `confirmed: true`. On failure it does NOT fabricate a
+ * confirmation — it returns a provisional `REF-…` reference with
+ * `confirmed: false` and the failure reason so the caller can keep the line in a
+ * non-confirmed status and the agent can see why it didn't book.
+ */
 async function confirmItemBooking(
   item: {
     type: string;
     details: unknown;
   },
   passengers: FlightPassenger[]
-): Promise<string> {
+): Promise<ItemBookingResult> {
   try {
     if (item.type === "flight") {
-      return (
-        await getFlightSupplier().bookFlight(
-          item.details as FlightOffer,
-          passengers
-        )
-      ).confirmationNumber;
+      const confirmation = await getFlightSupplier().bookFlight(
+        item.details as FlightOffer,
+        passengers
+      );
+      return { confirmed: true, confirmationNumber: confirmation.confirmationNumber };
     }
     if (item.type === "hotel") {
-      return (
-        await getHotelSupplier().bookHotel(item.details as HotelOffer)
-      ).confirmationNumber;
+      const confirmation = await getHotelSupplier().bookHotel(
+        item.details as HotelOffer
+      );
+      return { confirmed: true, confirmationNumber: confirmation.confirmationNumber };
     }
   } catch (error) {
-    console.error("Supplier booking failed, issuing manual reference:", error);
+    const reason = error instanceof Error ? error.message : String(error);
+    console.error("Supplier booking failed, issuing provisional reference:", error);
+    return {
+      confirmed: false,
+      confirmationNumber: `REF-${Date.now().toString(36).toUpperCase()}`,
+      reason,
+    };
   }
-  return `REF-${Date.now().toString(36).toUpperCase()}`;
+  // Item types without an automatic supplier booking (transfer, excursion, …)
+  // get a provisional in-house reference; they were never a real confirmation.
+  return {
+    confirmed: false,
+    confirmationNumber: `REF-${Date.now().toString(36).toUpperCase()}`,
+    reason: `No automatic supplier booking for item type "${item.type}"`,
+  };
 }
 
 /** Confirm/book a single item (issue its supplier confirmation number). */
@@ -403,10 +446,15 @@ export async function bookItem(
   if (!item) return { ok: false, error: "Item not found" };
 
   const passengers = await buildFlightPassengers(bookingId);
-  const confirmationNumber = await confirmItemBooking(item, passengers);
+  const result = await confirmItemBooking(item, passengers);
+  // Only a real provider confirmation advances the line to "confirmed"; a
+  // provisional reference keeps it "pending" so failures aren't shown as booked.
   await db
     .update(bookingItem)
-    .set({ confirmationNumber, itemStatus: "confirmed" })
+    .set({
+      confirmationNumber: result.confirmationNumber,
+      itemStatus: result.confirmed ? "confirmed" : "pending",
+    })
     .where(eq(bookingItem.id, itemId));
 
   await logActivity({
@@ -416,11 +464,16 @@ export async function bookItem(
     entityType: "booking",
     entityId: bookingId,
     entityLabel: item.title,
-    metadata: { confirmed: confirmationNumber },
+    metadata: result.confirmed
+      ? { confirmed: result.confirmationNumber }
+      : { provisional: result.confirmationNumber, reason: result.reason },
   });
 
   revalidatePath(`/bookings/${bookingId}`);
-  return { ok: true, data: { confirmationNumber } };
+  return {
+    ok: true,
+    data: { confirmationNumber: result.confirmationNumber },
+  };
 }
 
 /** Advance a booking to the next lifecycle status. */
@@ -454,16 +507,42 @@ export async function advanceStatus(
     }
   }
 
-  // When ticketing, ensure every item has a confirmation number.
+  // When ticketing, ensure every item has a REAL provider confirmation. If a
+  // provider fails, we store its provisional reference but keep that line
+  // "pending" and abort the advance — a booking is never ticketed off a
+  // fabricated confirmation.
   if (next === "ticketed") {
     const passengers = await buildFlightPassengers(existing.id);
+    const failures: string[] = [];
     for (const item of existing.items) {
       if (item.confirmationNumber) continue;
-      const confirmationNumber = await confirmItemBooking(item, passengers);
+      const result = await confirmItemBooking(item, passengers);
       await db
         .update(bookingItem)
-        .set({ confirmationNumber, itemStatus: "ticketed" })
+        .set({
+          confirmationNumber: result.confirmationNumber,
+          itemStatus: result.confirmed ? "ticketed" : "pending",
+        })
         .where(eq(bookingItem.id, item.id));
+      if (!result.confirmed) {
+        failures.push(`${item.title}: ${result.reason}`);
+      }
+    }
+    if (failures.length > 0) {
+      await logActivity({
+        agencyId: user.agencyId,
+        userId: user.id,
+        action: "updated",
+        entityType: "booking",
+        entityId: id,
+        entityLabel: existing.reference,
+        metadata: { ticketingFailed: failures },
+      });
+      revalidatePath(`/bookings/${id}`);
+      return {
+        ok: false,
+        error: `Could not ticket every service: ${failures.join("; ")}`,
+      };
     }
   }
 
@@ -743,7 +822,7 @@ export async function addBookingItem(
     sortOrder: count,
   });
 
-  await recalcTotal(bookingId);
+  await recalcTotal(bookingId, user.agencyId);
   revalidatePath(`/bookings/${bookingId}`);
   return { ok: true };
 }
@@ -762,7 +841,7 @@ export async function removeBookingItem(
   await db
     .delete(bookingItem)
     .where(and(eq(bookingItem.id, id), eq(bookingItem.bookingId, bookingId)));
-  await recalcTotal(bookingId);
+  await recalcTotal(bookingId, user.agencyId);
   revalidatePath(`/bookings/${bookingId}`);
   return { ok: true };
 }

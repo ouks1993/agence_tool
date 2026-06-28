@@ -42,40 +42,45 @@ export async function createClient(
   }
   const d = parsed.data;
 
-  const [row] = await db
-    .insert(client)
-    .values({
+  try {
+    const [row] = await db
+      .insert(client)
+      .values({
+        agencyId: user.agencyId,
+        name: d.name,
+        type: d.type,
+        status: d.status,
+        email: d.email || null,
+        phone: d.phone || null,
+        company: d.company || null,
+        address: d.address || null,
+        city: d.city || null,
+        country: d.country || null,
+        source: d.source || null,
+        industry: d.industry || null,
+        notes: d.notes || null,
+        ownerId: d.ownerId || user.id,
+        createdById: user.id,
+      })
+      .returning({ id: client.id });
+
+    if (!row) return { ok: false, error: "Failed to create client" };
+
+    await logActivity({
       agencyId: user.agencyId,
-      name: d.name,
-      type: d.type,
-      status: d.status,
-      email: d.email || null,
-      phone: d.phone || null,
-      company: d.company || null,
-      address: d.address || null,
-      city: d.city || null,
-      country: d.country || null,
-      source: d.source || null,
-      industry: d.industry || null,
-      notes: d.notes || null,
-      ownerId: d.ownerId || user.id,
-      createdById: user.id,
-    })
-    .returning({ id: client.id });
+      userId: user.id,
+      action: "created",
+      entityType: "client",
+      entityId: row.id,
+      entityLabel: d.name,
+    });
 
-  if (!row) return { ok: false, error: "Failed to create client" };
-
-  await logActivity({
-    agencyId: user.agencyId,
-    userId: user.id,
-    action: "created",
-    entityType: "client",
-    entityId: row.id,
-    entityLabel: d.name,
-  });
-
-  revalidatePath("/clients");
-  return { ok: true, data: { id: row.id } };
+    revalidatePath("/clients");
+    return { ok: true, data: { id: row.id } };
+  } catch (err) {
+    console.error("[createClient]", err);
+    return { ok: false, error: "Could not create client. Please try again." };
+  }
 }
 
 export async function updateClient(
@@ -94,37 +99,42 @@ export async function updateClient(
   });
   if (!existing) return { ok: false, error: "Client not found" };
 
-  await db
-    .update(client)
-    .set({
-      name: d.name,
-      type: d.type,
-      status: d.status,
-      email: d.email || null,
-      phone: d.phone || null,
-      company: d.company || null,
-      address: d.address || null,
-      city: d.city || null,
-      country: d.country || null,
-      source: d.source || null,
-      industry: d.industry || null,
-      notes: d.notes || null,
-      ownerId: d.ownerId || null,
-    })
-    .where(and(eq(client.id, id), eq(client.agencyId, user.agencyId)));
+  try {
+    await db
+      .update(client)
+      .set({
+        name: d.name,
+        type: d.type,
+        status: d.status,
+        email: d.email || null,
+        phone: d.phone || null,
+        company: d.company || null,
+        address: d.address || null,
+        city: d.city || null,
+        country: d.country || null,
+        source: d.source || null,
+        industry: d.industry || null,
+        notes: d.notes || null,
+        ownerId: d.ownerId || null,
+      })
+      .where(and(eq(client.id, id), eq(client.agencyId, user.agencyId)));
 
-  await logActivity({
-    agencyId: user.agencyId,
-    userId: user.id,
-    action: "updated",
-    entityType: "client",
-    entityId: id,
-    entityLabel: d.name,
-  });
+    await logActivity({
+      agencyId: user.agencyId,
+      userId: user.id,
+      action: "updated",
+      entityType: "client",
+      entityId: id,
+      entityLabel: d.name,
+    });
 
-  revalidatePath("/clients");
-  revalidatePath(`/clients/${id}`);
-  return { ok: true };
+    revalidatePath("/clients");
+    revalidatePath(`/clients/${id}`);
+    return { ok: true };
+  } catch (err) {
+    console.error("[updateClient]", err);
+    return { ok: false, error: "Could not update client. Please try again." };
+  }
 }
 
 export async function deleteClient(id: string): Promise<ActionResult> {
@@ -143,21 +153,26 @@ export async function deleteClient(id: string): Promise<ActionResult> {
     return { ok: false, error: "You don't have permission to delete this client" };
   }
 
-  await db
-    .delete(client)
-    .where(and(eq(client.id, id), eq(client.agencyId, user.agencyId)));
+  try {
+    await db
+      .delete(client)
+      .where(and(eq(client.id, id), eq(client.agencyId, user.agencyId)));
 
-  await logActivity({
-    agencyId: user.agencyId,
-    userId: user.id,
-    action: "deleted",
-    entityType: "client",
-    entityId: id,
-    entityLabel: existing.name,
-  });
+    await logActivity({
+      agencyId: user.agencyId,
+      userId: user.id,
+      action: "deleted",
+      entityType: "client",
+      entityId: id,
+      entityLabel: existing.name,
+    });
 
-  revalidatePath("/clients");
-  return { ok: true };
+    revalidatePath("/clients");
+    return { ok: true };
+  } catch (err) {
+    console.error("[deleteClient]", err);
+    return { ok: false, error: "Could not delete client. Please try again." };
+  }
 }
 
 // --- Contacts ---------------------------------------------------------------
@@ -187,27 +202,32 @@ export async function addContact(
   });
   if (!parent) return { ok: false, error: "Not found" };
 
-  await db.insert(clientContact).values({
-    clientId: d.clientId,
-    name: d.name,
-    jobTitle: d.jobTitle || null,
-    email: d.email || null,
-    phone: d.phone || null,
-    isPrimary: d.isPrimary ?? false,
-  });
+  try {
+    await db.insert(clientContact).values({
+      clientId: d.clientId,
+      name: d.name,
+      jobTitle: d.jobTitle || null,
+      email: d.email || null,
+      phone: d.phone || null,
+      isPrimary: d.isPrimary ?? false,
+    });
 
-  await logActivity({
-    agencyId: user.agencyId,
-    userId: user.id,
-    action: "updated",
-    entityType: "client",
-    entityId: d.clientId,
-    entityLabel: d.name,
-    metadata: { contactAdded: d.name },
-  });
+    await logActivity({
+      agencyId: user.agencyId,
+      userId: user.id,
+      action: "updated",
+      entityType: "client",
+      entityId: d.clientId,
+      entityLabel: d.name,
+      metadata: { contactAdded: d.name },
+    });
 
-  revalidatePath(`/clients/${d.clientId}`);
-  return { ok: true };
+    revalidatePath(`/clients/${d.clientId}`);
+    return { ok: true };
+  } catch (err) {
+    console.error("[addContact]", err);
+    return { ok: false, error: "Could not add contact. Please try again." };
+  }
 }
 
 export async function deleteContact(
@@ -223,9 +243,14 @@ export async function deleteContact(
   });
   if (!parent) return { ok: false, error: "Not found" };
 
-  await db
-    .delete(clientContact)
-    .where(and(eq(clientContact.id, contactId), eq(clientContact.clientId, clientId)));
-  revalidatePath(`/clients/${clientId}`);
-  return { ok: true };
+  try {
+    await db
+      .delete(clientContact)
+      .where(and(eq(clientContact.id, contactId), eq(clientContact.clientId, clientId)));
+    revalidatePath(`/clients/${clientId}`);
+    return { ok: true };
+  } catch (err) {
+    console.error("[deleteContact]", err);
+    return { ok: false, error: "Could not delete contact. Please try again." };
+  }
 }

@@ -35,12 +35,20 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
             >
               My Proposals
             </Link>
-            <a
-              href="/api/portal/auth/signout"
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Sign out
-            </a>
+            {/*
+              Sign out is a POST form (not an <a> GET) to prevent CSRF
+              forced-logout — a state-changing GET is exploitable via
+              `<img src=".../signout">` (CWE-352). Styled to match the
+              sibling nav links exactly.
+            */}
+            <form method="POST" action="/api/portal/auth/signout">
+              <button
+                type="submit"
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Sign out
+              </button>
+            </form>
           </nav>
         </div>
       </header>

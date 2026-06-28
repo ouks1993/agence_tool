@@ -151,21 +151,40 @@ function signature(): { apiKey: string; xSignature: string } {
   return { apiKey, xSignature };
 }
 
+/** Hard cap on any upstream Hotelbeds call so a hung provider can't pin a
+ * request to Vercel's 30s function ceiling. */
+const FETCH_TIMEOUT_MS = 15000;
+
 async function hotelbeds<T>(
   path: string,
   init?: { method?: string; body?: unknown }
 ): Promise<T> {
   const { apiKey, xSignature } = signature();
-  const res = await fetch(`${host()}${path}`, {
-    method: init?.method ?? "GET",
-    headers: {
-      "Api-key": apiKey,
-      "X-Signature": xSignature,
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-    ...(init?.body ? { body: JSON.stringify(init.body) } : {}),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(`${host()}${path}`, {
+      method: init?.method ?? "GET",
+      headers: {
+        "Api-key": apiKey,
+        "X-Signature": xSignature,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      signal: controller.signal,
+      ...(init?.body ? { body: JSON.stringify(init.body) } : {}),
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(
+        `Hotelbeds ${path} timed out after ${FETCH_TIMEOUT_MS}ms`
+      );
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(`Hotelbeds ${path} failed (${res.status}): ${text.slice(0, 200)}`);

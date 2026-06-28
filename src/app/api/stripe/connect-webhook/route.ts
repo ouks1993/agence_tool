@@ -23,7 +23,11 @@ type CheckoutSession = {
 export async function POST(req: Request): Promise<Response> {
   const secret = process.env.STRIPE_CONNECT_WEBHOOK_SECRET;
   if (!secret) {
-    return new Response("Webhook not configured", { status: 400 });
+    // Transient misconfiguration (endpoint secret not yet set), NOT a bad
+    // request. Return 503 so Stripe keeps retrying and delivers the event
+    // cleanly once the secret is configured — a 400 would tell Stripe to give
+    // up permanently.
+    return new Response("Webhook not configured", { status: 503 });
   }
 
   const rawBody = await req.text();
@@ -39,10 +43,26 @@ export async function POST(req: Request): Promise<Response> {
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as unknown as CheckoutSession;
     if (session.payment_status === "paid") {
-      await db
-        .update(payment)
-        .set({ status: "completed", reference: session.payment_intent ?? null })
-        .where(eq(payment.stripeSessionId, session.id));
+      // Guard the DB write: a transient failure must return 500 so Stripe
+      // retries this (idempotent) update, rather than bubbling as an unhandled
+      // rejection. Only a single update runs here, so a thrown error can't
+      // partially double-apply within this invocation.
+      try {
+        await db
+          .update(payment)
+          .set({
+            status: "completed",
+            reference: session.payment_intent ?? null,
+          })
+          .where(eq(payment.stripeSessionId, session.id));
+      } catch (err) {
+        console.error(
+          "[stripe-webhook]",
+          { type: event.type, id: event.id },
+          err
+        );
+        return new Response("Webhook handler failed", { status: 500 });
+      }
     }
   }
 

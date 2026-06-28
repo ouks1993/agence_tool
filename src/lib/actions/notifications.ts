@@ -114,35 +114,40 @@ export async function sendBookingEmail(
     ({ subject, text } = buildEmail(b as BookingWithRelations, d.kind));
   }
 
-  const result = await sendEmail({ to: recipient, subject, text });
+  try {
+    const result = await sendEmail({ to: recipient, subject, text });
 
-  await db.insert(notification).values({
-    agencyId: user.agencyId,
-    bookingId: d.bookingId,
-    channel: "email",
-    recipient,
-    subject,
-    body: text,
-    kind: d.kind,
-    status: result.status,
-    error: result.error ?? null,
-    createdById: user.id,
-  });
+    await db.insert(notification).values({
+      agencyId: user.agencyId,
+      bookingId: d.bookingId,
+      channel: "email",
+      recipient,
+      subject,
+      body: text,
+      kind: d.kind,
+      status: result.status,
+      error: result.error ?? null,
+      createdById: user.id,
+    });
 
-  await logActivity({
-    agencyId: user.agencyId,
-    userId: user.id,
-    action: "sent",
-    entityType: "booking",
-    entityId: d.bookingId,
-    entityLabel: b.reference,
-    metadata: { email: d.kind, to: recipient, status: result.status },
-  });
+    await logActivity({
+      agencyId: user.agencyId,
+      userId: user.id,
+      action: "sent",
+      entityType: "booking",
+      entityId: d.bookingId,
+      entityLabel: b.reference,
+      metadata: { email: d.kind, to: recipient, status: result.status },
+    });
 
-  revalidatePath(`/bookings/${d.bookingId}`);
+    revalidatePath(`/bookings/${d.bookingId}`);
 
-  if (result.status === "failed") {
-    return { ok: false, error: result.error ?? "Email failed to send" };
+    if (result.status === "failed") {
+      return { ok: false, error: result.error ?? "Email failed to send" };
+    }
+    return { ok: true, data: { status: result.status } };
+  } catch (err) {
+    console.error("[sendBookingEmail]", err);
+    return { ok: false, error: "Could not send the email. Please try again." };
   }
-  return { ok: true, data: { status: result.status } };
 }

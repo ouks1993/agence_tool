@@ -10,6 +10,33 @@ export function isStripeConfigured(): boolean {
   return Boolean(process.env.STRIPE_SECRET_KEY);
 }
 
+/** Hard cap on any Stripe call so a hung upstream can't pin a request to
+ * Vercel's 30s function ceiling. */
+const FETCH_TIMEOUT_MS = 15000;
+
+/**
+ * `fetch` wrapper that aborts after FETCH_TIMEOUT_MS. On timeout it throws a
+ * clear error so the caller's existing error handling surfaces it instead of
+ * hanging. The timer is always cleared in `finally`.
+ */
+async function stripeFetch(
+  url: string,
+  init: RequestInit
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(`Stripe request timed out after ${FETCH_TIMEOUT_MS}ms`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export async function createStripeCheckoutLink(params: {
   amount: number;
   currency: string;
@@ -29,7 +56,7 @@ export async function createStripeCheckoutLink(params: {
   body.set("line_items[0][price_data][product_data][name]", params.description);
   body.set("line_items[0][price_data][unit_amount]", String(Math.round(params.amount * 100)));
 
-  const res = await fetch("https://api.stripe.com/v1/checkout/sessions", {
+  const res = await stripeFetch("https://api.stripe.com/v1/checkout/sessions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${key}`,
@@ -57,7 +84,7 @@ const STRIPE_API = "https://api.stripe.com/v1";
 async function stripePost<T>(path: string, body: URLSearchParams): Promise<T> {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) throw new Error("Stripe is not configured");
-  const res = await fetch(`${STRIPE_API}${path}`, {
+  const res = await stripeFetch(`${STRIPE_API}${path}`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${key}`,
@@ -106,7 +133,7 @@ export async function getConnectAccountStatus(
 ): Promise<{ chargesEnabled: boolean; payoutsEnabled: boolean }> {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) throw new Error("Stripe is not configured");
-  const res = await fetch(`${STRIPE_API}/accounts/${accountId}`, {
+  const res = await stripeFetch(`${STRIPE_API}/accounts/${accountId}`, {
     headers: { Authorization: `Bearer ${key}` },
   });
   if (!res.ok) {

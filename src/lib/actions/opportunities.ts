@@ -62,43 +62,48 @@ export async function createOpportunity(
   });
   if (!linkedClient) return { ok: false, error: "Not found" };
 
-  const [row] = await db
-    .insert(opportunity)
-    .values({
+  try {
+    const [row] = await db
+      .insert(opportunity)
+      .values({
+        agencyId: user.agencyId,
+        title: d.title,
+        clientId: d.clientId,
+        stage,
+        value: String(d.value),
+        currency: d.currency,
+        probability: d.probability ?? OPPORTUNITY_STAGE_META[stage].defaultProbability,
+        destination: d.destination || null,
+        travelPurpose: d.travelPurpose || null,
+        travelStartDate: toDate(d.travelStartDate),
+        travelEndDate: toDate(d.travelEndDate),
+        paxCount: d.paxCount,
+        expectedCloseDate: toDate(d.expectedCloseDate),
+        lostReason: d.lostReason || null,
+        notes: d.notes || null,
+        assignedToId: d.assignedToId || user.id,
+        createdById: user.id,
+      })
+      .returning({ id: opportunity.id });
+
+    if (!row) return { ok: false, error: "Failed to create opportunity" };
+
+    await logActivity({
       agencyId: user.agencyId,
-      title: d.title,
-      clientId: d.clientId,
-      stage,
-      value: String(d.value),
-      currency: d.currency,
-      probability: d.probability ?? OPPORTUNITY_STAGE_META[stage].defaultProbability,
-      destination: d.destination || null,
-      travelPurpose: d.travelPurpose || null,
-      travelStartDate: toDate(d.travelStartDate),
-      travelEndDate: toDate(d.travelEndDate),
-      paxCount: d.paxCount,
-      expectedCloseDate: toDate(d.expectedCloseDate),
-      lostReason: d.lostReason || null,
-      notes: d.notes || null,
-      assignedToId: d.assignedToId || user.id,
-      createdById: user.id,
-    })
-    .returning({ id: opportunity.id });
+      userId: user.id,
+      action: "created",
+      entityType: "opportunity",
+      entityId: row.id,
+      entityLabel: d.title,
+    });
 
-  if (!row) return { ok: false, error: "Failed to create opportunity" };
-
-  await logActivity({
-    agencyId: user.agencyId,
-    userId: user.id,
-    action: "created",
-    entityType: "opportunity",
-    entityId: row.id,
-    entityLabel: d.title,
-  });
-
-  revalidatePath("/opportunities");
-  revalidatePath(`/clients/${d.clientId}`);
-  return { ok: true, data: { id: row.id } };
+    revalidatePath("/opportunities");
+    revalidatePath(`/clients/${d.clientId}`);
+    return { ok: true, data: { id: row.id } };
+  } catch (err) {
+    console.error("[createOpportunity]", err);
+    return { ok: false, error: "Could not create opportunity. Please try again." };
+  }
 }
 
 export async function updateOpportunity(
@@ -125,41 +130,46 @@ export async function updateOpportunity(
   });
   if (!linkedClient) return { ok: false, error: "Not found" };
 
-  await db
-    .update(opportunity)
-    .set({
-      title: d.title,
-      clientId: d.clientId,
-      stage,
-      value: String(d.value),
-      currency: d.currency,
-      probability: d.probability ?? OPPORTUNITY_STAGE_META[stage].defaultProbability,
-      destination: d.destination || null,
-      travelPurpose: d.travelPurpose || null,
-      travelStartDate: toDate(d.travelStartDate),
-      travelEndDate: toDate(d.travelEndDate),
-      paxCount: d.paxCount,
-      expectedCloseDate: toDate(d.expectedCloseDate),
-      lostReason: d.lostReason || null,
-      notes: d.notes || null,
-      assignedToId: d.assignedToId || null,
-    })
-    .where(and(eq(opportunity.id, id), eq(opportunity.agencyId, user.agencyId)));
+  try {
+    await db
+      .update(opportunity)
+      .set({
+        title: d.title,
+        clientId: d.clientId,
+        stage,
+        value: String(d.value),
+        currency: d.currency,
+        probability: d.probability ?? OPPORTUNITY_STAGE_META[stage].defaultProbability,
+        destination: d.destination || null,
+        travelPurpose: d.travelPurpose || null,
+        travelStartDate: toDate(d.travelStartDate),
+        travelEndDate: toDate(d.travelEndDate),
+        paxCount: d.paxCount,
+        expectedCloseDate: toDate(d.expectedCloseDate),
+        lostReason: d.lostReason || null,
+        notes: d.notes || null,
+        assignedToId: d.assignedToId || null,
+      })
+      .where(and(eq(opportunity.id, id), eq(opportunity.agencyId, user.agencyId)));
 
-  await logActivity({
-    agencyId: user.agencyId,
-    userId: user.id,
-    action: existing.stage !== stage ? "stage_changed" : "updated",
-    entityType: "opportunity",
-    entityId: id,
-    entityLabel: d.title,
-    metadata:
-      existing.stage !== stage ? { from: existing.stage, to: stage } : null,
-  });
+    await logActivity({
+      agencyId: user.agencyId,
+      userId: user.id,
+      action: existing.stage !== stage ? "stage_changed" : "updated",
+      entityType: "opportunity",
+      entityId: id,
+      entityLabel: d.title,
+      metadata:
+        existing.stage !== stage ? { from: existing.stage, to: stage } : null,
+    });
 
-  revalidatePath("/opportunities");
-  revalidatePath(`/opportunities/${id}`);
-  return { ok: true };
+    revalidatePath("/opportunities");
+    revalidatePath(`/opportunities/${id}`);
+    return { ok: true };
+  } catch (err) {
+    console.error("[updateOpportunity]", err);
+    return { ok: false, error: "Could not update opportunity. Please try again." };
+  }
 }
 
 /** Lightweight stage move used by the pipeline board. */
@@ -176,27 +186,32 @@ export async function changeStage(
   });
   if (!existing) return { ok: false, error: "Opportunity not found" };
 
-  await db
-    .update(opportunity)
-    .set({
-      stage,
-      probability: OPPORTUNITY_STAGE_META[stage].defaultProbability,
-    })
-    .where(and(eq(opportunity.id, id), eq(opportunity.agencyId, user.agencyId)));
+  try {
+    await db
+      .update(opportunity)
+      .set({
+        stage,
+        probability: OPPORTUNITY_STAGE_META[stage].defaultProbability,
+      })
+      .where(and(eq(opportunity.id, id), eq(opportunity.agencyId, user.agencyId)));
 
-  await logActivity({
-    agencyId: user.agencyId,
-    userId: user.id,
-    action: "stage_changed",
-    entityType: "opportunity",
-    entityId: id,
-    entityLabel: existing.title,
-    metadata: { from: existing.stage, to: stage },
-  });
+    await logActivity({
+      agencyId: user.agencyId,
+      userId: user.id,
+      action: "stage_changed",
+      entityType: "opportunity",
+      entityId: id,
+      entityLabel: existing.title,
+      metadata: { from: existing.stage, to: stage },
+    });
 
-  revalidatePath("/opportunities");
-  revalidatePath(`/opportunities/${id}`);
-  return { ok: true };
+    revalidatePath("/opportunities");
+    revalidatePath(`/opportunities/${id}`);
+    return { ok: true };
+  } catch (err) {
+    console.error("[changeStage]", err);
+    return { ok: false, error: "Could not change the stage. Please try again." };
+  }
 }
 
 export async function deleteOpportunity(id: string): Promise<ActionResult> {
@@ -214,19 +229,24 @@ export async function deleteOpportunity(id: string): Promise<ActionResult> {
     return { ok: false, error: "You don't have permission to delete this" };
   }
 
-  await db
-    .delete(opportunity)
-    .where(and(eq(opportunity.id, id), eq(opportunity.agencyId, user.agencyId)));
+  try {
+    await db
+      .delete(opportunity)
+      .where(and(eq(opportunity.id, id), eq(opportunity.agencyId, user.agencyId)));
 
-  await logActivity({
-    agencyId: user.agencyId,
-    userId: user.id,
-    action: "deleted",
-    entityType: "opportunity",
-    entityId: id,
-    entityLabel: existing.title,
-  });
+    await logActivity({
+      agencyId: user.agencyId,
+      userId: user.id,
+      action: "deleted",
+      entityType: "opportunity",
+      entityId: id,
+      entityLabel: existing.title,
+    });
 
-  revalidatePath("/opportunities");
-  return { ok: true };
+    revalidatePath("/opportunities");
+    return { ok: true };
+  } catch (err) {
+    console.error("[deleteOpportunity]", err);
+    return { ok: false, error: "Could not delete opportunity. Please try again." };
+  }
 }

@@ -127,6 +127,13 @@
       "when": 1782588146575,
       "tag": "0017_controlled_vocab",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1782666549353,
+      "tag": "0018_regular_karnak",
+      "breakpoints": true
     }
   ]
 }

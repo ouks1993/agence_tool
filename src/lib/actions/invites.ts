@@ -69,48 +69,53 @@ export async function inviteTeamMember(
     return { ok: false, error: "This email already has a pending invite." };
   }
 
-  const invite = await createInvite({
-    agencyId: me.agencyId,
-    email: normalizedEmail,
-    role,
-    invitedById: me.id,
-  });
+  try {
+    const invite = await createInvite({
+      agencyId: me.agencyId,
+      email: normalizedEmail,
+      role,
+      invitedById: me.id,
+    });
 
-  // Send the invite email (best-effort): build the accept link from the
-  // configured app URL, send a branded message, and record the attempt in the
-  // notification log. A delivery failure never fails the invite — the link can
-  // still be copied from the team page.
-  const agencyRow = await db.query.agency.findFirst({
-    where: eq(agency.id, me.agencyId),
-    columns: { name: true },
-  });
-  const agencyName = agencyRow?.name ?? "your agency";
-  const roleLabel = USER_ROLE_META[role as UserRole]?.label ?? role;
-  const acceptUrl = `${APP_URL}/invite/${invite.token}`;
-  const subject = `You're invited to ${agencyName} on Atlas`;
-  const text = `You've been invited to join ${agencyName} on Atlas as ${roleLabel}.\n\nAccept your invite:\n${acceptUrl}\n\nThis invite expires in 7 days.`;
+    // Send the invite email (best-effort): build the accept link from the
+    // configured app URL, send a branded message, and record the attempt in the
+    // notification log. A delivery failure never fails the invite — the link can
+    // still be copied from the team page.
+    const agencyRow = await db.query.agency.findFirst({
+      where: eq(agency.id, me.agencyId),
+      columns: { name: true },
+    });
+    const agencyName = agencyRow?.name ?? "your agency";
+    const roleLabel = USER_ROLE_META[role as UserRole]?.label ?? role;
+    const acceptUrl = `${APP_URL}/invite/${invite.token}`;
+    const subject = `You're invited to ${agencyName} on Atlas`;
+    const text = `You've been invited to join ${agencyName} on Atlas as ${roleLabel}.\n\nAccept your invite:\n${acceptUrl}\n\nThis invite expires in 7 days.`;
 
-  const result = await sendEmail({
-    to: normalizedEmail,
-    subject,
-    text,
-    html: inviteEmailHtml({ agencyName, roleLabel, url: acceptUrl }),
-  });
+    const result = await sendEmail({
+      to: normalizedEmail,
+      subject,
+      text,
+      html: inviteEmailHtml({ agencyName, roleLabel, url: acceptUrl }),
+    });
 
-  await db.insert(notification).values({
-    agencyId: me.agencyId,
-    channel: "email",
-    recipient: normalizedEmail,
-    subject,
-    body: text,
-    kind: "invite",
-    status: result.status,
-    error: result.error ?? null,
-    createdById: me.id,
-  });
+    await db.insert(notification).values({
+      agencyId: me.agencyId,
+      channel: "email",
+      recipient: normalizedEmail,
+      subject,
+      body: text,
+      kind: "invite",
+      status: result.status,
+      error: result.error ?? null,
+      createdById: me.id,
+    });
 
-  revalidatePath("/team");
-  return { ok: true };
+    revalidatePath("/team");
+    return { ok: true };
+  } catch (err) {
+    console.error("[inviteTeamMember]", err);
+    return { ok: false, error: "Could not send the invite. Please try again." };
+  }
 }
 
 /**
@@ -123,17 +128,22 @@ export async function revokeInvite(inviteId: string): Promise<ActionResult> {
     return { ok: false, error: "Your account isn't linked to an agency." };
   }
 
-  await db
-    .update(agencyInvite)
-    .set({ status: "revoked" })
-    .where(
-      and(
-        eq(agencyInvite.id, inviteId),
-        eq(agencyInvite.agencyId, me.agencyId),
-        eq(agencyInvite.status, "pending")
-      )
-    );
+  try {
+    await db
+      .update(agencyInvite)
+      .set({ status: "revoked" })
+      .where(
+        and(
+          eq(agencyInvite.id, inviteId),
+          eq(agencyInvite.agencyId, me.agencyId),
+          eq(agencyInvite.status, "pending")
+        )
+      );
 
-  revalidatePath("/team");
-  return { ok: true };
+    revalidatePath("/team");
+    return { ok: true };
+  } catch (err) {
+    console.error("[revokeInvite]", err);
+    return { ok: false, error: "Could not revoke the invite. Please try again." };
+  }
 }

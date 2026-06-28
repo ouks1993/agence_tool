@@ -26,6 +26,10 @@ import type {
 
 const API = "https://api.duffel.com";
 
+/** Hard cap on any upstream Duffel call so a hung provider can't pin a request
+ * to Vercel's 30s function ceiling. */
+const FETCH_TIMEOUT_MS = 15000;
+
 function version(): string {
   return process.env.DUFFEL_VERSION || "v2";
 }
@@ -36,16 +40,31 @@ async function duffel<T>(
 ): Promise<T> {
   const token = process.env.DUFFEL_API_TOKEN;
   if (!token) throw new Error("Duffel is not configured");
-  const res = await fetch(`${API}${path}`, {
-    method: init?.method ?? "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Duffel-Version": version(),
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-    ...(init?.body ? { body: JSON.stringify(init.body) } : {}),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(`${API}${path}`, {
+      method: init?.method ?? "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Duffel-Version": version(),
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      signal: controller.signal,
+      ...(init?.body ? { body: JSON.stringify(init.body) } : {}),
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(
+        `Duffel ${path} timed out after ${FETCH_TIMEOUT_MS}ms`
+      );
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(`Duffel ${path} failed (${res.status}): ${text.slice(0, 200)}`);
@@ -223,69 +242,58 @@ export class DuffelSupplier implements SupplierProvider {
   /**
    * Create a real Duffel order ("instant" type, paid from the agency balance).
    *
-   * Requires the raw provider offer id and full passenger details. If the live
-   * call fails (offer expired, missing/invalid passenger data, insufficient
-   * balance, sandbox quirks) we fall back to a provisional reference so
-   * operations still runs end to end — the same graceful degradation used
-   * elsewhere in the supplier layer.
+   * Requires the raw provider offer id and full passenger details. On success
+   * returns the real provider PNR with `status: "confirmed"`. If the live call
+   * fails (offer expired, missing/invalid passenger data, insufficient balance,
+   * timeout, sandbox quirks) this THROWS — we never fabricate a confirmation, so
+   * the caller can record the booking as not-yet-confirmed and surface the
+   * failure instead of marking a failed flight as booked.
    */
   async bookFlight(
     offer: FlightOffer,
     passengers?: FlightPassenger[]
   ): Promise<BookingConfirmation> {
-    try {
-      // Legacy items stored before rawOfferId existed keep the raw id inside
-      // the prefixed `id`, so strip the prefix as a fallback.
-      const rawOfferId = offer.rawOfferId ?? offer.id.replace("duffel-fl-", "");
+    // Legacy items stored before rawOfferId existed keep the raw id inside
+    // the prefixed `id`, so strip the prefix as a fallback.
+    const rawOfferId = offer.rawOfferId ?? offer.id.replace("duffel-fl-", "");
 
-      const body = {
-        data: {
-          type: "instant",
-          selected_offers: [rawOfferId],
-          passengers: (passengers ?? []).map((p) => ({
-            type: p.type,
-            given_name: p.given_name,
-            family_name: p.family_name,
-            born_on: p.born_on,
-            gender: p.gender,
-            ...(p.identity_documents
-              ? { identity_documents: p.identity_documents }
-              : {}),
-          })),
-          payments: [
-            {
-              type: "balance",
-              amount: offer.priceTotal.toFixed(2),
-              currency: offer.currency,
-            },
-          ],
-        },
-      };
+    const body = {
+      data: {
+        type: "instant",
+        selected_offers: [rawOfferId],
+        passengers: (passengers ?? []).map((p) => ({
+          type: p.type,
+          given_name: p.given_name,
+          family_name: p.family_name,
+          born_on: p.born_on,
+          gender: p.gender,
+          ...(p.identity_documents
+            ? { identity_documents: p.identity_documents }
+            : {}),
+        })),
+        payments: [
+          {
+            type: "balance",
+            amount: offer.priceTotal.toFixed(2),
+            currency: offer.currency,
+          },
+        ],
+      },
+    };
 
-      const json = await duffel<OrderResponse>("/air/orders", {
-        method: "POST",
-        body,
-      });
-      const order = json.data;
-      if (!order?.booking_reference) {
-        throw new Error("Duffel order missing booking_reference");
-      }
-      return {
-        confirmationNumber: order.booking_reference,
-        provider: "duffel",
-        status: "confirmed",
-      };
-    } catch (error) {
-      console.error(
-        "Duffel order creation failed, issuing provisional reference:",
-        error
-      );
-      return {
-        confirmationNumber: `DF-${Date.now().toString(36).toUpperCase()}`,
-        provider: "duffel",
-        status: "confirmed",
-      };
+    const json = await duffel<OrderResponse>("/air/orders", {
+      method: "POST",
+      body,
+    });
+    const order = json.data;
+    if (!order?.booking_reference) {
+      throw new Error("Duffel order missing booking_reference");
     }
+    return {
+      confirmationNumber: order.booking_reference,
+      provider: "duffel",
+      status: "confirmed",
+    };
   }
 
   async bookHotel(): Promise<BookingConfirmation> {

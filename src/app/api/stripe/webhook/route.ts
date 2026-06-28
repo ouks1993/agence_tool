@@ -72,16 +72,26 @@ export async function POST(req: Request): Promise<Response> {
 
     // Prefer the agency id stamped in subscription metadata; fall back to the
     // Stripe customer id we stored at provisioning time.
-    if (sub.metadata?.agencyId) {
-      await db
-        .update(agency)
-        .set(values)
-        .where(eq(agency.id, sub.metadata.agencyId));
-    } else if (sub.customer) {
-      await db
-        .update(agency)
-        .set(values)
-        .where(eq(agency.stripeCustomerId, sub.customer));
+    //
+    // Guard the DB write: a transient failure must surface as a 500 so Stripe
+    // retries the (idempotent) update later, rather than bubbling as an
+    // unhandled rejection. Each branch runs at most one update, so a thrown
+    // error can't partially double-apply within this invocation.
+    try {
+      if (sub.metadata?.agencyId) {
+        await db
+          .update(agency)
+          .set(values)
+          .where(eq(agency.id, sub.metadata.agencyId));
+      } else if (sub.customer) {
+        await db
+          .update(agency)
+          .set(values)
+          .where(eq(agency.stripeCustomerId, sub.customer));
+      }
+    } catch (err) {
+      console.error("[stripe-webhook]", { type: event.type, id: event.id }, err);
+      return new Response("Webhook handler failed", { status: 500 });
     }
   }
 

@@ -185,17 +185,21 @@ export const account = pgTable(
   ]
 );
 
-export const verification = pgTable("verification", {
-  id: text("id").primaryKey(),
-  identifier: text("identifier").notNull(),
-  value: text("value").notNull(),
-  expiresAt: timestamp("expires_at").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at")
-    .defaultNow()
-    .$onUpdate(() => /* @__PURE__ */ new Date())
-    .notNull(),
-});
+export const verification = pgTable(
+  "verification",
+  {
+    id: text("id").primaryKey(),
+    identifier: text("identifier").notNull(),
+    value: text("value").notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [index("verification_identifier_idx").on(table.identifier)]
+);
 
 // ---------------------------------------------------------------------------
 // CRM: Clients (accounts) and their contacts
@@ -243,6 +247,8 @@ export const client = pgTable(
     index("client_owner_idx").on(table.ownerId),
     index("client_status_idx").on(table.status),
     index("client_name_idx").on(table.name),
+    // Composite for tenant-scoped ordering by recency.
+    index("client_agency_created_idx").on(table.agencyId, table.createdAt),
   ]
 );
 
@@ -313,6 +319,10 @@ export const opportunity = pgTable(
     index("opportunity_client_idx").on(table.clientId),
     index("opportunity_stage_idx").on(table.stage),
     index("opportunity_assigned_idx").on(table.assignedToId),
+    // Composite indexes for tenant-scoped pipeline filter / ordering queries.
+    // Opportunity's filterable status column is `stage`.
+    index("opportunity_agency_stage_idx").on(table.agencyId, table.stage),
+    index("opportunity_agency_created_idx").on(table.agencyId, table.createdAt),
   ]
 );
 
@@ -384,6 +394,9 @@ export const product = pgTable(
     index("product_client_idx").on(table.clientId),
     index("product_opportunity_idx").on(table.opportunityId),
     index("product_status_idx").on(table.status),
+    // Composite indexes for tenant-scoped list + filter / ordering queries.
+    index("product_agency_status_idx").on(table.agencyId, table.status),
+    index("product_agency_created_idx").on(table.agencyId, table.createdAt),
     unique("product_agency_reference_unique").on(table.agencyId, table.reference),
   ]
 );
@@ -420,7 +433,11 @@ export const productItem = pgTable(
     sortOrder: integer("sort_order").default(0).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
-  (table) => [index("product_item_product_idx").on(table.productId)]
+  (table) => [
+    index("product_item_product_idx").on(table.productId),
+    // Index the supplier FK — used in supplier/commission joins.
+    index("product_item_supplier_idx").on(table.supplierId),
+  ]
 );
 
 // ---------------------------------------------------------------------------
@@ -469,6 +486,9 @@ export const booking = pgTable(
     index("booking_client_idx").on(table.clientId),
     index("booking_status_idx").on(table.status),
     index("booking_depart_idx").on(table.departDate),
+    // Composite indexes for tenant-scoped list + filter / ordering queries.
+    index("booking_agency_status_idx").on(table.agencyId, table.status),
+    index("booking_agency_created_idx").on(table.agencyId, table.createdAt),
     unique("booking_agency_reference_unique").on(table.agencyId, table.reference),
   ]
 );
@@ -533,7 +553,11 @@ export const bookingItem = pgTable(
     sortOrder: integer("sort_order").default(0).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
-  (table) => [index("booking_item_booking_idx").on(table.bookingId)]
+  (table) => [
+    index("booking_item_booking_idx").on(table.bookingId),
+    // Index the supplier FK — used in supplier/commission joins.
+    index("booking_item_supplier_idx").on(table.supplierId),
+  ]
 );
 
 /** A payment (or refund) recorded against a booking. */
@@ -564,7 +588,11 @@ export const payment = pgTable(
     }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
-  (table) => [index("payment_booking_idx").on(table.bookingId)]
+  (table) => [
+    index("payment_booking_idx").on(table.bookingId),
+    // High-volume ledger — index recency for time-ordered reporting.
+    index("payment_created_idx").on(table.createdAt),
+  ]
 );
 
 /** A notification (email/SMS/…) sent about a booking — the communications log. */
@@ -596,6 +624,8 @@ export const notification = pgTable(
   (table) => [
     index("notification_agency_idx").on(table.agencyId),
     index("notification_booking_idx").on(table.bookingId),
+    // Composite for tenant-scoped communications log ordered by recency.
+    index("notification_agency_created_idx").on(table.agencyId, table.createdAt),
   ]
 );
 
@@ -658,6 +688,9 @@ export const agencyRelations = relations(agency, ({ many }) => ({
   bookings: many(booking),
   notifications: many(notification),
   activities: many(activityLog),
+  suppliers: many(supplier),
+  supplierContracts: many(supplierContract),
+  commissions: many(commission),
 }));
 
 export const agencyInviteRelations = relations(agencyInvite, ({ one }) => ({
@@ -1020,8 +1053,10 @@ export const commission = pgTable(
       onDelete: "cascade",
     }),
     // For supplier commissions — the specific booking item this relates to.
+    // Cascade: a commission has no meaning without its booking item, so it is
+    // removed with the item rather than left orphaned.
     bookingItemId: uuid("booking_item_id").references(() => bookingItem.id, {
-      onDelete: "set null",
+      onDelete: "cascade",
     }),
     // For supplier commissions — the supplier who pays the commission.
     supplierId: uuid("supplier_id").references(() => supplier.id, {
@@ -1057,5 +1092,70 @@ export const commission = pgTable(
     index("commission_type_idx").on(table.type),
     index("commission_agent_idx").on(table.agentUserId),
     index("commission_status_idx").on(table.status),
+    // Composite indexes for tenant-scoped ledger filter / ordering queries.
+    index("commission_agency_status_idx").on(table.agencyId, table.status),
+    index("commission_agency_created_idx").on(table.agencyId, table.createdAt),
   ]
 );
+
+export const supplierRelations = relations(supplier, ({ one, many }) => ({
+  agency: one(agency, {
+    fields: [supplier.agencyId],
+    references: [agency.id],
+  }),
+  createdBy: one(user, {
+    fields: [supplier.createdById],
+    references: [user.id],
+  }),
+  contracts: many(supplierContract),
+  commissions: many(commission),
+}));
+
+export const supplierContractRelations = relations(
+  supplierContract,
+  ({ one, many }) => ({
+    supplier: one(supplier, {
+      fields: [supplierContract.supplierId],
+      references: [supplier.id],
+    }),
+    agency: one(agency, {
+      fields: [supplierContract.agencyId],
+      references: [agency.id],
+    }),
+    rates: many(supplierRate),
+  })
+);
+
+export const supplierRateRelations = relations(supplierRate, ({ one }) => ({
+  contract: one(supplierContract, {
+    fields: [supplierRate.contractId],
+    references: [supplierContract.id],
+  }),
+}));
+
+export const commissionRelations = relations(commission, ({ one }) => ({
+  agency: one(agency, {
+    fields: [commission.agencyId],
+    references: [agency.id],
+  }),
+  booking: one(booking, {
+    fields: [commission.bookingId],
+    references: [booking.id],
+  }),
+  bookingItem: one(bookingItem, {
+    fields: [commission.bookingItemId],
+    references: [bookingItem.id],
+  }),
+  supplier: one(supplier, {
+    fields: [commission.supplierId],
+    references: [supplier.id],
+  }),
+  agent: one(user, {
+    fields: [commission.agentUserId],
+    references: [user.id],
+  }),
+  createdBy: one(user, {
+    fields: [commission.createdById],
+    references: [user.id],
+  }),
+}));

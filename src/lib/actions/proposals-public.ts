@@ -60,55 +60,60 @@ export async function acceptProposalByToken(
   const { ip, userAgent } = await signerMeta();
   const now = new Date();
 
-  await db
-    .update(product)
-    .set({
-      status: "accepted",
-      acceptedAt: now,
-      signerName: d.signerName,
-      signerEmail: d.signerEmail,
-      signatureData: d.signature,
-      signerIp: ip,
-      signerUserAgent: userAgent,
-    })
-    .where(eq(product.id, p.id));
-
-  // Acceptance closes the linked opportunity as won.
-  if (p.opportunityId) {
+  try {
     await db
-      .update(opportunity)
-      .set({ stage: "won" })
-      .where(eq(opportunity.id, p.opportunityId));
+      .update(product)
+      .set({
+        status: "accepted",
+        acceptedAt: now,
+        signerName: d.signerName,
+        signerEmail: d.signerEmail,
+        signatureData: d.signature,
+        signerIp: ip,
+        signerUserAgent: userAgent,
+      })
+      .where(eq(product.id, p.id));
+
+    // Acceptance closes the linked opportunity as won.
+    if (p.opportunityId) {
+      await db
+        .update(opportunity)
+        .set({ stage: "won" })
+        .where(eq(opportunity.id, p.opportunityId));
+    }
+
+    // Confirmation email to the signer (best-effort) + agency audit row.
+    const subject = `Proposal ${p.reference} accepted`;
+    const text = `Hi ${d.signerName},\n\nThank you — we've recorded your acceptance of proposal ${p.reference} ("${p.title}").\n\nOur team will be in touch with the next steps.\n\nKind regards,\n${APP_NAME}`;
+    const result = await sendEmail({ to: d.signerEmail, subject, text });
+
+    await db.insert(notification).values({
+      agencyId: p.agencyId,
+      channel: "email",
+      recipient: d.signerEmail,
+      subject,
+      body: text,
+      kind: "proposal",
+      status: result.status,
+      error: result.error ?? null,
+    });
+
+    await logActivity({
+      agencyId: p.agencyId,
+      userId: null,
+      action: "status_changed",
+      entityType: "product",
+      entityId: p.id,
+      entityLabel: `${p.reference} · ${p.title}`,
+      metadata: { acceptedBy: d.signerName, via: "public_link" },
+    });
+
+    revalidatePath(`/p/${d.token}`);
+    return { ok: true };
+  } catch (err) {
+    console.error("[acceptProposalByToken]", err);
+    return { ok: false, error: "Could not accept the proposal. Please try again." };
   }
-
-  // Confirmation email to the signer (best-effort) + agency audit row.
-  const subject = `Proposal ${p.reference} accepted`;
-  const text = `Hi ${d.signerName},\n\nThank you — we've recorded your acceptance of proposal ${p.reference} ("${p.title}").\n\nOur team will be in touch with the next steps.\n\nKind regards,\n${APP_NAME}`;
-  const result = await sendEmail({ to: d.signerEmail, subject, text });
-
-  await db.insert(notification).values({
-    agencyId: p.agencyId,
-    channel: "email",
-    recipient: d.signerEmail,
-    subject,
-    body: text,
-    kind: "proposal",
-    status: result.status,
-    error: result.error ?? null,
-  });
-
-  await logActivity({
-    agencyId: p.agencyId,
-    userId: null,
-    action: "status_changed",
-    entityType: "product",
-    entityId: p.id,
-    entityLabel: `${p.reference} · ${p.title}`,
-    metadata: { acceptedBy: d.signerName, via: "public_link" },
-  });
-
-  revalidatePath(`/p/${d.token}`);
-  return { ok: true };
 }
 
 /** Declines a proposal via its public share token. */
@@ -123,26 +128,32 @@ export async function declineProposalByToken(token: string): Promise<ActionResul
   if (p.declinedAt) return { ok: false, error: "This proposal was already declined." };
 
   const { ip, userAgent } = await signerMeta();
-  await db
-    .update(product)
-    .set({
-      status: "rejected",
-      declinedAt: new Date(),
-      signerIp: ip,
-      signerUserAgent: userAgent,
-    })
-    .where(eq(product.id, p.id));
 
-  await logActivity({
-    agencyId: p.agencyId,
-    userId: null,
-    action: "status_changed",
-    entityType: "product",
-    entityId: p.id,
-    entityLabel: `${p.reference} · ${p.title}`,
-    metadata: { declined: true, via: "public_link" },
-  });
+  try {
+    await db
+      .update(product)
+      .set({
+        status: "rejected",
+        declinedAt: new Date(),
+        signerIp: ip,
+        signerUserAgent: userAgent,
+      })
+      .where(eq(product.id, p.id));
 
-  revalidatePath(`/p/${token}`);
-  return { ok: true };
+    await logActivity({
+      agencyId: p.agencyId,
+      userId: null,
+      action: "status_changed",
+      entityType: "product",
+      entityId: p.id,
+      entityLabel: `${p.reference} · ${p.title}`,
+      metadata: { declined: true, via: "public_link" },
+    });
+
+    revalidatePath(`/p/${token}`);
+    return { ok: true };
+  } catch (err) {
+    console.error("[declineProposalByToken]", err);
+    return { ok: false, error: "Could not decline the proposal. Please try again." };
+  }
 }

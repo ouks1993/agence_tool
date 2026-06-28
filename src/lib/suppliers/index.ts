@@ -71,15 +71,31 @@ export function getHotelSupplier(): SupplierProvider {
 }
 
 /**
+ * Result of {@link safeSearch}. `degraded` is the machine-readable flag callers
+ * MUST check before presenting prices as live: it is `true` whenever the results
+ * came from the mock fallback rather than the real provider, so mock/estimated
+ * prices are never mistaken for real supplier prices. `source` carries the
+ * provider label that produced the results ("Duffel (live)", "Mock", …).
+ */
+export type SafeSearchResult<T> = {
+  results: T[];
+  /** Provider label that produced the results (e.g. "Duffel (live)", "Mock"). */
+  source: string;
+  /** True when results came from the mock fallback, not the live provider. */
+  degraded: boolean;
+};
+
+/**
  * Runs a supplier search but never throws — on any live-provider error it falls
  * back to the mock so the UI/AI always get usable results. The provider is
- * chosen by the caller (flights vs hotels) via `getProvider`.
+ * chosen by the caller (flights vs hotels) via `getProvider`. Callers must read
+ * `degraded`/`source` on the result to tell mock prices from real ones.
  */
 export async function safeSearch<T>(
   getProvider: () => SupplierProvider,
   run: (provider: SupplierProvider) => Promise<T[]>,
   fallback: (provider: SupplierProvider) => Promise<T[]>
-): Promise<{ results: T[]; source: string; degraded: boolean }> {
+): Promise<SafeSearchResult<T>> {
   const provider = getProvider();
   try {
     const results = await run(provider);

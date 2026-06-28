@@ -67,7 +67,7 @@ export function ForgotPasswordForm() {
         />
       </div>
       {error && (
-        <p className="text-sm text-destructive">{error}</p>
+        <p role="alert" className="text-sm text-destructive">{error}</p>
       )}
       <Button type="submit" className="w-full" disabled={isPending}>
         {isPending ? "Sending..." : "Send reset link"}

@@ -28,7 +28,11 @@ const messagePartSchema = z.object({
 
 const messageSchema = z.object({
   id: z.string().optional(),
-  role: z.enum(["user", "assistant", "system"]),
+  // Clients may only send user/assistant turns. We deliberately reject
+  // role:"system" so a caller cannot inject their own system prompt (and, via
+  // it, drive tool calls like createBooking). The server-controlled system
+  // prompt is injected below in streamText({ system }).
+  role: z.enum(["user", "assistant"]),
   parts: z.array(messagePartSchema).optional(),
   content: z.union([z.string(), z.array(messagePartSchema)]).optional(),
 });
@@ -74,7 +78,8 @@ export async function POST(req: Request) {
   const openrouter = createOpenRouter({ apiKey });
   const today = new Date().toISOString().slice(0, 10);
 
-  const result = streamText({
+  try {
+    const result = streamText({
     model: openrouter(process.env.OPENROUTER_MODEL || "openai/gpt-5-mini"),
     system: SYSTEM_PROMPT(today, session.user.name),
     messages: convertToModelMessages(messages),
@@ -92,23 +97,32 @@ export async function POST(req: Request) {
           cabin: z.enum(["economy", "premium", "business", "first"]).optional(),
         }),
         execute: async (a) => {
-          const params = { ...a, currency: "EUR" };
-          const { results, source } = await safeSearch<FlightOffer>(
-            getFlightSupplier,
-            (p) => p.searchFlights(params),
-            (m) => m.searchFlights(params)
-          );
-          return {
-            source,
-            offers: results.slice(0, 5).map((o) => ({
-              airline: o.airlineName,
-              price: o.priceTotal,
-              currency: o.currency,
-              cabin: o.cabin,
-              stops: o.stops,
-              durationMinutes: o.durationMinutes,
-            })),
-          };
+          try {
+            const params = { ...a, currency: "EUR" };
+            const { results, source, degraded } = await safeSearch<FlightOffer>(
+              getFlightSupplier,
+              (p) => p.searchFlights(params),
+              (m) => m.searchFlights(params)
+            );
+            return {
+              ok: true,
+              source,
+              // When degraded the figures are mock/sample data, not live prices —
+              // forward the flag so the assistant can disclose this to the agent.
+              degraded,
+              offers: results.slice(0, 5).map((o) => ({
+                airline: o.airlineName,
+                price: o.priceTotal,
+                currency: o.currency,
+                cabin: o.cabin,
+                stops: o.stops,
+                durationMinutes: o.durationMinutes,
+              })),
+            };
+          } catch (err) {
+            console.error("[chat:tool:searchFlights]", err);
+            return { ok: false, error: "Flight search failed. Please try again." };
+          }
         },
       }),
 
@@ -123,24 +137,32 @@ export async function POST(req: Request) {
           rooms: z.number().int().min(1).max(9).default(1),
         }),
         execute: async (a) => {
-          const params = { ...a, currency: "EUR" };
-          const { results, source } = await safeSearch<HotelOffer>(
-            getHotelSupplier,
-            (p) => p.searchHotels(params),
-            (m) => m.searchHotels(params)
-          );
-          return {
-            source,
-            hotels: results.slice(0, 6).map((h) => ({
-              name: h.name,
-              stars: h.stars,
-              pricePerNight: h.pricePerNight,
-              priceTotal: h.priceTotal,
-              currency: h.currency,
-              board: h.boardType,
-              nights: h.nights,
-            })),
-          };
+          try {
+            const params = { ...a, currency: "EUR" };
+            const { results, source, degraded } = await safeSearch<HotelOffer>(
+              getHotelSupplier,
+              (p) => p.searchHotels(params),
+              (m) => m.searchHotels(params)
+            );
+            return {
+              ok: true,
+              source,
+              // Degraded => mock/sample prices; surfaced so the assistant can say so.
+              degraded,
+              hotels: results.slice(0, 6).map((h) => ({
+                name: h.name,
+                stars: h.stars,
+                pricePerNight: h.pricePerNight,
+                priceTotal: h.priceTotal,
+                currency: h.currency,
+                board: h.boardType,
+                nights: h.nights,
+              })),
+            };
+          } catch (err) {
+            console.error("[chat:tool:searchHotels]", err);
+            return { ok: false, error: "Hotel search failed. Please try again." };
+          }
         },
       }),
 
@@ -150,22 +172,27 @@ export async function POST(req: Request) {
           query: z.string().optional().describe("Name to search for"),
         }),
         execute: async (a) => {
-          // Platform admins (no agency) get nothing — never query globally.
-          if (!agencyId) return { clients: [] };
-          // Always constrain to the caller's agency; the optional name filter is
-          // ANDed on top so we can never read another agency's clients.
-          const agencyScope = eq(clientTable.agencyId, agencyId);
-          const rows = await db
-            .select({ id: clientTable.id, name: clientTable.name, email: clientTable.email })
-            .from(clientTable)
-            .where(
-              a.query
-                ? and(agencyScope, ilike(clientTable.name, `%${a.query}%`))
-                : agencyScope
-            )
-            .orderBy(desc(clientTable.updatedAt))
-            .limit(10);
-          return { clients: rows };
+          try {
+            // Platform admins (no agency) get nothing — never query globally.
+            if (!agencyId) return { ok: true, clients: [] };
+            // Always constrain to the caller's agency; the optional name filter is
+            // ANDed on top so we can never read another agency's clients.
+            const agencyScope = eq(clientTable.agencyId, agencyId);
+            const rows = await db
+              .select({ id: clientTable.id, name: clientTable.name, email: clientTable.email })
+              .from(clientTable)
+              .where(
+                a.query
+                  ? and(agencyScope, ilike(clientTable.name, `%${a.query}%`))
+                  : agencyScope
+              )
+              .orderBy(desc(clientTable.updatedAt))
+              .limit(10);
+            return { ok: true, clients: rows };
+          } catch (err) {
+            console.error("[chat:tool:findClients]", err);
+            return { ok: false, error: "Client lookup failed. Please try again." };
+          }
         },
       }),
 
@@ -173,21 +200,31 @@ export async function POST(req: Request) {
         description: "Get a summary of bookings: counts by status and total value.",
         inputSchema: z.object({}),
         execute: async () => {
-          // Platform admins (no agency) get an empty summary — never query globally.
-          if (!agencyId) {
-            return { totalBookings: 0, byStatus: {}, activeValueEUR: 0 };
+          try {
+            // Platform admins (no agency) get an empty summary — never query globally.
+            if (!agencyId) {
+              return { ok: true, totalBookings: 0, byStatus: {}, activeValueEUR: 0 };
+            }
+            const rows = await db
+              .select({ status: bookingTable.status, total: bookingTable.totalAmount })
+              .from(bookingTable)
+              .where(eq(bookingTable.agencyId, agencyId));
+            const byStatus: Record<string, number> = {};
+            let activeValue = 0;
+            for (const r of rows) {
+              byStatus[r.status] = (byStatus[r.status] ?? 0) + 1;
+              if (r.status !== "cancelled") activeValue += parseFloat(r.total || "0");
+            }
+            return {
+              ok: true,
+              totalBookings: rows.length,
+              byStatus,
+              activeValueEUR: activeValue,
+            };
+          } catch (err) {
+            console.error("[chat:tool:bookingsSummary]", err);
+            return { ok: false, error: "Could not load the bookings summary. Please try again." };
           }
-          const rows = await db
-            .select({ status: bookingTable.status, total: bookingTable.totalAmount })
-            .from(bookingTable)
-            .where(eq(bookingTable.agencyId, agencyId));
-          const byStatus: Record<string, number> = {};
-          let activeValue = 0;
-          for (const r of rows) {
-            byStatus[r.status] = (byStatus[r.status] ?? 0) + 1;
-            if (r.status !== "cancelled") activeValue += parseFloat(r.total || "0");
-          }
-          return { totalBookings: rows.length, byStatus, activeValueEUR: activeValue };
         },
       }),
 
@@ -229,52 +266,87 @@ export async function POST(req: Request) {
             .min(1),
         }),
         execute: async (a) => {
-          // Platform admins (no agency) cannot create tenant bookings.
-          if (!agencyId) {
-            return { ok: false, error: "No agency context — cannot create a booking." };
-          }
-          // Validate the caller-supplied client belongs to this agency before
-          // creating, so a guessed/foreign clientId can't be attached.
-          if (a.clientId) {
-            const owned = await db.query.client.findFirst({
-              columns: { id: true },
-              where: and(
-                eq(clientTable.id, a.clientId),
-                eq(clientTable.agencyId, agencyId)
-              ),
-            });
-            if (!owned) {
-              return { ok: false, error: "Client not found in this agency." };
+          try {
+            // Platform admins (no agency) cannot create tenant bookings.
+            if (!agencyId) {
+              return { ok: false, error: "No agency context — cannot create a booking." };
             }
+            // Validate the caller-supplied client belongs to this agency before
+            // creating, so a guessed/foreign clientId can't be attached.
+            if (a.clientId) {
+              const owned = await db.query.client.findFirst({
+                columns: { id: true },
+                where: and(
+                  eq(clientTable.id, a.clientId),
+                  eq(clientTable.agencyId, agencyId)
+                ),
+              });
+              if (!owned) {
+                return { ok: false, error: "Client not found in this agency." };
+              }
+            }
+            const created = await createBooking({
+              clientId: a.clientId,
+              destination: a.destination,
+              currency: a.currency,
+            });
+            if (!created.ok || !created.data) {
+              return { ok: false, error: created.ok ? "Failed" : created.error };
+            }
+
+            // Collect per-row failures rather than silently swallowing them, so
+            // the assistant can tell the agent exactly what didn't get added.
+            const failedTravellers: string[] = [];
+            for (const t of a.travellers ?? []) {
+              try {
+                await addTraveller(created.data.id, t);
+              } catch (err) {
+                console.error("[chat:tool:createBooking:addTraveller]", err);
+                failedTravellers.push(t.fullName);
+              }
+            }
+            const failedItems: string[] = [];
+            for (const item of a.items) {
+              try {
+                await addBookingItem(created.data.id, { ...item, currency: a.currency });
+              } catch (err) {
+                console.error("[chat:tool:createBooking:addBookingItem]", err);
+                failedItems.push(item.title);
+              }
+            }
+
+            const hadFailures =
+              failedTravellers.length > 0 || failedItems.length > 0;
+            return {
+              ok: true,
+              bookingId: created.data.id,
+              url: `/bookings/${created.data.id}`,
+              // Surface partial-failure detail so the assistant can warn the agent
+              // and not imply everything was saved.
+              failedTravellers,
+              failedItems,
+              message: hadFailures
+                ? "Booking created, but some travellers/items could not be added — see failedTravellers/failedItems. Open it to review and re-add the missing rows."
+                : "Booking created. Open it to add passport details and confirm.",
+            };
+          } catch (err) {
+            console.error("[chat:tool:createBooking]", err);
+            return { ok: false, error: "Could not create the booking. Please try again." };
           }
-          const created = await createBooking({
-            clientId: a.clientId,
-            destination: a.destination,
-            currency: a.currency,
-          });
-          if (!created.ok || !created.data) {
-            return { ok: false, error: created.ok ? "Failed" : created.error };
-          }
-          for (const t of a.travellers ?? []) {
-            await addTraveller(created.data.id, t);
-          }
-          for (const item of a.items) {
-            await addBookingItem(created.data.id, { ...item, currency: a.currency });
-          }
-          return {
-            ok: true,
-            bookingId: created.data.id,
-            url: `/bookings/${created.data.id}`,
-            message: "Booking created. Open it to add passport details and confirm.",
-          };
         },
       }),
     },
   });
 
-  return (
-    result as unknown as { toUIMessageStreamResponse: () => Response }
-  ).toUIMessageStreamResponse();
+    return (
+      result as unknown as { toUIMessageStreamResponse: () => Response }
+    ).toUIMessageStreamResponse();
+  } catch (err) {
+    // Any unexpected throw while setting up/streaming the model response is
+    // turned into a structured JSON error instead of an unhandled 500.
+    console.error("[chat:handler]", err);
+    return jsonError("The assistant is temporarily unavailable. Please try again.", 502);
+  }
 }
 
 function jsonError(error: string, status: number): Response {

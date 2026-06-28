@@ -57,6 +57,10 @@ export async function recordCommission(
   }
   const d = parsed.data;
 
+  // Cross-tenant FK guards: every referenced id must resolve to a row scoped to
+  // the caller's agency before the insert. Without these, a foreign-tenant id
+  // could be persisted as an FK (or used as an existence oracle).
+
   // When a booking is referenced, verify it belongs to this agency so a
   // commission can never be attached to another tenant's booking.
   if (d.bookingId) {
@@ -67,40 +71,85 @@ export async function recordCommission(
     if (!parent) return { ok: false, error: "Booking not found" };
   }
 
-  const [row] = await db
-    .insert(commission)
-    .values({
+  // Booking items have no agencyId of their own — scope through the parent
+  // booking's agencyId via a join.
+  if (d.bookingItemId) {
+    const [item] = await db
+      .select({ id: bookingItem.id })
+      .from(bookingItem)
+      .innerJoin(booking, eq(bookingItem.bookingId, booking.id))
+      .where(
+        and(
+          eq(bookingItem.id, d.bookingItemId),
+          eq(booking.agencyId, user.agencyId)
+        )
+      );
+    if (!item) return { ok: false, error: "Booking item not found" };
+  }
+
+  // The referenced supplier must belong to this agency.
+  if (d.supplierId) {
+    const sup = await db.query.supplier.findFirst({
+      where: and(
+        eq(supplier.id, d.supplierId),
+        eq(supplier.agencyId, user.agencyId)
+      ),
+      columns: { id: true },
+    });
+    if (!sup) return { ok: false, error: "Supplier not found" };
+  }
+
+  // The referenced agent must belong to this agency.
+  if (d.agentUserId) {
+    const agent = await db.query.user.findFirst({
+      where: and(
+        eq(userTable.id, d.agentUserId),
+        eq(userTable.agencyId, user.agencyId)
+      ),
+      columns: { id: true },
+    });
+    if (!agent) return { ok: false, error: "Agent not found" };
+  }
+
+  try {
+    const [row] = await db
+      .insert(commission)
+      .values({
+        agencyId: user.agencyId,
+        bookingId: d.bookingId ?? null,
+        bookingItemId: d.bookingItemId ?? null,
+        supplierId: d.supplierId ?? null,
+        agentUserId: d.agentUserId ?? null,
+        type: d.type,
+        basis: d.basis,
+        rate: d.rate != null ? String(d.rate) : null,
+        baseAmount: d.baseAmount != null ? String(d.baseAmount) : null,
+        amount: String(d.amount),
+        currency: d.currency,
+        status: d.status,
+        note: d.note || null,
+        createdById: user.id,
+      })
+      .returning({ id: commission.id });
+
+    if (!row) return { ok: false, error: "Failed to record commission" };
+
+    await logActivity({
       agencyId: user.agencyId,
-      bookingId: d.bookingId ?? null,
-      bookingItemId: d.bookingItemId ?? null,
-      supplierId: d.supplierId ?? null,
-      agentUserId: d.agentUserId ?? null,
-      type: d.type,
-      basis: d.basis,
-      rate: d.rate != null ? String(d.rate) : null,
-      baseAmount: d.baseAmount != null ? String(d.baseAmount) : null,
-      amount: String(d.amount),
-      currency: d.currency,
-      status: d.status,
-      note: d.note || null,
-      createdById: user.id,
-    })
-    .returning({ id: commission.id });
+      userId: user.id,
+      action: "created",
+      entityType: "commission",
+      entityId: row.id,
+      entityLabel: `${d.type} · ${d.amount} ${d.currency}`,
+    });
 
-  if (!row) return { ok: false, error: "Failed to record commission" };
-
-  await logActivity({
-    agencyId: user.agencyId,
-    userId: user.id,
-    action: "created",
-    entityType: "commission",
-    entityId: row.id,
-    entityLabel: `${d.type} · ${d.amount} ${d.currency}`,
-  });
-
-  revalidatePath("/commissions");
-  if (d.bookingId) revalidatePath(`/bookings/${d.bookingId}`);
-  return { ok: true, data: { id: row.id } };
+    revalidatePath("/commissions");
+    if (d.bookingId) revalidatePath(`/bookings/${d.bookingId}`);
+    return { ok: true, data: { id: row.id } };
+  } catch (err) {
+    console.error("[recordCommission]", err);
+    return { ok: false, error: "Could not record commission. Please try again." };
+  }
 }
 
 export async function updateCommissionStatus(
@@ -122,23 +171,28 @@ export async function updateCommissionStatus(
   });
   if (!existing) return { ok: false, error: "Commission not found" };
 
-  await db
-    .update(commission)
-    .set({ status, updatedAt: new Date() })
-    .where(and(eq(commission.id, id), eq(commission.agencyId, user.agencyId)));
+  try {
+    await db
+      .update(commission)
+      .set({ status, updatedAt: new Date() })
+      .where(and(eq(commission.id, id), eq(commission.agencyId, user.agencyId)));
 
-  await logActivity({
-    agencyId: user.agencyId,
-    userId: user.id,
-    action: "status_changed",
-    entityType: "commission",
-    entityId: id,
-    metadata: { from: existing.status, to: status },
-  });
+    await logActivity({
+      agencyId: user.agencyId,
+      userId: user.id,
+      action: "status_changed",
+      entityType: "commission",
+      entityId: id,
+      metadata: { from: existing.status, to: status },
+    });
 
-  revalidatePath("/commissions");
-  if (existing.bookingId) revalidatePath(`/bookings/${existing.bookingId}`);
-  return { ok: true };
+    revalidatePath("/commissions");
+    if (existing.bookingId) revalidatePath(`/bookings/${existing.bookingId}`);
+    return { ok: true };
+  } catch (err) {
+    console.error("[updateCommissionStatus]", err);
+    return { ok: false, error: "Could not update the commission. Please try again." };
+  }
 }
 
 export async function voidCommission(id: string): Promise<ActionResult> {
@@ -153,23 +207,28 @@ export async function voidCommission(id: string): Promise<ActionResult> {
   });
   if (!existing) return { ok: false, error: "Commission not found" };
 
-  await db
-    .update(commission)
-    .set({ status: "void", updatedAt: new Date() })
-    .where(and(eq(commission.id, id), eq(commission.agencyId, user.agencyId)));
+  try {
+    await db
+      .update(commission)
+      .set({ status: "void", updatedAt: new Date() })
+      .where(and(eq(commission.id, id), eq(commission.agencyId, user.agencyId)));
 
-  await logActivity({
-    agencyId: user.agencyId,
-    userId: user.id,
-    action: "status_changed",
-    entityType: "commission",
-    entityId: id,
-    metadata: { from: existing.status, to: "void" },
-  });
+    await logActivity({
+      agencyId: user.agencyId,
+      userId: user.id,
+      action: "status_changed",
+      entityType: "commission",
+      entityId: id,
+      metadata: { from: existing.status, to: "void" },
+    });
 
-  revalidatePath("/commissions");
-  if (existing.bookingId) revalidatePath(`/bookings/${existing.bookingId}`);
-  return { ok: true };
+    revalidatePath("/commissions");
+    if (existing.bookingId) revalidatePath(`/bookings/${existing.bookingId}`);
+    return { ok: true };
+  } catch (err) {
+    console.error("[voidCommission]", err);
+    return { ok: false, error: "Could not void the commission. Please try again." };
+  }
 }
 
 export async function deleteCommission(id: string): Promise<ActionResult> {
@@ -193,21 +252,26 @@ export async function deleteCommission(id: string): Promise<ActionResult> {
     };
   }
 
-  await db
-    .delete(commission)
-    .where(and(eq(commission.id, id), eq(commission.agencyId, user.agencyId)));
+  try {
+    await db
+      .delete(commission)
+      .where(and(eq(commission.id, id), eq(commission.agencyId, user.agencyId)));
 
-  await logActivity({
-    agencyId: user.agencyId,
-    userId: user.id,
-    action: "deleted",
-    entityType: "commission",
-    entityId: id,
-  });
+    await logActivity({
+      agencyId: user.agencyId,
+      userId: user.id,
+      action: "deleted",
+      entityType: "commission",
+      entityId: id,
+    });
 
-  revalidatePath("/commissions");
-  if (existing.bookingId) revalidatePath(`/bookings/${existing.bookingId}`);
-  return { ok: true };
+    revalidatePath("/commissions");
+    if (existing.bookingId) revalidatePath(`/bookings/${existing.bookingId}`);
+    return { ok: true };
+  } catch (err) {
+    console.error("[deleteCommission]", err);
+    return { ok: false, error: "Could not delete the commission. Please try again." };
+  }
 }
 
 // --- Queries ----------------------------------------------------------------
