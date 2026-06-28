@@ -20,7 +20,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSuppliersForPicker } from "@/lib/actions/suppliers";
 import { db } from "@/lib/db";
-import { PRODUCT_STATUS_META, type ProductStatus } from "@/lib/domain";
+import {
+  PRODUCT_STATUS_META,
+  seesAllData,
+  type ProductStatus,
+} from "@/lib/domain";
 import { formatDate, formatMoney } from "@/lib/format";
 import { requireAgencyUser } from "@/lib/permissions";
 import { product } from "@/lib/schema";
@@ -35,7 +39,12 @@ export default async function ProductDetailPage({
 
   const [p, suppliers] = await Promise.all([
     db.query.product.findFirst({
-      where: and(eq(product.id, id), eq(product.agencyId, user.agencyId)),
+      // Agents may only open proposals they created (others see all).
+      where: and(
+        eq(product.id, id),
+        eq(product.agencyId, user.agencyId),
+        seesAllData(user.role) ? undefined : eq(product.createdById, user.id)
+      ),
       with: {
         client: { columns: { id: true, name: true } },
         opportunity: { columns: { id: true, title: true } },

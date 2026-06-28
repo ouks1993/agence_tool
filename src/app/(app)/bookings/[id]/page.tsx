@@ -36,7 +36,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCommissionsByBooking } from "@/lib/actions/commissions";
 import { getSuppliersForPicker } from "@/lib/actions/suppliers";
 import { db } from "@/lib/db";
-import { BOOKING_STATUS_META, canViewFinance, type BookingStatus } from "@/lib/domain";
+import {
+  BOOKING_STATUS_META,
+  canViewFinance,
+  seesAllData,
+  type BookingStatus,
+} from "@/lib/domain";
 import { formatDate, formatMoney, passportExpiryStatus } from "@/lib/format";
 import { isEmailConfigured } from "@/lib/notifications/email";
 import { isStripeConfigured } from "@/lib/payments/stripe";
@@ -59,7 +64,12 @@ export default async function BookingWorkspace({
   // what the standalone /search page fetches for SearchWorkspace.
   const [b, suppliers, searchClients, searchBookings] = await Promise.all([
     db.query.booking.findFirst({
-      where: and(eq(booking.id, id), eq(booking.agencyId, user.agencyId)),
+      // Agents may only open bookings they created (others see all).
+      where: and(
+        eq(booking.id, id),
+        eq(booking.agencyId, user.agencyId),
+        seesAllData(user.role) ? undefined : eq(booking.createdById, user.id)
+      ),
       with: {
         client: { columns: { id: true, name: true, email: true } },
         travellers: { orderBy: (t) => [asc(t.sortOrder)] },

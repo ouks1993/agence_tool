@@ -20,6 +20,7 @@ import { db } from "@/lib/db";
 import {
   OPPORTUNITY_STAGE_META,
   PRODUCT_STATUS_META,
+  seesAllData,
   type OpportunityStage,
   type ProductStatus,
 } from "@/lib/domain";
@@ -36,7 +37,12 @@ export default async function OpportunityDetailPage({
   const { id } = await params;
 
   const o = await db.query.opportunity.findFirst({
-    where: and(eq(opportunity.id, id), eq(opportunity.agencyId, user.agencyId)),
+    // Agents may only open opportunities assigned to them (others see all).
+    where: and(
+      eq(opportunity.id, id),
+      eq(opportunity.agencyId, user.agencyId),
+      seesAllData(user.role) ? undefined : eq(opportunity.assignedToId, user.id)
+    ),
     with: {
       client: { columns: { id: true, name: true } },
       assignedTo: { columns: { name: true } },

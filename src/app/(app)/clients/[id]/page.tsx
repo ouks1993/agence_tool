@@ -30,6 +30,7 @@ import {
   BOOKING_STATUS_META,
   OPPORTUNITY_STAGE_META,
   PRODUCT_STATUS_META,
+  seesAllData,
   type ClientStatus,
   type BookingStatus,
   type OpportunityStage,
@@ -55,7 +56,12 @@ export default async function ClientDetailPage({
   const { id } = await params;
 
   const c = await db.query.client.findFirst({
-    where: and(eq(client.id, id), eq(client.agencyId, user.agencyId)),
+    // Agents may only open their own clients (others see all).
+    where: and(
+      eq(client.id, id),
+      eq(client.agencyId, user.agencyId),
+      seesAllData(user.role) ? undefined : eq(client.ownerId, user.id)
+    ),
     with: {
       owner: { columns: { id: true, name: true } },
       contacts: { orderBy: (t, { desc }) => [desc(t.isPrimary)] },
