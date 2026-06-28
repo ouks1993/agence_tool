@@ -63,7 +63,7 @@ Supplier reservation → Payment → Ticketing → Travel → Feedback → Repea
 | **Proposal** | `product` (PDF + e-sign) | shareable `/p/[token]` or in-portal |
 | **Customer accepts** | e-sign stamps signer + flips opportunity to **won** | also acceptable in the client portal |
 | **Booking** | `booking`, one-click **convert proposal → booking** | lifecycle starts at `draft` |
-| **Supplier reservation** | `booking_item` + `supplier` picker | live Duffel/Hotelbeds search; real reservation is an open item ([roadmap.md](roadmap.md)) |
+| **Supplier reservation** | `booking_item` + `supplier` picker + `booking_service.ts` | live Duffel/Hotelbeds search; real booking wired via provider registry (quote → book → idempotency → event log); activate with production credentials |
 | **Payment** | `payment` (deposit/installments, Stripe Connect) | `confirmed` requires zero balance |
 | **Ticketing** | lifecycle `ticketed` | requires trip items; auto-generates commissions |
 | **Travel** | lifecycle `completed`; itinerary `/i/[token]` | day-by-day timeline, vouchers/invoices |

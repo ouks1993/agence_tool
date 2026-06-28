@@ -55,6 +55,8 @@ for UI and coding conventions respectively.
 - **DBs:** dev `ep-wandering-sunset-aitlty78` · prod `ep-misty-thunder-aixz34vy`.
   Run `POSTGRES_URL=<prod-url> npx drizzle-kit migrate` after each schema change.
 
-Phases 1–3 + UX + Data-quality/BI complete. Multi-tenant SaaS with live travel
-sourcing, billing, client portal, supplier/commission management, and inline AI
-features. Migrations: 18 (latest `0018`).
+Phases 1–3 + UX + Data-quality/BI + Sprint 1 booking architecture complete.
+Multi-tenant SaaS with live travel sourcing, billing, client portal,
+supplier/commission management, and inline AI features. Real supplier booking
+(Duffel + Hotelbeds) is fully wired — activate with production credentials.
+Migrations: 19 (latest `0019`).

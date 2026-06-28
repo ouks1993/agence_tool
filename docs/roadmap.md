@@ -39,7 +39,7 @@ Maturity levels: **Production** (stable, in daily use) · **Beta** (works, harde
 | CRM | Production |
 | Sales | Production |
 | Hotels | Beta |
-| Flights | Planned |
+| Flights | Beta |
 | Accounting | Planned |
 | AI | Alpha |
 | Supplier Portal | Planned |
@@ -142,6 +142,9 @@ Status: ✅ done · 🟡 partial · 🔴 not started
 
 | Commit | Summary |
 |---|---|
+| `b7eab1b` | Sprint 1 Wave 3: booking-service — quote→book lifecycle, idempotency, event log, supplier ref |
+| `cc65ce1` | Sprint 1 Wave 2: DuffelBookingProvider, HotelbedsBookingProvider, MockBookingProvider, registry wiring |
+| `bb571d2` | Sprint 1 Wave 1: booking_supplier_ref/event/document/idempotency schema + config module (migration 0019) |
 | `a6def26` | Phase 4: standardized BI data export (CSV + Excel) at `/reports` |
 | `148d1fb` | Phase 3: country/nationality reference data + city suggestions |
 | `e09289f` | Phase 2: controlled vocabularies (enums) for cleaner reporting |
@@ -163,4 +166,4 @@ Status: ✅ done · 🟡 partial · 🔴 not started
 | `1896596` | Per-role workspaces (Finance + Support) + role-based landing/nav |
 | `9e8fb4b` | Multi-tenant architecture + vendor platform console |
 
-Migrations: 18 (latest `0018`). Prod DB: `ep-misty-thunder-aixz34vy`.
+Migrations: 19 (latest `0019`). Prod DB: `ep-misty-thunder-aixz34vy`.

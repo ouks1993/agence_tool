@@ -23,7 +23,7 @@ is scoped to an `agencyId` (founding principle #2).
 | **Client** | `client` (+ `client_contact`) | ✅ | root; owns opportunities, proposals, bookings |
 | **Opportunity** | `opportunity` | ✅ | belongs to a client; `assignedToId`; links to a proposal |
 | **Proposal** | `product` (+ `product_item`) | ✅ | belongs to client; e-sign; converts → Booking |
-| **Booking** | `booking` (+ `booking_traveller`, `booking_item`, `booking_day`) | ✅ | belongs to client; lifecycle states; items reference suppliers |
+| **Booking** | `booking` (+ `booking_traveller`, `booking_item`, `booking_day`, `booking_supplier_ref`, `booking_event`, `booking_document`, `booking_idempotency`) | ✅ | belongs to client; lifecycle states; items reference suppliers; Sprint 1 tables power real booking, audit log, and idempotency |
 | **Supplier** | `supplier` (+ `supplier_contract`, `supplier_rate`) | ✅ | referenced by `booking_item.supplierId` + `product_item` |
 | **Invoice** | — (on-demand PDF: `booking-docs/[id]/invoice`) | 🟡 | no managed invoice entity yet (planned module) |
 | **Payment** | `payment` (child of booking) | ✅ | deposits/installments; Stripe Connect |
@@ -36,8 +36,11 @@ is scoped to an `agencyId` (founding principle #2).
 - **Client aggregate** — `client` → `client_contact`; the spine that opportunities,
   proposals, and bookings all reference by `clientId`.
 - **Booking aggregate** — `booking` → `booking_traveller`, `booking_item`,
-  `booking_day`, `payment`. Children carry **no** `agencyId`; they inherit tenancy
-  through the parent booking (scoped via the parent on every query).
+  `booking_day`, `payment`, `booking_supplier_ref`, `booking_event`,
+  `booking_document`, `booking_idempotency`. Children carry **no** `agencyId`;
+  they inherit tenancy through the parent booking (scoped via the parent on every
+  query). `booking_event` is append-only (audit + analytics); `booking_idempotency`
+  prevents duplicate supplier orders on retry.
 - **Supplier aggregate** — `supplier` → `supplier_contract` → `supplier_rate`;
   `commission` rows link a booking item back to the earning supplier/agent.
 - **Reference data** — `hotel_content` is **global** (not tenant-scoped); ISO
