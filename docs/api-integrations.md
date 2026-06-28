@@ -54,12 +54,14 @@ config; no other file reads `process.env` for supplier credentials directly.
 | Booking.com | hotels | planned |
 | Expedia (Rapid) | hotels | planned |
 
-**Migration path:** the current `SupplierProvider` (search-only, both-verticals)
-keeps working. **Wave 2 done** — the Mock/Duffel/Hotelbeds adapters now implement
-the capability interfaces and register into the populated registry. **Next
-(Wave 3)** — `getFlightSupplier`/`getHotelSupplier` delegate to
-`providerRegistry.pick(...)`, and the booking actions call `quote`/`book`/`cancel`
-(closing Open item #1) without further interface changes.
+**Migration complete (Wave 3):** the booking actions now go through the registry
+and the full `quote → book → cancel` lifecycle. `getFlightSupplier`/
+`getHotelSupplier` remain for search; booking uses `serviceBookFlight`/
+`serviceBookHotel` (`src/lib/suppliers/booking-service.ts`) which picks the best
+configured provider via `providerRegistry.pick(...)`, runs `quote*` (price
+revalidation), then `book*` (idempotent), and writes to `booking_supplier_ref`,
+`booking_event`, and `booking_idempotency`. Open item #1 (real supplier booking)
+is now closed — swap in production credentials and booking flows go live.
 
 ## Flights — Duffel
 

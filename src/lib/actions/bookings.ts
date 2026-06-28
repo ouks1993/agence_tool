@@ -20,12 +20,12 @@ import { paymentSummary } from "@/lib/payments/summary";
 import { requireAgencyUser } from "@/lib/permissions";
 import { booking, bookingTraveller, bookingItem, bookingDay, client, product, payment } from "@/lib/schema";
 import {
-  getFlightSupplier,
-  getHotelSupplier,
   type FlightOffer,
   type FlightPassenger,
   type HotelOffer,
 } from "@/lib/suppliers";
+import { serviceBookFlight, serviceBookHotel } from "@/lib/suppliers/booking-service";
+import { type GuestDetails, type ProviderContext } from "@/lib/suppliers/providers";
 
 function toDate(value?: string | null): Date | null {
   if (!value) return null;
@@ -334,9 +334,7 @@ export async function deleteBooking(id: string): Promise<ActionResult> {
  * data falls back to safe placeholders — a real order with bad data fails
  * gracefully to a provisional reference in the supplier layer.
  */
-async function buildFlightPassengers(
-  bookingId: string
-): Promise<FlightPassenger[]> {
+async function buildFlightPassengers(bookingId: string): Promise<FlightPassenger[]> {
   const travellers = await db.query.bookingTraveller.findMany({
     where: eq(bookingTraveller.bookingId, bookingId),
   });
@@ -370,6 +368,25 @@ async function buildFlightPassengers(
   });
 }
 
+/** Build the hotel guest list from a booking's travellers (lead traveller first). */
+async function buildHotelGuests(bookingId: string): Promise<GuestDetails[]> {
+  const travellers = await db.query.bookingTraveller.findMany({
+    where: eq(bookingTraveller.bookingId, bookingId),
+  });
+  if (travellers.length === 0) {
+    return [{ givenName: "Guest", familyName: "Traveller", lead: true }];
+  }
+  const sorted = [...travellers].sort(
+    (a, b) => (b.isLead ? 1 : 0) - (a.isLead ? 1 : 0) || a.sortOrder - b.sortOrder
+  );
+  return sorted.map((t, i) => {
+    const parts = t.fullName.trim().split(/\s+/);
+    const familyName = parts.pop() ?? t.fullName;
+    const givenName = parts.join(" ") || familyName;
+    return { givenName, familyName, ...(i === 0 ? { lead: true } : {}) };
+  });
+}
+
 /**
  * Outcome of booking a single item with its supplier. `confirmed` is the
  * discriminator: it is `true` ONLY when the live provider returned a real PNR,
@@ -383,44 +400,58 @@ type ItemBookingResult =
   | { confirmed: false; confirmationNumber: string; reason: string };
 
 /**
- * Book one item with the active supplier. On success returns the real supplier
- * confirmation number with `confirmed: true`. On failure it does NOT fabricate a
- * confirmation — it returns a provisional `REF-…` reference with
- * `confirmed: false` and the failure reason so the caller can keep the line in a
- * non-confirmed status and the agent can see why it didn't book.
+ * Book one item via the provider registry (quote → book → event log → supplier ref).
+ * Returns { confirmed: true } only when the live provider returned a real PNR.
+ * Never throws — failures return { confirmed: false } with a provisional REF-… reference.
  */
 async function confirmItemBooking(
   item: {
+    id: string;
+    bookingId: string;
     type: string;
     details: unknown;
   },
-  passengers: FlightPassenger[]
+  passengers: FlightPassenger[],
+  agencyId: string,
+  agencyReference: string
 ): Promise<ItemBookingResult> {
-  try {
-    if (item.type === "flight") {
-      const confirmation = await getFlightSupplier().bookFlight(
-        item.details as FlightOffer,
-        passengers
-      );
-      return { confirmed: true, confirmationNumber: confirmation.confirmationNumber };
-    }
-    if (item.type === "hotel") {
-      const confirmation = await getHotelSupplier().bookHotel(
-        item.details as HotelOffer
-      );
-      return { confirmed: true, confirmationNumber: confirmation.confirmationNumber };
-    }
-  } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error);
-    console.error("Supplier booking failed, issuing provisional reference:", error);
-    return {
-      confirmed: false,
-      confirmationNumber: `REF-${Date.now().toString(36).toUpperCase()}`,
-      reason,
-    };
+  const ctx: ProviderContext = {
+    agencyId,
+    correlationId: crypto.randomUUID(),
+  };
+
+  if (item.type === "flight") {
+    const result = await serviceBookFlight({
+      bookingId: item.bookingId,
+      bookingItemId: item.id,
+      agencyId,
+      agencyReference,
+      offer: item.details as FlightOffer,
+      passengers,
+      ctx,
+    });
+    return result.confirmed
+      ? { confirmed: true, confirmationNumber: result.confirmationNumber }
+      : { confirmed: false, confirmationNumber: result.confirmationNumber, reason: result.reason };
   }
-  // Item types without an automatic supplier booking (transfer, excursion, …)
-  // get a provisional in-house reference; they were never a real confirmation.
+
+  if (item.type === "hotel") {
+    const guests = await buildHotelGuests(item.bookingId);
+    const result = await serviceBookHotel({
+      bookingId: item.bookingId,
+      bookingItemId: item.id,
+      agencyId,
+      agencyReference,
+      offer: item.details as HotelOffer,
+      guests,
+      ctx,
+    });
+    return result.confirmed
+      ? { confirmed: true, confirmationNumber: result.confirmationNumber }
+      : { confirmed: false, confirmationNumber: result.confirmationNumber, reason: result.reason };
+  }
+
+  // Item types without an automatic supplier booking (transfer, excursion, …).
   return {
     confirmed: false,
     confirmationNumber: `REF-${Date.now().toString(36).toUpperCase()}`,
@@ -446,7 +477,7 @@ export async function bookItem(
   if (!item) return { ok: false, error: "Item not found" };
 
   const passengers = await buildFlightPassengers(bookingId);
-  const result = await confirmItemBooking(item, passengers);
+  const result = await confirmItemBooking(item, passengers, user.agencyId, parent.reference);
   // Only a real provider confirmation advances the line to "confirmed"; a
   // provisional reference keeps it "pending" so failures aren't shown as booked.
   await db
@@ -516,7 +547,7 @@ export async function advanceStatus(
     const failures: string[] = [];
     for (const item of existing.items) {
       if (item.confirmationNumber) continue;
-      const result = await confirmItemBooking(item, passengers);
+      const result = await confirmItemBooking(item, passengers, user.agencyId, existing.reference);
       await db
         .update(bookingItem)
         .set({

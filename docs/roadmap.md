@@ -51,8 +51,10 @@ Maturity levels: **Production** (stable, in daily use) · **Beta** (works, harde
 
 ## Open items
 
-1. **Real supplier booking** — Duffel orders + Hotelbeds book API (currently
-   search-only).
+1. **Real supplier booking** — ✅ architecture complete (Sprint 1 Waves 1–3). Provider
+   registry, quote→book→cancel lifecycle, idempotency, event log, and supplier-ref
+   tables are all wired. Activate by setting `DUFFEL_API_TOKEN` (flights) and
+   `HOTELBEDS_API_KEY`/`HOTELBEDS_SECRET` + `ATLAS_ENV=production` (hotels).
 2. **Translate deeper pages** — bookings, clients, finance, support, platform
    (i18n plumbing ready).
 3. **Cross-device locale** — sync `user.locale` → cookie on login.
