@@ -45,6 +45,27 @@ These principles inform the patterns below and the
   merging.
 - See [`DESIGN.md`](../DESIGN.md) for every value.
 
+## Page requirements checklist
+
+Every list/index page must ship with all of these — a page missing any of them is
+incomplete, not "v1":
+
+- [ ] **Search** — free-text lookup over the page's records
+- [ ] **Filters** — by the page's key dimensions (status, type, date range, owner)
+- [ ] **Export** — CSV/Excel of the current view (see [analytics.md](analytics.md))
+- [ ] **Bulk actions** — multi-select + an action that applies to the selection
+- [ ] **Empty state** — a prompt with a clear next step (never blank — principle #8)
+- [ ] **Loading state** — skeleton/spinner while data resolves
+- [ ] **Error state** — a recoverable message, not a crash
+- [ ] **Pagination** — bounded result sets, never an unbounded dump
+- [ ] **Mobile layout** — works on small screens, LTR and RTL (principle #10)
+- [ ] **Permissions** — role-scoped data + role-gated actions
+  (see [business-rules.md](business-rules.md#roles--capabilities))
+
+This operationalizes the [design principles](#atlas-design-principles) at the page
+level. Detail pages additionally answer "what should I do next?" via a primary CTA
+or lifecycle action.
+
 ## Product UX patterns
 
 These are app-specific patterns layered on the design system:
