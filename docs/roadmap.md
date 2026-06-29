@@ -49,6 +49,26 @@ Maturity levels: **Production** (stable, in daily use) · **Beta** (works, harde
 > along (Beta), real Flights booking is Planned (Duffel orders). See
 > [api-integrations.md](api-integrations.md) and Open item #1.
 
+## Active initiative — UI redesign (phased)
+
+Bringing the **live app** up to the marketing-grade standard set by the sales deck
+and mockups under `marketing/`. A full visual/UX upgrade of every screen, shipped
+by phase, **preserving all functionality**. See the plan at
+[specs/ui-redesign/PLAN.md](../specs/ui-redesign/PLAN.md) and the decision at
+[docs/decisions/0005-app-ui-redesign.md](decisions/0005-app-ui-redesign.md).
+
+| Phase | Scope |
+|---|---|
+| 0 | Design foundation (tokens + primitives) + seed full demo data |
+| 1 | Dashboard · CRM · Pipeline |
+| 2 | Proposal builder · Flight search · Hotel search |
+| 3 | Bookings & Booking details · Finance |
+| 4 | Customer portal · Reports · AI assistant |
+| 5 | Responsive, empty/loading/error states, polish |
+
+Marketing assets (deck + 11 mockups + demo dataset + design guide) live under
+`marketing/` and are the visual target.
+
 ## Open items
 
 1. **Real supplier booking** — ✅ architecture complete (Sprint 1 Waves 1–3). Provider
@@ -142,6 +162,9 @@ Status: ✅ done · 🟡 partial · 🔴 not started
 
 | Commit | Summary |
 |---|---|
+| _(docs)_ | UI redesign initiative: decision (ADR 0005) + phased plan (`specs/ui-redesign/`) |
+| `e842828` | Marketing: full demo dataset (150 clients), design guide + mockup consistency fixes |
+| `3f58668` | Marketing: premium 18-slide sales deck + 11 high-fidelity UI mockups (`marketing/`) |
 | `95e0c1b` | fix: run db:migrate on every Vercel deploy (migration 0019 was missing from prod) |
 | `00c6885` | Sprint 2 Waves 1–4: Travel Platform facade — ContentCapable, AutocompleteCapable, `src/lib/travel-platform/index.ts`, consumer migration |
 | `b7eab1b` | Sprint 1 Wave 3: booking-service — quote→book lifecycle, idempotency, event log, supplier ref |

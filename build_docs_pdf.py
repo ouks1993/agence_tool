@@ -54,7 +54,8 @@ CORE = [
     "docs/domain.md", "docs/database.md", "docs/schema-reference.md",
     "docs/api-integrations.md", "docs/booking-architecture.md",
     "docs/server-actions.md", "docs/development-guide.md",
-    "docs/coding-standards.md", "docs/ui-ux.md", "docs/business-rules.md",
+    "docs/coding-standards.md", "docs/ui-ux.md",
+    "marketing/DESIGN-RECOMMENDATIONS.md", "docs/business-rules.md",
     "docs/deployment.md", "docs/roadmap.md", "docs/security.md",
     "docs/analytics.md", "docs/ai.md",
 ]
@@ -85,6 +86,7 @@ TITLE_OVERRIDES = {
     "CLAUDE.md": "Claude Code Instructions",
     "PROJECT.md": "Project Overview",
     "atlas.md": "Atlas — Documentation Index",
+    "marketing/DESIGN-RECOMMENDATIONS.md": "Design Recommendations (Redesign Target)",
 }
 
 # ──────────────────────────────────────────────────────────────────────────

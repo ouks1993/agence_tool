@@ -61,3 +61,11 @@ supplier/commission management, and inline AI features. Real supplier search and
 booking (Duffel + Hotelbeds) fully wired behind a provider-agnostic Travel Platform
 facade — activate with production credentials. Adding a new provider requires zero
 consumer changes. Migrations: 19 (latest `0019`).
+
+**Active initiative:** a phased, marketing-grade **UI redesign** of the live app is
+under way — visual/UX upgrade of every screen to the standard set by the sales deck
+and mockups under `marketing/`, preserving all functionality. See
+[specs/ui-redesign/PLAN.md](specs/ui-redesign/PLAN.md) and
+[decision 0005](docs/decisions/0005-app-ui-redesign.md). The `marketing/` folder
+holds the deck, 11 high-fidelity mockups, the canonical demo dataset, and the
+design guide (`DESIGN-RECOMMENDATIONS.md`).
