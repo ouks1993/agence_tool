@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "buildCommand": "npm run build:ci",
+  "buildCommand": "npm run db:migrate && npm run build:ci",
   "installCommand": "npm install --legacy-peer-deps"
 }
