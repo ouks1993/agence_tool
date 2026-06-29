@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Trips · Atlas Travel Demo</title>
+<link rel="stylesheet" href="../assets/atlas-ui.css">
+<style>
+  /* ====================================================================
+     CUSTOMER PORTAL — client-facing, warmer & branded.
+     Built on atlas-ui.css tokens; layered with a softer, travel-mood skin.
+     ==================================================================== */
+
+  body { background: var(--canvas); }
+
+  .portal {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ---- Branded top bar (client side) ---- */
+  .portal-top {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 30;
+  }
+  .portal-top-inner {
+    max-width: 1040px;
+    margin: 0 auto;
+    padding: 0 24px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    font-weight: 700;
+    font-size: 16px;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+  .brand .logo-mark {
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+    background: linear-gradient(135deg, var(--brand) 0%, #3E72E0 100%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-weight: 800;
+    font-size: 15px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.22);
+  }
+  .brand .sub {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--muted);
+    letter-spacing: 0;
+    margin-top: 1px;
+  }
+  .portal-top-nav {
+    margin-left: 28px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .portal-top-nav a {
+    padding: 7px 12px;
+    border-radius: var(--r-sm);
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--muted);
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .portal-top-nav a:hover { background: var(--canvas); color: var(--text); }
+  .portal-top-nav a.active { color: var(--text); background: var(--brand-soft); }
+  .portal-top-actions { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+
+  .agent-chip {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 5px 12px 5px 6px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-full);
+    background: var(--surface);
+  }
+  .agent-chip .meta { line-height: 1.25; }
+  .agent-chip .meta .nm { font-size: 12.5px; font-weight: 600; color: var(--text); }
+  .agent-chip .meta .rl { font-size: 11px; color: var(--muted); }
+
+  /* ---- Page container ---- */
+  .portal-body {
+    max-width: 1040px;
+    margin: 0 auto;
+    width: 100%;
+    padding: 28px 24px 64px;
+    flex: 1;
+  }
+
+  /* ---- Welcome ---- */
+  .welcome { margin-bottom: 22px; }
+  .welcome h1 {
+    font-size: 28px;
+    letter-spacing: -0.025em;
+    font-weight: 700;
+  }
+  .welcome p { color: var(--muted); font-size: 14.5px; margin-top: 5px; }
+
+  /* ---- Trip hero card ---- */
+  .trip-hero {
+    border-radius: var(--r-xl);
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--border);
+    position: relative;
+    color: #fff;
+    margin-bottom: 28px;
+    background:
+      linear-gradient(180deg, rgba(14,21,37,0.18) 0%, rgba(14,21,37,0.72) 100%),
+      linear-gradient(125deg, #1B2239 0%, #2B59C3 58%, #1FA2C7 120%);
+    isolation: isolate;
+  }
+  /* Subtle decorative "ocean" texture via layered radial gradients */
+  .trip-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(120% 90% at 88% -10%, rgba(255,255,255,0.16) 0%, transparent 42%),
+      radial-gradient(70% 60% at 12% 120%, rgba(31,162,199,0.40) 0%, transparent 55%);
+    z-index: -1;
+  }
+  .trip-hero-inner {
+    padding: 28px 30px 26px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 24px;
+    align-items: flex-start;
+  }
+  .trip-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.82);
+  }
+  .trip-eyebrow .badge {
+    background: rgba(255,255,255,0.18);
+    color: #fff;
+    border-color: rgba(255,255,255,0.28);
+    backdrop-filter: blur(4px);
+  }
+  .trip-hero h2 {
+    color: #fff;
+    font-size: 34px;
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+    margin-top: 14px;
+    font-weight: 720;
+  }
+  .trip-hero .trip-sub {
+    color: rgba(255,255,255,0.86);
+    font-size: 14.5px;
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .trip-hero .trip-sub .dot-sep { opacity: 0.5; }
+  .trip-hero .trip-meta-row {
+    display: flex;
+    gap: 28px;
+    margin-top: 26px;
+    flex-wrap: wrap;
+  }
+  .trip-hero .tmeta .k {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgba(255,255,255,0.66);
+    font-weight: 600;
+  }
+  .trip-hero .tmeta .v {
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
+    margin-top: 4px;
+  }
+
+  /* Countdown */
+  .countdown {
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.22);
+    border-radius: var(--r-lg);
+    backdrop-filter: blur(6px);
+    padding: 18px 20px;
+    text-align: center;
+    min-width: 184px;
+  }
+  .countdown .cd-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255,255,255,0.78);
+    font-weight: 600;
+  }
+  .countdown .cd-num {
+    font-size: 52px;
+    font-weight: 760;
+    line-height: 1;
+    letter-spacing: -0.04em;
+    margin: 8px 0 2px;
+  }
+  .countdown .cd-unit { font-size: 13px; color: rgba(255,255,255,0.82); font-weight: 500; }
+  .countdown .cd-foot {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255,255,255,0.18);
+    font-size: 12px;
+    color: rgba(255,255,255,0.82);
+  }
+
+  .hero-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+    padding-top: 22px;
+    border-top: 1px solid rgba(255,255,255,0.16);
+  }
+  .btn-on-hero {
+    background: #fff;
+    color: var(--ink);
+    border-color: #fff;
+  }
+  .btn-on-hero:hover { background: #F1F4FB; color: var(--ink); }
+  .btn-ghost-hero {
+    background: rgba(255,255,255,0.10);
+    border: 1px solid rgba(255,255,255,0.30);
+    color: #fff;
+  }
+  .btn-ghost-hero:hover { background: rgba(255,255,255,0.18); color: #fff; }
+
+  /* ---- Section layout ---- */
+  .portal-grid {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 24px;
+    align-items: start;
+  }
+  .section { margin-bottom: 24px; }
+  .section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .section-head h3 { font-size: 17px; letter-spacing: -0.015em; }
+  .section-head .hint { font-size: 12.5px; color: var(--muted); }
+
+  /* Trip timeline (My trips) */
+  .trip-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    border-radius: var(--r);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
+  }
+  .trip-row + .trip-row { margin-top: 10px; }
+  .trip-row:hover { box-shadow: var(--shadow-md); border-color: var(--border-strong); }
+  .trip-thumb {
+    width: 52px;
+    height: 52px;
+    border-radius: var(--r);
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    background: linear-gradient(135deg, var(--brand) 0%, #3E72E0 100%);
+  }
+  .trip-thumb.tealgrad { background: linear-gradient(135deg, #1FA2C7 0%, #1E9E6A 100%); }
+  .trip-thumb.ambergrad { background: linear-gradient(135deg, #B45313 0%, #C77800 100%); }
+  .trip-thumb.violetgrad { background: linear-gradient(135deg, #7C5CE6 0%, #2B59C3 100%); }
+  .trip-row .t-main { flex: 1; min-width: 0; }
+  .trip-row .t-dest { font-size: 14.5px; font-weight: 620; color: var(--text); }
+  .trip-row .t-dates { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+  .trip-row .t-ref { font-size: 11.5px; color: var(--faint); font-family: var(--font-mono); margin-top: 3px; }
+  .trip-row .t-right { text-align: right; flex-shrink: 0; }
+
+  /* Documents */
+  .doc-list { display: flex; flex-direction: column; }
+  .doc-row {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    padding: 13px 4px;
+    border-bottom: 1px solid var(--border);
+  }
+  .doc-row:last-child { border-bottom: 0; }
+  .doc-ico {
+    width: 38px;
+    height: 38px;
+    border-radius: var(--r-sm);
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--brand-soft);
+    color: var(--brand);
+  }
+  .doc-ico.green { background: var(--success-soft); color: #14794F; }
+  .doc-ico.amber { background: var(--amber-soft); color: var(--amber); }
+  .doc-ico.violet { background: #F0ECFB; color: #6A4FD0; }
+  .doc-row .d-main { flex: 1; min-width: 0; }
+  .doc-row .d-name { font-size: 13.5px; font-weight: 560; color: var(--text); }
+  .doc-row .d-meta { font-size: 12px; color: var(--muted); margin-top: 1px; }
+
+  /* Payments */
+  .pay-summary {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .pay-cell {
+    flex: 1;
+    padding: 16px 18px;
+    border-right: 1px solid var(--border);
+  }
+  .pay-cell:last-child { border-right: 0; }
+  .pay-cell .k { font-size: 11.5px; color: var(--muted); font-weight: 500; }
+  .pay-cell .v { font-size: 20px; font-weight: 720; letter-spacing: -0.02em; margin-top: 5px; }
+  .pay-cell .v.due { color: var(--amber); }
+  .pay-cell .v.ok { color: var(--success); }
+
+  .pay-progress-wrap { margin-bottom: 18px; }
+  .pay-progress-wrap .lbl {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 7px;
+  }
+
+  .pay-due-banner {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 18px;
+    border-radius: var(--r);
+    background: var(--amber-soft);
+    border: 1px solid #F0D6BC;
+  }
+  .pay-due-banner .pd-main { flex: 1; }
+  .pay-due-banner .pd-title { font-size: 13.5px; font-weight: 620; color: var(--amber); }
+  .pay-due-banner .pd-sub { font-size: 12.5px; color: #97551F; margin-top: 2px; }
+  .pay-due-banner .pd-amount { font-size: 22px; font-weight: 760; letter-spacing: -0.02em; color: var(--amber); }
+
+  .pay-history-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .pay-history-row:last-child { border-bottom: 0; }
+  .pay-history-row .ph-ico {
+    width: 28px; height: 28px; border-radius: var(--r-full);
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--success-soft); color: #14794F; flex-shrink: 0;
+  }
+  .pay-history-row .ph-amt { margin-left: auto; font-weight: 620; font-variant-numeric: tabular-nums; }
+
+  /* Signature CTA card */
+  .sign-card {
+    border: 1px solid #D6E2FA;
+    background: linear-gradient(180deg, var(--brand-soft) 0%, var(--surface) 70%);
+    border-radius: var(--r-lg);
+    padding: 20px;
+  }
+  .sign-card .sc-flag {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 11.5px; font-weight: 700; letter-spacing: 0.04em;
+    text-transform: uppercase; color: var(--brand); margin-bottom: 10px;
+  }
+  .sign-card .sc-title { font-size: 16px; font-weight: 650; letter-spacing: -0.01em; }
+  .sign-card .sc-items { margin: 14px 0 16px; display: flex; flex-direction: column; gap: 8px; }
+  .sign-card .sc-item { display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--text); }
+  .sign-card .sc-item .ck { color: var(--success); flex-shrink: 0; }
+  .sign-card .sc-foot {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-top: 14px; border-top: 1px solid #D6E2FA;
+  }
+
+  /* Side cards */
+  .side-card { margin-bottom: 20px; }
+  .side-card .card-body { padding: 18px; }
+
+  .support-agent {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 14px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .support-agent .sa-meta .nm { font-size: 14px; font-weight: 620; }
+  .support-agent .sa-meta .rl { font-size: 12.5px; color: var(--muted); margin-top: 1px; }
+
+  .contact-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 0; font-size: 13px; color: var(--text);
+  }
+  .contact-row .ico { color: var(--muted); flex-shrink: 0; }
+
+  .info-line { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; font-size: 13px; }
+  .info-line + .info-line { border-top: 1px solid var(--border); }
+  .info-line .k { color: var(--muted); }
+  .info-line .v { font-weight: 560; color: var(--text); }
+
+  .portal-foot {
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    padding: 20px 24px;
+  }
+  .portal-foot-inner {
+    max-width: 1040px; margin: 0 auto;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; font-size: 12.5px; color: var(--muted);
+  }
+  .portal-foot a { color: var(--muted); }
+  .portal-foot a:hover { color: var(--text); }
+
+  .icon { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  @media (max-width: 880px) {
+    .portal-grid { grid-template-columns: 1fr; }
+    .trip-hero-inner { grid-template-columns: 1fr; }
+    .countdown { justify-self: start; }
+    .portal-top-nav { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="portal">
+
+  <!-- ============================ TOP BAR ============================ -->
+  <header class="portal-top">
+    <div class="portal-top-inner">
+      <div class="brand">
+        <span class="logo-mark">A</span>
+        <span>
+          Atlas Travel
+          <span class="sub">Guest portal · Atlas Travel Demo</span>
+        </span>
+      </div>
+      <nav class="portal-top-nav">
+        <a href="#" class="active">My trips</a>
+        <a href="#documents">Documents</a>
+        <a href="#payments">Payments</a>
+        <a href="#support">Support</a>
+      </nav>
+      <div class="portal-top-actions">
+        <button class="btn-icon bordered" aria-label="Notifications">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+        </button>
+        <div class="agent-chip">
+          <span class="avatar av6 sm">LM</span>
+          <span class="meta">
+            <span class="nm">Leïla Mansour</span>
+            <span class="rl">VIP traveller</span>
+          </span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="portal-body">
+
+    <!-- ============================ WELCOME ============================ -->
+    <div class="welcome">
+      <h1>Welcome back, Leïla.</h1>
+      <p>Your honeymoon to the Maldives is almost here — here's everything in one place.</p>
+    </div>
+
+    <!-- ============================ TRIP HERO ============================ -->
+    <section class="trip-hero">
+      <div class="trip-hero-inner">
+        <div>
+          <span class="trip-eyebrow">
+            Your next trip
+            <span class="badge"><span class="dot"></span> Confirmed</span>
+          </span>
+          <h2>Maldives · Conrad Rangali Island</h2>
+          <div class="trip-sub">
+            <span>2 Aug — 9 Aug 2026</span>
+            <span class="dot-sep">•</span>
+            <span>7 nights · overwater villa</span>
+            <span class="dot-sep">•</span>
+            <span>2 travellers</span>
+          </div>
+
+          <div class="trip-meta-row">
+            <div class="tmeta">
+              <div class="k">Flights</div>
+              <div class="v">Qatar Airways · Business</div>
+            </div>
+            <div class="tmeta">
+              <div class="k">Route</div>
+              <div class="v">ALG → DOH → MLE</div>
+            </div>
+            <div class="tmeta">
+              <div class="k">Booking ref</div>
+              <div class="v">BKG-2026-003</div>
+            </div>
+            <div class="tmeta">
+              <div class="k">Your agent</div>
+              <div class="v">Lina Cherif</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="countdown">
+          <div class="cd-label">Departs in</div>
+          <div class="cd-num">34</div>
+          <div class="cd-unit">days</div>
+          <div class="cd-foot">Sunday, 2 August · 02:40</div>
+        </div>
+
+        <div class="hero-actions">
+          <a href="#documents" class="btn btn-on-hero">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download travel pack
+          </a>
+          <a href="#trips" class="btn btn-ghost-hero">
+            <svg class="icon" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><rect x="4" y="6" width="16" height="14" rx="2"/></svg>
+            View full itinerary
+          </a>
+          <a href="#support" class="btn btn-ghost-hero">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+            Message Lina
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================ MAIN GRID ============================ -->
+    <div class="portal-grid">
+
+      <!-- LEFT COLUMN -->
+      <div>
+
+        <!-- SIGNATURE CTA -->
+        <section class="section" id="signature">
+          <div class="sign-card">
+            <span class="sc-flag">
+              <svg class="icon" viewBox="0 0 24 24" style="width:15px;height:15px"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+              Awaiting your signature
+            </span>
+            <div class="sc-title">Honeymoon proposal · Maldives 5★ resort</div>
+            <p class="muted text-sm mt-2">Proposal <strong class="strong">PRD-2044</strong> — please review and sign to lock in your dates and resort allotment.</p>
+
+            <div class="sc-items">
+              <div class="sc-item"><svg class="icon ck" viewBox="0 0 24 24" style="width:16px;height:16px"><polyline points="20 6 9 17 4 12"/></svg> Return Business-class flights (ALG–MLE)</div>
+              <div class="sc-item"><svg class="icon ck" viewBox="0 0 24 24" style="width:16px;height:16px"><polyline points="20 6 9 17 4 12"/></svg> 7 nights · 5★ overwater resort</div>
+              <div class="sc-item"><svg class="icon ck" viewBox="0 0 24 24" style="width:16px;height:16px"><polyline points="20 6 9 17 4 12"/></svg> Honeymoon package + private spa credit</div>
+              <div class="sc-item"><svg class="icon ck" viewBox="0 0 24 24" style="width:16px;height:16px"><polyline points="20 6 9 17 4 12"/></svg> Seaplane transfers, both ways</div>
+            </div>
+
+            <div class="sc-foot">
+              <div>
+                <div class="strong" style="font-size:18px;letter-spacing:-0.02em">2,480,000 DZD</div>
+                <div class="text-xs faint">Valid until 8 Jul 2026 · all taxes included</div>
+              </div>
+              <button class="btn btn-primary">
+                <svg class="icon" viewBox="0 0 24 24" style="width:15px;height:15px"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>
+                Review &amp; sign
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- MY TRIPS -->
+        <section class="section" id="trips">
+          <div class="section-head">
+            <h3>My trips</h3>
+            <span class="hint">3 trips with Atlas Travel</span>
+          </div>
+
+          <!-- Upcoming: Maldives -->
+          <div class="trip-row">
+            <span class="trip-thumb tealgrad">
+              <svg class="icon" viewBox="0 0 24 24" style="width:24px;height:24px"><path d="M2 18s2-3 6-3 6 3 10 3 4-3 4-3"/><path d="M2 13s2-3 6-3 6 3 10 3 4-3 4-3"/><path d="M12 2v6"/><path d="M9 5l3-3 3 3"/></svg>
+            </span>
+            <div class="t-main">
+              <div class="t-dest">Maldives · Conrad Rangali Island</div>
+              <div class="t-dates">2 Aug — 9 Aug 2026 · Business · 2 travellers</div>
+              <div class="t-ref">BKG-2026-003</div>
+            </div>
+            <div class="t-right">
+              <span class="badge badge-info"><span class="dot"></span> Confirmed</span>
+              <div class="text-xs faint mt-2">In 34 days</div>
+            </div>
+          </div>
+
+          <!-- Past: Dubai 2026 -->
+          <div class="trip-row">
+            <span class="trip-thumb ambergrad">
+              <svg class="icon" viewBox="0 0 24 24" style="width:24px;height:24px"><path d="M2 22h20"/><path d="M6 22V8l6-4 6 4v14"/><path d="M10 22v-5h4v5"/></svg>
+            </span>
+            <div class="t-main">
+              <div class="t-dest">Dubai · Address Downtown</div>
+              <div class="t-dates">14 Mar — 19 Mar 2026 · 5 nights</div>
+              <div class="t-ref">BKG-2025-214</div>
+            </div>
+            <div class="t-right">
+              <span class="badge badge-neutral">Completed</span>
+              <div class="text-xs faint mt-2">3 months ago</div>
+            </div>
+          </div>
+
+          <!-- Past: Istanbul 2025 -->
+          <div class="trip-row">
+            <span class="trip-thumb violetgrad">
+              <svg class="icon" viewBox="0 0 24 24" style="width:24px;height:24px"><path d="M3 21h18"/><path d="M5 21V10l7-5 7 5v11"/><path d="M9 21v-6h6v6"/><circle cx="12" cy="8.5" r="1"/></svg>
+            </span>
+            <div class="t-main">
+              <div class="t-dest">Istanbul · Swissôtel The Bosphorus</div>
+              <div class="t-dates">12 Oct — 16 Oct 2025 · 4 nights</div>
+              <div class="t-ref">BKG-2025-118</div>
+            </div>
+            <div class="t-right">
+              <span class="badge badge-neutral">Completed</span>
+              <div class="text-xs faint mt-2">8 months ago</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- DOCUMENTS -->
+        <section class="section" id="documents">
+          <div class="section-head">
+            <h3>Documents</h3>
+            <a href="#" class="text-sm text-brand strong" style="font-weight:560">Download all</a>
+          </div>
+          <div class="card">
+            <div class="card-body">
+              <div class="doc-list">
+                <div class="doc-row">
+                  <span class="doc-ico violet">
+                    <svg class="icon" viewBox="0 0 24 24" style="width:18px;height:18px"><path d="M16 2H4a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12"/><path d="M22 8l-6 4 6 4V8z"/></svg>
+                  </span>
+                  <div class="d-main">
+                    <div class="d-name">E-tickets · Qatar Airways (PNR QR5WXY)</div>
+                    <div class="d-meta">ALG → DOH → MLE · Business · PDF · 248 KB</div>
+                  </div>
+                  <button class="btn btn-outline btn-sm">
+                    <svg class="icon" viewBox="0 0 24 24" style="width:13px;height:13px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Download
+                  </button>
+                </div>
+
+                <div class="doc-row">
+                  <span class="doc-ico green">
+                    <svg class="icon" viewBox="0 0 24 24" style="width:18px;height:18px"><path d="M3 21h18"/><path d="M5 21V8l7-4 7 4v13"/><path d="M9 21v-5h6v5"/></svg>
+                  </span>
+                  <div class="d-main">
+                    <div class="d-name">Hotel voucher · Conrad Maldives Rangali</div>
+                    <div class="d-meta">7 nights · overwater villa, half board · PDF · 196 KB</div>
+                  </div>
+                  <button class="btn btn-outline btn-sm">
+                    <svg class="icon" viewBox="0 0 24 24" style="width:13px;height:13px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Download
+                  </button>
+                </div>
+
+                <div class="doc-row">
+                  <span class="doc-ico">
+                    <svg class="icon" viewBox="0 0 24 24" style="width:18px;height:18px"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/></svg>
+                  </span>
+                  <div class="d-main">
+                    <div class="d-name">Seaplane transfer voucher · TMA</div>
+                    <div class="d-meta">Malé ↔ Rangali · return · PDF · 142 KB</div>
+                  </div>
+                  <button class="btn btn-outline btn-sm">
+                    <svg class="icon" viewBox="0 0 24 24" style="width:13px;height:13px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Download
+                  </button>
+                </div>
+
+                <div class="doc-row">
+                  <span class="doc-ico amber">
+                    <svg class="icon" viewBox="0 0 24 24" style="width:18px;height:18px"><path d="M9 12l2 2 4-4"/><path d="M21 12c0 5-3.5 7.5-9 9-5.5-1.5-9-4-9-9V5l9-3 9 3v7z"/></svg>
+                  </span>
+                  <div class="d-main">
+                    <div class="d-name">Travel insurance certificate · Allianz</div>
+                    <div class="d-meta">Worldwide · 2 travellers · PDF · 88 KB</div>
+                  </div>
+                  <button class="btn btn-outline btn-sm">
+                    <svg class="icon" viewBox="0 0 24 24" style="width:13px;height:13px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Download
+                  </button>
+                </div>
+
+                <div class="doc-row">
+                  <span class="doc-ico">
+                    <svg class="icon" viewBox="0 0 24 24" style="width:18px;height:18px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                  </span>
+                  <div class="d-main">
+                    <div class="d-name">Detailed itinerary &amp; resort guide</div>
+                    <div class="d-meta">Day-by-day plan, dining &amp; excursions · PDF · 1.2 MB</div>
+                  </div>
+                  <button class="btn btn-outline btn-sm">
+                    <svg class="icon" viewBox="0 0 24 24" style="width:13px;height:13px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Download
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- PAYMENTS -->
+        <section class="section" id="payments">
+          <div class="section-head">
+            <h3>Payments</h3>
+            <span class="hint">Booking BKG-2026-003</span>
+          </div>
+          <div class="card">
+            <div class="card-body">
+
+              <div class="pay-summary">
+                <div class="pay-cell">
+                  <div class="k">Trip total</div>
+                  <div class="v">2,480,000 DZD</div>
+                </div>
+                <div class="pay-cell">
+                  <div class="k">Paid to date</div>
+                  <div class="v ok">1,240,000 DZD</div>
+                </div>
+                <div class="pay-cell">
+                  <div class="k">Balance due</div>
+                  <div class="v due">1,240,000 DZD</div>
+                </div>
+              </div>
+
+              <div class="pay-progress-wrap">
+                <div class="lbl"><span>50% paid</span><span>Balance due by 19 Jul 2026</span></div>
+                <div class="progress"><div class="bar success" style="width:50%"></div></div>
+              </div>
+
+              <div class="pay-due-banner">
+                <span class="doc-ico amber" style="width:42px;height:42px">
+                  <svg class="icon" viewBox="0 0 24 24" style="width:20px;height:20px"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                </span>
+                <div class="pd-main">
+                  <div class="pd-title">Final balance due</div>
+                  <div class="pd-sub">Settle before 19 Jul to guarantee your villa &amp; seaplane slots.</div>
+                </div>
+                <div style="text-align:right">
+                  <div class="pd-amount">1,240,000 DZD</div>
+                  <button class="btn btn-primary mt-2">
+                    <svg class="icon" viewBox="0 0 24 24" style="width:15px;height:15px"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                    Pay balance
+                  </button>
+                </div>
+              </div>
+
+              <div class="section-title mt-6">Payment history</div>
+              <div class="pay-history-row">
+                <span class="ph-ico">
+                  <svg class="icon" viewBox="0 0 24 24" style="width:15px;height:15px"><polyline points="20 6 9 17 4 12"/></svg>
+                </span>
+                <div>
+                  <div class="strong" style="font-size:13px">Deposit · 50%</div>
+                  <div class="text-xs faint">Card ending 4471 · 28 Jun 2026</div>
+                </div>
+                <span class="ph-amt text-success">1,240,000 DZD</span>
+              </div>
+              <div class="pay-history-row">
+                <span class="ph-ico" style="background:var(--canvas);color:var(--faint)">
+                  <svg class="icon" viewBox="0 0 24 24" style="width:15px;height:15px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                </span>
+                <div>
+                  <div class="strong" style="font-size:13px">Final balance · 50%</div>
+                  <div class="text-xs faint">Scheduled · due 19 Jul 2026</div>
+                </div>
+                <span class="ph-amt faint">1,240,000 DZD</span>
+              </div>
+
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- RIGHT COLUMN -->
+      <aside>
+
+        <!-- SUPPORT -->
+        <div class="card side-card" id="support">
+          <div class="card-header"><span class="card-title">Your travel agent</span></div>
+          <div class="card-body">
+            <div class="support-agent">
+              <span class="avatar av3 lg">LC</span>
+              <div class="sa-meta">
+                <div class="nm">Lina Cherif</div>
+                <div class="rl">Senior travel consultant</div>
+              </div>
+            </div>
+            <div class="contact-row">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+              Message in portal — usually replies within an hour
+            </div>
+            <div class="contact-row">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+              lina@atlastravel.dz
+            </div>
+            <button class="btn btn-primary mt-3" style="width:100%">
+              <svg class="icon" viewBox="0 0 24 24" style="width:15px;height:15px"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+              Message Lina
+            </button>
+            <button class="btn btn-outline mt-2" style="width:100%">24/7 emergency line</button>
+          </div>
+        </div>
+
+        <!-- TRAVELLERS -->
+        <div class="card side-card">
+          <div class="card-header"><span class="card-title">Travellers</span></div>
+          <div class="card-body" style="padding-top:8px;padding-bottom:8px">
+            <div class="list-row">
+              <span class="avatar av6">LM</span>
+              <div>
+                <div class="strong" style="font-size:13.5px">Leïla Mansour</div>
+                <div class="text-xs faint">Passport AG9003117 · exp 2030</div>
+              </div>
+              <span class="badge badge-success" style="margin-left:auto"><span class="dot"></span> Verified</span>
+            </div>
+            <div class="list-row">
+              <span class="avatar av4">SM</span>
+              <div>
+                <div class="strong" style="font-size:13.5px">Sami Mansour</div>
+                <div class="text-xs faint">Passport on file · exp 2029</div>
+              </div>
+              <span class="badge badge-success" style="margin-left:auto"><span class="dot"></span> Verified</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- TRIP AT A GLANCE -->
+        <div class="card side-card">
+          <div class="card-header"><span class="card-title">Trip at a glance</span></div>
+          <div class="card-body" style="padding-top:6px;padding-bottom:10px">
+            <div class="info-line"><span class="k">Destination</span><span class="v">Maldives</span></div>
+            <div class="info-line"><span class="k">Resort</span><span class="v">Conrad Rangali</span></div>
+            <div class="info-line"><span class="k">Board</span><span class="v">Half board</span></div>
+            <div class="info-line"><span class="k">Cabin</span><span class="v">Business</span></div>
+            <div class="info-line"><span class="k">Status</span><span class="v"><span class="badge badge-info" style="padding:2px 8px"><span class="dot"></span> Confirmed</span></span></div>
+          </div>
+        </div>
+
+        <!-- NEED HELP -->
+        <div class="panel tint">
+          <div class="strong mb-2" style="font-size:13.5px">Travelling soon?</div>
+          <p class="text-sm muted" style="line-height:1.55">Check visa requirements, baggage rules and your seaplane timings in the resort guide — or just ask Lina.</p>
+          <a href="#documents" class="text-sm text-brand strong mt-3" style="display:inline-flex;align-items:center;gap:6px;font-weight:560">
+            Open resort guide
+            <svg class="icon" viewBox="0 0 24 24" style="width:14px;height:14px"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </a>
+        </div>
+
+      </aside>
+    </div>
+  </main>
+
+  <!-- ============================ FOOTER ============================ -->
+  <footer class="portal-foot">
+    <div class="portal-foot-inner">
+      <div class="flex gap-2">
+        <span class="logo-mark" style="width:22px;height:22px;font-size:11px;border-radius:6px;background:linear-gradient(135deg,var(--brand),#3E72E0);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:800">A</span>
+        <span>Atlas Travel Demo · Algiers, Algeria</span>
+      </div>
+      <div class="flex gap-4">
+        <a href="#">Privacy</a>
+        <a href="#">Terms</a>
+        <a href="#support">Contact your agent</a>
+      </div>
+    </div>
+  </footer>
+
+</div>
+
+<script src="../assets/demo-data.js"></script>
+</body>
+</html>

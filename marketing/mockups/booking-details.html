@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BKG-2026-014 — Booking · Atlas Travel Desk</title>
+<link rel="stylesheet" href="../assets/atlas-ui.css">
+<style>
+  /* ============================================================
+     Page-specific composition only — all primitives from atlas-ui.css
+     ============================================================ */
+
+  /* --- Topbar helpers (shared across screens) --- */
+  .agency-switch {
+    display: flex; align-items: center; gap: 9px;
+    padding: 5px 9px 5px 7px; border-radius: var(--r);
+    border: 1px solid var(--border); background: var(--surface);
+    cursor: pointer; transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .agency-switch:hover { border-color: var(--border-strong); background: var(--surface-2); }
+  .agency-mark {
+    width: 26px; height: 26px; border-radius: 7px;
+    background: linear-gradient(135deg, var(--brand) 0%, #3E72E0 100%);
+    color: #fff; font-weight: 800; font-size: 12px;
+    display: inline-flex; align-items: center; justify-content: center;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.2);
+  }
+  .agency-meta { line-height: 1.2; }
+  .agency-meta .an { font-size: 12.5px; font-weight: 600; color: var(--text); }
+  .agency-meta .ap { font-size: 10.5px; color: var(--muted); }
+  .topbar-icon-btn {
+    width: 36px; height: 36px; border-radius: var(--r);
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--muted); cursor: pointer; position: relative;
+    border: 1px solid transparent; background: transparent;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .topbar-icon-btn:hover { background: var(--canvas); color: var(--text); }
+  .topbar-icon-btn .ntf-count {
+    position: absolute; top: 5px; right: 5px;
+    min-width: 15px; height: 15px; padding: 0 3px;
+    border-radius: var(--r-full); background: var(--danger);
+    color: #fff; font-size: 9px; font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 2px solid rgba(255,255,255,0.9);
+  }
+
+  /* --- Two-column detail layout --- */
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 16px;
+    align-items: start;
+  }
+  .stack { display: flex; flex-direction: column; gap: 16px; }
+
+  /* --- Booking hero header --- */
+  .bk-hero {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .bk-ref-row { display: flex; align-items: center; gap: 12px; }
+  .bk-ref {
+    font-size: 24px; font-weight: 700; letter-spacing: -0.02em; color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+  .bk-sub { color: var(--muted); font-size: 13.5px; margin-top: 6px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .bk-sub .dot-sep { width: 3px; height: 3px; border-radius: 50%; background: var(--faint); display: inline-block; }
+
+  /* --- Status stepper --- */
+  .stepper {
+    display: flex;
+    align-items: flex-start;
+    margin-top: 6px;
+  }
+  .step { display: flex; flex-direction: column; align-items: center; flex: 1; position: relative; }
+  .step .node {
+    width: 26px; height: 26px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--surface); border: 2px solid var(--border-strong);
+    color: var(--faint); z-index: 2; flex-shrink: 0;
+  }
+  .step .node svg { width: 13px; height: 13px; }
+  .step.done .node { background: var(--success); border-color: var(--success); color: #fff; }
+  .step.current .node { background: var(--brand); border-color: var(--brand); color: #fff; box-shadow: 0 0 0 4px var(--brand-ring); }
+  .step .label { font-size: 11.5px; font-weight: 560; color: var(--faint); margin-top: 8px; white-space: nowrap; }
+  .step.done .label { color: var(--text); }
+  .step.current .label { color: var(--brand); font-weight: 650; }
+  .step .label .sub { display: block; font-size: 10px; color: var(--faint); font-weight: 400; margin-top: 1px; }
+  /* connector line */
+  .step::before, .step::after {
+    content: ''; position: absolute; top: 12px; height: 2px; background: var(--border-strong); z-index: 1;
+  }
+  .step::before { left: 0; right: 50%; }
+  .step::after  { left: 50%; right: 0; }
+  .step:first-child::before { display: none; }
+  .step:last-child::after { display: none; }
+  .step.done::before, .step.done::after,
+  .step.current::before { background: var(--success); }
+
+  /* --- Travellers --- */
+  .trav-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 0; border-bottom: 1px solid var(--border);
+  }
+  .trav-row:last-child { border-bottom: 0; }
+  .trav-meta { min-width: 0; flex: 1; }
+  .trav-meta .tn { font-size: 13.5px; font-weight: 560; color: var(--text); }
+  .trav-meta .tt { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .pp-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11.5px; font-weight: 500;
+    padding: 4px 10px; border-radius: var(--r-full);
+    background: var(--canvas); border: 1px solid var(--border); color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .pp-chip svg { width: 12px; height: 12px; color: var(--faint); }
+  .pp-chip.ok { background: var(--success-soft); border-color: #C6ECDA; color: #14794F; }
+
+  /* --- Flight itinerary --- */
+  .seg {
+    padding: 16px 0; border-bottom: 1px solid var(--border);
+  }
+  .seg:last-child { border-bottom: 0; padding-bottom: 0; }
+  .seg:first-child { padding-top: 0; }
+  .seg-head {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+  }
+  .airline-mark {
+    width: 32px; height: 32px; border-radius: var(--r-sm);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.16);
+  }
+  .airline-mark.ek { background: #D71921; }
+  .seg-head .sh-name { font-size: 13.5px; font-weight: 600; color: var(--text); }
+  .seg-head .sh-meta { font-size: 12px; color: var(--muted); }
+  .seg-route {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 16px;
+  }
+  .seg-point .ap-code { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; color: var(--text); }
+  .seg-point .ap-time { font-size: 13px; font-weight: 560; color: var(--text); margin-top: 2px; }
+  .seg-point .ap-city { font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+  .seg-point.arr { text-align: right; }
+  .seg-mid { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 96px; }
+  .seg-mid .dur { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .seg-line {
+    display: flex; align-items: center; gap: 4px; color: var(--border-strong); width: 100%;
+  }
+  .seg-line .ln { flex: 1; height: 2px; background: var(--border-strong); border-radius: 2px; }
+  .seg-line svg { width: 16px; height: 16px; color: var(--brand); flex-shrink: 0; }
+  .seg-mid .stops { font-size: 10.5px; color: var(--faint); }
+  .seg-foot {
+    display: flex; align-items: center; gap: 16px; margin-top: 14px;
+    flex-wrap: wrap;
+  }
+  .seg-foot .fk { font-size: 11.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .seg-foot .fk .fv { color: var(--text); font-weight: 560; font-variant-numeric: tabular-nums; }
+
+  /* --- Hotel card --- */
+  .hotel-row { display: flex; gap: 16px; }
+  .hotel-photo {
+    width: 120px; height: 96px; border-radius: var(--r); flex-shrink: 0;
+    background: linear-gradient(135deg, #2B59C3 0%, #1FA2C7 100%);
+    position: relative; overflow: hidden;
+    display: flex; align-items: flex-end; padding: 8px;
+  }
+  .hotel-photo::after {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(circle at 70% 25%, rgba(255,255,255,0.22), transparent 55%);
+  }
+  .hotel-photo .stars-badge {
+    position: relative; z-index: 1;
+    font-size: 11px; font-weight: 700; color: #fff;
+    background: rgba(0,0,0,0.28); padding: 2px 8px; border-radius: var(--r-full);
+    display: inline-flex; align-items: center; gap: 3px;
+  }
+  .hotel-info { flex: 1; min-width: 0; }
+  .hotel-info .hname { font-size: 15px; font-weight: 620; color: var(--text); letter-spacing: -0.01em; }
+  .hotel-info .hloc { font-size: 12.5px; color: var(--muted); margin-top: 3px; display: flex; align-items: center; gap: 5px; }
+  .hotel-facts { display: flex; gap: 22px; margin-top: 12px; flex-wrap: wrap; }
+  .hotel-facts .hf .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+  .hotel-facts .hf .v { font-size: 13.5px; font-weight: 600; color: var(--text); margin-top: 3px; }
+
+  /* --- Documents --- */
+  .doc-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 0; border-bottom: 1px solid var(--border);
+  }
+  .doc-row:last-child { border-bottom: 0; }
+  .doc-ico {
+    width: 36px; height: 36px; border-radius: var(--r-sm); flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .doc-ico svg { width: 17px; height: 17px; }
+  .doc-ico.pdf { background: var(--danger-soft); color: #B43232; }
+  .doc-ico.tkt { background: var(--brand-soft); color: var(--brand); }
+  .doc-ico.inv { background: var(--success-soft); color: #14794F; }
+  .doc-meta { flex: 1; min-width: 0; }
+  .doc-meta .dn { font-size: 13px; font-weight: 560; color: var(--text); }
+  .doc-meta .dm { font-size: 11.5px; color: var(--muted); margin-top: 2px; font-variant-numeric: tabular-nums; }
+
+  /* --- Right rail payment summary --- */
+  .pay-line { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; }
+  .pay-line .pl { font-size: 13px; color: var(--muted); }
+  .pay-line .pv { font-size: 13.5px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+  .pay-line.total .pl { color: var(--text); font-weight: 600; }
+  .pay-line.total .pv { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+  .pay-line.outstanding .pv { color: var(--warning); }
+  .pay-bar-wrap { margin: 6px 0 4px; }
+  .pay-bar-meta { display: flex; align-items: center; justify-content: space-between; font-size: 11.5px; color: var(--muted); margin-bottom: 7px; }
+
+  /* --- Right rail meta rows --- */
+  .meta-kv { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--border); }
+  .meta-kv:last-child { border-bottom: 0; }
+  .meta-kv .mk { font-size: 12.5px; color: var(--muted); }
+  .meta-kv .mv { font-size: 12.5px; font-weight: 560; color: var(--text); font-variant-numeric: tabular-nums; }
+  .meta-kv .mv.mono { font-family: var(--font-mono); font-size: 12px; }
+
+  .note-card {
+    background: #FFFBEF; border: 1px solid #F0E2BE; border-radius: var(--r);
+    padding: 12px 14px;
+  }
+  .note-card .nt { font-size: 12.5px; color: #6B5A2A; line-height: 1.5; }
+  .note-card .nm { font-size: 11px; color: #9A8A5A; margin-top: 8px; display: flex; align-items: center; gap: 6px; }
+
+  @media (max-width: 1024px) {
+    .detail-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 720px) {
+    .step .label .sub { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ============================ SIDEBAR ============================ -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <span class="logo-mark">A</span>
+      <span>Atlas Travel Desk</span>
+    </div>
+
+    <nav class="nav">
+      <a class="nav-item" href="dashboard.html">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+        Dashboard
+      </a>
+      <a class="nav-item" href="clients.html">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Clients
+        <span class="nav-badge">14</span>
+      </a>
+      <a class="nav-item" href="pipeline.html">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+        Pipeline
+      </a>
+      <a class="nav-item" href="proposals.html">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Proposals
+        <span class="nav-badge">6</span>
+      </a>
+      <a class="nav-item active" href="bookings.html">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
+        Bookings
+        <span class="nav-badge">10</span>
+      </a>
+      <a class="nav-item" href="search.html">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Flight &amp; Hotel Search
+      </a>
+
+      <div class="nav-section-label">Operate</div>
+      <a class="nav-item" href="payments.html">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        Payments
+      </a>
+      <a class="nav-item" href="suppliers.html">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        Suppliers
+      </a>
+      <a class="nav-item" href="reports.html">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Reports
+      </a>
+      <a class="nav-item" href="assistant.html">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 9.5 8.5 3 11l6.5 2.5L12 20l2.5-6.5L21 11l-6.5-2.5z"/></svg>
+        Atlas Assistant
+      </a>
+      <a class="nav-item" href="settings.html">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+      </a>
+    </nav>
+
+    <div class="sidebar-foot">
+      <span class="avatar av1">YH</span>
+      <div style="line-height:1.25; min-width:0;">
+        <div style="font-size:12.5px; font-weight:600; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Yasmine Haddad</div>
+        <div style="font-size:11px; color:#8B93A8;">Manager</div>
+      </div>
+      <svg style="margin-left:auto; color:#6E7790;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+    </div>
+  </aside>
+
+  <!-- ============================ MAIN ============================ -->
+  <div class="main">
+
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <div class="topbar-search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" placeholder="Search clients, bookings, proposals…">
+        <span class="kbd">⌘K</span>
+      </div>
+
+      <div class="topbar-actions">
+        <div class="agency-switch">
+          <span class="agency-mark">A</span>
+          <span class="agency-meta">
+            <span class="an">Atlas Travel Demo</span>
+            <span class="ap">Scale plan · Algiers</span>
+          </span>
+          <svg style="color:var(--faint);" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+
+        <button class="topbar-icon-btn" title="Notifications">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span class="ntf-count">3</span>
+        </button>
+
+        <span class="avatar av1" title="Yasmine Haddad">YH</span>
+      </div>
+    </header>
+
+    <!-- PAGE -->
+    <main class="page">
+
+      <!-- Breadcrumb -->
+      <div class="breadcrumb">
+        <a href="dashboard.html">Home</a>
+        <span class="sep">/</span>
+        <a href="bookings.html">Bookings</a>
+        <span class="sep">/</span>
+        <span class="current">BKG-2026-014</span>
+      </div>
+
+      <!-- ======= BOOKING HERO ======= -->
+      <div class="bk-hero">
+        <div>
+          <div class="bk-ref-row">
+            <span class="bk-ref">BKG-2026-014</span>
+            <span class="badge badge-success"><span class="dot"></span>Confirmed</span>
+            <span class="badge badge-info">VIP client</span>
+          </div>
+          <div class="bk-sub">
+            <span><strong class="strong">Amine Belkacem</strong></span>
+            <span class="dot-sep"></span>
+            <span>Dubai, United Arab Emirates</span>
+            <span class="dot-sep"></span>
+            <span>14 Aug → 21 Aug 2026 · 7 nights</span>
+            <span class="dot-sep"></span>
+            <span>4 travellers</span>
+          </div>
+        </div>
+        <div class="flex gap-2 wrap">
+          <button class="btn btn-outline">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download docs
+          </button>
+          <button class="btn btn-outline">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            Email client
+          </button>
+          <button class="btn btn-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Issue tickets
+          </button>
+        </div>
+      </div>
+
+      <!-- ======= STATUS STEPPER ======= -->
+      <div class="card mt-4">
+        <div class="card-body">
+          <div class="stepper">
+            <div class="step done">
+              <span class="node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+              <span class="label">Draft<span class="sub">10 Jun</span></span>
+            </div>
+            <div class="step done">
+              <span class="node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+              <span class="label">Awaiting payment<span class="sub">12 Jun</span></span>
+            </div>
+            <div class="step current">
+              <span class="node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/></svg></span>
+              <span class="label">Confirmed<span class="sub">24 Jun · now</span></span>
+            </div>
+            <div class="step">
+              <span class="node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22 11 13 2 9 22 2z"/></svg></span>
+              <span class="label">Ticketed</span>
+            </div>
+            <div class="step">
+              <span class="node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+              <span class="label">Completed</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ======= TWO-COLUMN ======= -->
+      <div class="detail-grid mt-4">
+
+        <!-- ============ LEFT COLUMN ============ -->
+        <div class="stack">
+
+          <!-- Travellers -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Travellers <span class="sub">4 passengers · passports verified</span></div>
+              <button class="btn btn-sm btn-outline">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Add traveller
+              </button>
+            </div>
+            <div class="card-body">
+              <div class="trav-row">
+                <span class="avatar av1">AB</span>
+                <div class="trav-meta">
+                  <div class="tn">Amine Belkacem <span class="tag" style="margin-left:6px;">Lead traveller</span></div>
+                  <div class="tt">Adult · Algerian · DOB 1981-03-14</div>
+                </div>
+                <span class="pp-chip ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>AG7841239 · exp 2029-04</span>
+              </div>
+              <div class="trav-row">
+                <span class="avatar av5">NB</span>
+                <div class="trav-meta">
+                  <div class="tn">Nesrine Belkacem</div>
+                  <div class="tt">Adult · Algerian · DOB 1985-07-22</div>
+                </div>
+                <span class="pp-chip ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>AG8120554 · exp 2030-09</span>
+              </div>
+              <div class="trav-row">
+                <span class="avatar av3">YB</span>
+                <div class="trav-meta">
+                  <div class="tn">Yanis Belkacem</div>
+                  <div class="tt">Child · Algerian · DOB 2014-11-09</div>
+                </div>
+                <span class="pp-chip ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>AG9341208 · exp 2031-02</span>
+              </div>
+              <div class="trav-row">
+                <span class="avatar av6">LB</span>
+                <div class="trav-meta">
+                  <div class="tn">Lina Belkacem</div>
+                  <div class="tt">Child · Algerian · DOB 2017-05-30</div>
+                </div>
+                <span class="pp-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z"/></svg>AG9442019 · exp 2028-08</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Flights -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Flights <span class="sub">Emirates · PNR EK7QMZ · Business</span></div>
+              <span class="badge badge-success"><span class="dot"></span>Confirmed</span>
+            </div>
+            <div class="card-body">
+
+              <!-- Outbound -->
+              <div class="seg">
+                <div class="seg-head">
+                  <span class="airline-mark ek">EK</span>
+                  <div>
+                    <div class="sh-name">Emirates · EK 758 <span class="muted" style="font-weight:400;">→ EK 752</span></div>
+                    <div class="sh-meta">Outbound · Friday, 14 August 2026</div>
+                  </div>
+                </div>
+                <div class="seg-route">
+                  <div class="seg-point dep">
+                    <div class="ap-code">ALG</div>
+                    <div class="ap-time">02:40</div>
+                    <div class="ap-city">Houari Boumediene</div>
+                  </div>
+                  <div class="seg-mid">
+                    <div class="dur">8h 35m</div>
+                    <div class="seg-line"><span class="ln"></span><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg><span class="ln"></span></div>
+                    <div class="stops">1 stop · DXB</div>
+                  </div>
+                  <div class="seg-point arr">
+                    <div class="ap-code">DXB</div>
+                    <div class="ap-time">17:15</div>
+                    <div class="ap-city">Dubai Intl · T3</div>
+                  </div>
+                </div>
+                <div class="seg-foot">
+                  <span class="fk">Cabin <span class="fv">Business</span></span>
+                  <span class="fk">Baggage <span class="fv">2 × 32kg</span></span>
+                  <span class="fk">Seats <span class="fv">2A 2C 3A 3C</span></span>
+                  <span class="fk">Fare <span class="fv">EK Flex</span></span>
+                </div>
+              </div>
+
+              <!-- Return -->
+              <div class="seg">
+                <div class="seg-head">
+                  <span class="airline-mark ek">EK</span>
+                  <div>
+                    <div class="sh-name">Emirates · EK 759</div>
+                    <div class="sh-meta">Return · Friday, 21 August 2026</div>
+                  </div>
+                </div>
+                <div class="seg-route">
+                  <div class="seg-point dep">
+                    <div class="ap-code">DXB</div>
+                    <div class="ap-time">08:05</div>
+                    <div class="ap-city">Dubai Intl · T3</div>
+                  </div>
+                  <div class="seg-mid">
+                    <div class="dur">7h 50m</div>
+                    <div class="seg-line"><span class="ln"></span><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg><span class="ln"></span></div>
+                    <div class="stops">Direct</div>
+                  </div>
+                  <div class="seg-point arr">
+                    <div class="ap-code">ALG</div>
+                    <div class="ap-time">12:55</div>
+                    <div class="ap-city">Houari Boumediene</div>
+                  </div>
+                </div>
+                <div class="seg-foot">
+                  <span class="fk">Cabin <span class="fv">Business</span></span>
+                  <span class="fk">Baggage <span class="fv">2 × 32kg</span></span>
+                  <span class="fk">Seats <span class="fv">2A 2C 3A 3C</span></span>
+                  <span class="fk">Fare <span class="fv">EK Flex</span></span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Hotel -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Hotel <span class="sub">via Hotelbeds · ref HB-DXB-44120</span></div>
+              <span class="badge badge-success"><span class="dot"></span>Confirmed</span>
+            </div>
+            <div class="card-body">
+              <div class="hotel-row">
+                <div class="hotel-photo">
+                  <span class="stars-badge">★ ★ ★ ★ ★</span>
+                </div>
+                <div class="hotel-info">
+                  <div class="hname">Address Downtown</div>
+                  <div class="hloc">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    Sheikh Mohammed bin Rashid Blvd, Downtown Dubai
+                  </div>
+                  <div class="hotel-facts">
+                    <div class="hf"><div class="k">Check-in</div><div class="v">14 Aug 2026</div></div>
+                    <div class="hf"><div class="k">Check-out</div><div class="v">21 Aug 2026</div></div>
+                    <div class="hf"><div class="k">Nights</div><div class="v">7</div></div>
+                    <div class="hf"><div class="k">Board</div><div class="v">Breakfast</div></div>
+                    <div class="hf"><div class="k">Rooms</div><div class="v">2 × Fountain View</div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Documents -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Documents <span class="sub">3 files · auto-generated</span></div>
+              <button class="btn btn-sm btn-outline">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download all
+              </button>
+            </div>
+            <div class="card-body">
+              <div class="doc-row">
+                <span class="doc-ico pdf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>
+                <div class="doc-meta">
+                  <div class="dn">Hotel voucher — Address Downtown</div>
+                  <div class="dm">PDF · 248 KB · generated 24 Jun 2026</div>
+                </div>
+                <span class="badge badge-success"><span class="dot"></span>Ready</span>
+                <button class="btn-icon" title="Download"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+              </div>
+              <div class="doc-row">
+                <span class="doc-ico tkt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"/><line x1="13" y1="5" x2="13" y2="19"/></svg></span>
+                <div class="doc-meta">
+                  <div class="dn">E-ticket — Emirates EK7QMZ</div>
+                  <div class="dm">Pending issue · available after ticketing</div>
+                </div>
+                <span class="badge badge-warning"><span class="dot"></span>Pending</span>
+                <button class="btn-icon" title="Issue tickets first" disabled style="opacity:.45;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+              </div>
+              <div class="doc-row">
+                <span class="doc-ico inv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
+                <div class="doc-meta">
+                  <div class="dn">Invoice — INV-2026-0214</div>
+                  <div class="dm">PDF · 192 KB · 1,860,000 DZD · issued 24 Jun 2026</div>
+                </div>
+                <span class="badge badge-success"><span class="dot"></span>Ready</span>
+                <button class="btn-icon" title="Download"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Activity timeline -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Activity</div>
+              <button class="btn btn-sm btn-ghost">View all</button>
+            </div>
+            <div class="card-body">
+              <div class="timeline">
+                <div class="timeline-item">
+                  <span class="timeline-dot success"></span>
+                  <div class="tl-title">Hotel allotment confirmed by Hotelbeds — ref HB-DXB-44120</div>
+                  <div class="tl-meta">Karim Benali · automatic supplier sync</div>
+                  <div class="tl-time">24 Jun 2026 · 14:08</div>
+                </div>
+                <div class="timeline-item">
+                  <span class="timeline-dot success"></span>
+                  <div class="tl-title">Deposit received — 930,000 DZD (CIB transfer)</div>
+                  <div class="tl-meta">Nadia Toure reconciled payment · booking moved to Confirmed</div>
+                  <div class="tl-time">24 Jun 2026 · 11:52</div>
+                </div>
+                <div class="timeline-item">
+                  <span class="timeline-dot"></span>
+                  <div class="tl-title">Emirates fare held — PNR EK7QMZ, Business class</div>
+                  <div class="tl-meta">Karim Benali · seats 2A 2C 3A 3C selected</div>
+                  <div class="tl-time">12 Jun 2026 · 16:30</div>
+                </div>
+                <div class="timeline-item">
+                  <span class="timeline-dot"></span>
+                  <div class="tl-title">Proposal accepted by client — Dubai family, 7 nights</div>
+                  <div class="tl-meta">Amine Belkacem signed via client portal</div>
+                  <div class="tl-time">12 Jun 2026 · 09:14</div>
+                </div>
+                <div class="timeline-item">
+                  <span class="timeline-dot muted"></span>
+                  <div class="tl-title">Booking drafted from Dubai search</div>
+                  <div class="tl-meta">Karim Benali created BKG-2026-014</div>
+                  <div class="tl-time">10 Jun 2026 · 10:02</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ============ RIGHT RAIL ============ -->
+        <div class="stack">
+
+          <!-- Payment summary -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Payment summary</div>
+              <span class="badge badge-warning"><span class="dot"></span>Part-paid</span>
+            </div>
+            <div class="card-body">
+              <div class="pay-bar-wrap">
+                <div class="pay-bar-meta">
+                  <span>50% collected</span>
+                  <span>930,000 / 1,860,000 DZD</span>
+                </div>
+                <div class="progress"><div class="bar success" style="width:50%;"></div></div>
+              </div>
+              <hr class="divider">
+              <div class="pay-line total">
+                <span class="pl">Total</span>
+                <span class="pv tabular">1,860,000 DZD</span>
+              </div>
+              <div class="pay-line">
+                <span class="pl">Paid</span>
+                <span class="pv text-success tabular">930,000 DZD</span>
+              </div>
+              <div class="pay-line outstanding">
+                <span class="pl">Outstanding</span>
+                <span class="pv tabular">930,000 DZD</span>
+              </div>
+              <div class="pay-line">
+                <span class="pl">Balance due</span>
+                <span class="pv tabular">31 Jul 2026</span>
+              </div>
+              <button class="btn btn-primary btn-lg" style="width:100%; margin-top:14px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                Record payment
+              </button>
+              <button class="btn btn-ghost" style="width:100%; margin-top:8px;">Send payment reminder</button>
+            </div>
+          </div>
+
+          <!-- Margin -->
+          <div class="card">
+            <div class="card-header"><div class="card-title">Margin</div></div>
+            <div class="card-body">
+              <div class="pay-line"><span class="pl">Sell</span><span class="pv tabular">1,860,000 DZD</span></div>
+              <div class="pay-line"><span class="pl">Net cost</span><span class="pv tabular">1,512,600 DZD</span></div>
+              <div class="pay-line total"><span class="pl">Gross margin</span><span class="pv text-success tabular">347,400 DZD · 18.7%</span></div>
+            </div>
+          </div>
+
+          <!-- Supplier refs -->
+          <div class="card">
+            <div class="card-header"><div class="card-title">Supplier references</div></div>
+            <div class="card-body">
+              <div class="meta-kv">
+                <span class="mk">Emirates (Duffel)</span>
+                <span class="mv mono">DUF-9921</span>
+              </div>
+              <div class="meta-kv">
+                <span class="mk">Hotelbeds</span>
+                <span class="mv mono">HB-DXB-44120</span>
+              </div>
+              <div class="meta-kv">
+                <span class="mk">Flight PNR</span>
+                <span class="mv mono">EK7QMZ</span>
+              </div>
+              <div class="meta-kv">
+                <span class="mk">Commission</span>
+                <span class="mv">Air 6.0% · Bed 12.0%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Assigned agent -->
+          <div class="card">
+            <div class="card-header"><div class="card-title">Assigned agent</div></div>
+            <div class="card-body">
+              <div class="user-cell" style="margin-bottom:12px;">
+                <span class="avatar av2 lg">KB</span>
+                <div class="meta">
+                  <span class="name">Karim Benali</span>
+                  <span class="role">Agent · karim@atlastravel.dz</span>
+                </div>
+              </div>
+              <div class="meta-kv">
+                <span class="mk">Finance contact</span>
+                <span class="mv flex gap-2"><span class="avatar sm av6">NT</span>Nadia Toure</span>
+              </div>
+              <div class="meta-kv">
+                <span class="mk">Created</span>
+                <span class="mv">10 Jun 2026</span>
+              </div>
+              <div class="meta-kv">
+                <span class="mk">Last updated</span>
+                <span class="mv">24 Jun 2026</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Notes -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Notes</div>
+              <button class="btn btn-sm btn-ghost">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Add
+              </button>
+            </div>
+            <div class="card-body">
+              <div class="note-card">
+                <div class="nt">VIP family trip — anniversary. Client requested Fountain View rooms and a late checkout on 21 Aug. Halal dining preference confirmed for in-flight meals. Aisle seats front cabin per profile.</div>
+                <div class="nm">
+                  <span class="avatar sm av2">KB</span>
+                  Karim Benali · 24 Jun 2026
+                </div>
+              </div>
+              <div class="list-row" style="margin-top:4px;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <span class="text-sm muted">Collect 930,000 DZD balance before 31 Jul to release tickets.</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+</body>
+</html>

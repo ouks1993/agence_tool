@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — Atlas Travel Desk</title>
+<link rel="stylesheet" href="../assets/atlas-ui.css">
+<style>
+  /* Page-specific composition only — all primitives come from atlas-ui.css */
+  .dash-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 16px;
+    margin-top: 16px;
+    align-items: start;
+  }
+  .dash-grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-top: 16px;
+    align-items: start;
+  }
+  .stack { display: flex; flex-direction: column; gap: 16px; }
+
+  /* Revenue area chart hover guides */
+  .rev-chart-meta {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 4px;
+  }
+  .rev-now {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    color: var(--text);
+  }
+
+  /* Funnel */
+  .funnel { display: flex; flex-direction: column; gap: 9px; }
+  .funnel-row { display: flex; flex-direction: column; gap: 5px; }
+  .funnel-head { display: flex; align-items: center; justify-content: space-between; }
+  .funnel-head .fl { font-size: 12.5px; font-weight: 540; color: var(--text); }
+  .funnel-head .fr { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .funnel-track {
+    height: 22px;
+    border-radius: var(--r-sm);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    overflow: hidden;
+    position: relative;
+  }
+  .funnel-fill {
+    height: 100%;
+    border-radius: var(--r-sm) 0 0 var(--r-sm);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 8px;
+    font-size: 10.5px;
+    font-weight: 650;
+    color: #fff;
+    letter-spacing: -0.01em;
+  }
+  .funnel-fill.s1 { background: var(--c1); }
+  .funnel-fill.s2 { background: #3E72E0; }
+  .funnel-fill.s3 { background: #5E8BE8; }
+  .funnel-fill.s4 { background: var(--c2); }
+
+  /* Departure list rows */
+  .dep-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .dep-row:last-child { border-bottom: 0; }
+  .dep-date {
+    width: 46px;
+    flex-shrink: 0;
+    text-align: center;
+    border-radius: var(--r-sm);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    padding: 4px 0;
+    line-height: 1.1;
+  }
+  .dep-date .d { font-size: 16px; font-weight: 700; color: var(--text); letter-spacing: -0.02em; }
+  .dep-date .m { font-size: 9.5px; font-weight: 600; text-transform: uppercase; color: var(--muted); letter-spacing: 0.04em; }
+  .dep-main { min-width: 0; flex: 1; }
+  .dep-main .t { font-size: 13px; font-weight: 560; color: var(--text); }
+  .dep-main .s { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 5px; margin-top: 1px; }
+
+  /* Task rows */
+  .task-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .task-row:last-child { border-bottom: 0; }
+  .task-check {
+    width: 16px;
+    height: 16px;
+    border-radius: 5px;
+    border: 1.5px solid var(--border-strong);
+    flex-shrink: 0;
+    margin-top: 1px;
+    cursor: pointer;
+    background: var(--surface);
+  }
+  .task-body { min-width: 0; flex: 1; }
+  .task-body .tt { font-size: 12.5px; font-weight: 520; color: var(--text); line-height: 1.4; }
+  .task-body .tm { font-size: 11.5px; color: var(--muted); margin-top: 3px; display: flex; align-items: center; gap: 8px; }
+  .prio-dot { width: 7px; height: 7px; border-radius: var(--r-full); flex-shrink: 0; }
+  .prio-high { background: var(--danger); }
+  .prio-medium { background: var(--warning); }
+  .prio-low { background: var(--faint); }
+
+  /* Atlas suggests */
+  .suggest-item {
+    display: flex;
+    gap: 12px;
+    padding: 14px;
+    border-radius: var(--r);
+    background: var(--surface);
+    border: 1px solid #D6E2FA;
+  }
+  .suggest-item + .suggest-item { margin-top: 10px; }
+  .suggest-ico {
+    width: 30px;
+    height: 30px;
+    border-radius: var(--r-sm);
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--brand);
+    color: #fff;
+  }
+  .suggest-body .st { font-size: 13px; font-weight: 600; color: var(--text); }
+  .suggest-body .sd { font-size: 12.5px; color: var(--muted); margin-top: 3px; line-height: 1.45; }
+  .suggest-body .sa { margin-top: 9px; display: flex; align-items: center; gap: 8px; }
+
+  /* Donut legend rows */
+  .donut-wrap { display: flex; align-items: center; gap: 20px; }
+  .donut-legend { display: flex; flex-direction: column; gap: 9px; flex: 1; }
+  .dl-row { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+  .dl-row .swatch { width: 9px; height: 9px; border-radius: 3px; flex-shrink: 0; }
+  .dl-row .name { color: var(--muted); }
+  .dl-row .val { margin-left: auto; font-weight: 650; color: var(--text); font-variant-numeric: tabular-nums; }
+
+  .act-ico {
+    width: 26px;
+    height: 26px;
+    border-radius: var(--r-full);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .agency-switch {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 5px 9px 5px 7px;
+    border-radius: var(--r);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .agency-switch:hover { border-color: var(--border-strong); background: var(--surface-2); }
+  .agency-mark {
+    width: 26px; height: 26px; border-radius: 7px;
+    background: linear-gradient(135deg, var(--brand) 0%, #3E72E0 100%);
+    color: #fff; font-weight: 800; font-size: 12px;
+    display: inline-flex; align-items: center; justify-content: center;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.2);
+  }
+  .agency-meta { line-height: 1.2; }
+  .agency-meta .an { font-size: 12.5px; font-weight: 600; color: var(--text); }
+  .agency-meta .ap { font-size: 10.5px; color: var(--muted); }
+
+  .topbar-icon-btn {
+    width: 36px; height: 36px; border-radius: var(--r);
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--muted); cursor: pointer; position: relative;
+    border: 1px solid transparent; background: transparent;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .topbar-icon-btn:hover { background: var(--canvas); color: var(--text); }
+  .topbar-icon-btn .ntf-count {
+    position: absolute; top: 5px; right: 5px;
+    min-width: 15px; height: 15px; padding: 0 3px;
+    border-radius: var(--r-full); background: var(--danger);
+    color: #fff; font-size: 9px; font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 2px solid rgba(255,255,255,0.9);
+  }
+
+  @media (max-width: 1024px) {
+    .dash-grid, .dash-grid-3 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ============================ SIDEBAR ============================ -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <span class="logo-mark">A</span>
+      <span>Atlas Travel Desk</span>
+    </div>
+
+    <nav class="nav">
+      <a class="nav-item active" href="dashboard.html">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+        Dashboard
+      </a>
+      <a class="nav-item" href="clients.html">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Clients
+        <span class="nav-badge">14</span>
+      </a>
+      <a class="nav-item" href="pipeline.html">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+        Pipeline
+      </a>
+      <a class="nav-item" href="proposals.html">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Proposals
+        <span class="nav-badge">6</span>
+      </a>
+      <a class="nav-item" href="bookings.html">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
+        Bookings
+        <span class="nav-badge">10</span>
+      </a>
+      <a class="nav-item" href="search.html">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Flight &amp; Hotel Search
+      </a>
+
+      <div class="nav-section-label">Operate</div>
+      <a class="nav-item" href="payments.html">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        Payments
+      </a>
+      <a class="nav-item" href="suppliers.html">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        Suppliers
+      </a>
+      <a class="nav-item" href="reports.html">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Reports
+      </a>
+      <a class="nav-item" href="assistant.html">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 9.5 8.5 3 11l6.5 2.5L12 20l2.5-6.5L21 11l-6.5-2.5z"/></svg>
+        Atlas Assistant
+      </a>
+      <a class="nav-item" href="settings.html">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+      </a>
+    </nav>
+
+    <div class="sidebar-foot">
+      <span class="avatar av1">YH</span>
+      <div style="line-height:1.25; min-width:0;">
+        <div style="font-size:12.5px; font-weight:600; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Yasmine Haddad</div>
+        <div style="font-size:11px; color:#8B93A8;">Manager</div>
+      </div>
+      <svg style="margin-left:auto; color:#6E7790;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+    </div>
+  </aside>
+
+  <!-- ============================ MAIN ============================ -->
+  <div class="main">
+
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <div class="topbar-search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" placeholder="Search clients, bookings, proposals…">
+        <span class="kbd">⌘K</span>
+      </div>
+
+      <div class="topbar-actions">
+        <div class="agency-switch">
+          <span class="agency-mark">A</span>
+          <span class="agency-meta">
+            <span class="an">Atlas Travel Demo</span>
+            <span class="ap">Scale plan · Algiers</span>
+          </span>
+          <svg style="color:var(--faint);" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+
+        <button class="topbar-icon-btn" title="Notifications">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span class="ntf-count">3</span>
+        </button>
+
+        <span class="avatar av1" title="Yasmine Haddad">YH</span>
+      </div>
+    </header>
+
+    <!-- PAGE -->
+    <main class="page">
+
+      <!-- Page header -->
+      <div class="page-header">
+        <div>
+          <div class="page-title">Good morning, Yasmine 👋</div>
+          <div class="page-subtitle">Here's how Atlas Travel Demo is performing today — Monday, 29 June 2026.</div>
+        </div>
+        <div class="flex gap-2">
+          <button class="btn btn-outline">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export
+          </button>
+          <button class="btn btn-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            New booking
+          </button>
+        </div>
+      </div>
+
+      <!-- ======= KPI STAT GRID ======= -->
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-label">
+            <span class="stat-ico">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </span>
+            Revenue this month
+          </div>
+          <div class="stat-value">42.8<span class="unit">M DZD</span></div>
+          <div class="stat-delta up">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+            +12.4%<span class="vs">vs. last month</span>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-label">
+            <span class="stat-ico">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
+            </span>
+            Confirmed bookings
+          </div>
+          <div class="stat-value">168</div>
+          <div class="stat-delta up">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+            +8.0%<span class="vs">vs. last month</span>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-label">
+            <span class="stat-ico">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+            </span>
+            Pipeline value
+          </div>
+          <div class="stat-value">96.5<span class="unit">M DZD</span></div>
+          <div class="stat-delta up">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+            +5.1%<span class="vs">vs. last month</span>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-label">
+            <span class="stat-ico">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            </span>
+            Search → booking
+          </div>
+          <div class="stat-value">34.2<span class="unit">%</span></div>
+          <div class="stat-delta up">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+            +2.3pp<span class="vs">conversion</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ======= ROW 1: Revenue chart (2fr) + Bookings donut (1fr) ======= -->
+      <div class="dash-grid">
+
+        <!-- Revenue area chart -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              Revenue
+              <span class="sub">Monthly revenue · last 12 months</span>
+            </div>
+            <div class="flex gap-2">
+              <span class="pill active">Revenue</span>
+              <span class="pill">Bookings</span>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="rev-chart-meta">
+              <span class="rev-now">42,800,000 DZD</span>
+              <span class="stat-delta up" style="margin-top:0;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+                +12.4%
+              </span>
+              <span class="text-sm muted">this month</span>
+            </div>
+
+            <div class="chart">
+              <!-- viewBox 760 x 240; padding L=44 R=12 T=14 B=28 -->
+              <svg viewBox="0 0 760 240" preserveAspectRatio="none" role="img" aria-label="Revenue over the last 12 months">
+                <defs>
+                  <linearGradient id="atlasAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#2B59C3" stop-opacity="0.20"/>
+                    <stop offset="100%" stop-color="#2B59C3" stop-opacity="0.01"/>
+                  </linearGradient>
+                </defs>
+
+                <!-- grid lines (y) — values 0 / 12M / 24M / 36M / 48M -->
+                <g class="grid">
+                  <line x1="44" y1="14"  x2="748" y2="14"/>
+                  <line x1="44" y1="64.5" x2="748" y2="64.5"/>
+                  <line x1="44" y1="115" x2="748" y2="115"/>
+                  <line x1="44" y1="165.5" x2="748" y2="165.5"/>
+                  <line x1="44" y1="212" x2="748" y2="212"/>
+                </g>
+                <!-- y axis labels -->
+                <g class="axis-text" text-anchor="end">
+                  <text x="38" y="18">48M</text>
+                  <text x="38" y="68">36M</text>
+                  <text x="38" y="119">24M</text>
+                  <text x="38" y="169">12M</text>
+                  <text x="38" y="216">0</text>
+                </g>
+
+                <!-- Area fill (scale: x 44..748 over 12 pts, y: 0->212, 48M->14; px/M = 4.125) -->
+                <!-- points computed: y = 212 - (rev/1e6)*4.125 -->
+                <path class="area" d="
+                  M 44,94.85
+                  L 108,72.16
+                  L 172,101.86
+                  L 236,90.31
+                  L 300,109.7
+                  L 364,65.15
+                  L 428,99.8
+                  L 492,87.84
+                  L 556,76.7
+                  L 620,61.85
+                  L 684,54.84
+                  L 748,35.45
+                  L 748,212 L 44,212 Z"/>
+
+                <!-- Line -->
+                <path class="line" d="
+                  M 44,94.85
+                  L 108,72.16
+                  L 172,101.86
+                  L 236,90.31
+                  L 300,109.7
+                  L 364,65.15
+                  L 428,99.8
+                  L 492,87.84
+                  L 556,76.7
+                  L 620,61.85
+                  L 684,54.84
+                  L 748,35.45"/>
+
+                <!-- Highlight last point -->
+                <line x1="748" y1="35.45" x2="748" y2="212" stroke="#2B59C3" stroke-width="1" stroke-dasharray="3 3" opacity="0.4"/>
+                <circle class="dot" cx="748" cy="35.45" r="4.5"/>
+
+                <!-- x axis labels -->
+                <g class="axis-text" text-anchor="middle">
+                  <text x="44"  y="230">Jul</text>
+                  <text x="108" y="230">Aug</text>
+                  <text x="172" y="230">Sep</text>
+                  <text x="236" y="230">Oct</text>
+                  <text x="300" y="230">Nov</text>
+                  <text x="364" y="230">Dec</text>
+                  <text x="428" y="230">Jan</text>
+                  <text x="492" y="230">Feb</text>
+                  <text x="556" y="230">Mar</text>
+                  <text x="620" y="230">Apr</text>
+                  <text x="684" y="230">May</text>
+                  <text x="748" y="230">Jun</text>
+                </g>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bookings by status donut -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              Bookings by status
+              <span class="sub">10 active bookings</span>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="donut-wrap">
+              <div class="chart" style="width:140px; flex-shrink:0;">
+                <!-- Donut: 10 bookings → confirmed 4, ticketed 2, awaiting 2, completed 1, draft 1 -->
+                <!-- circumference for r=54 = 339.29 ; gap handled by stroke-linecap round + dasharray -->
+                <svg viewBox="0 0 140 140" role="img" aria-label="Bookings by status">
+                  <g transform="rotate(-90 70 70)">
+                    <circle class="donut-track" cx="70" cy="70" r="54"/>
+                    <!-- confirmed 40% = 135.72 of 339.29 -->
+                    <circle class="donut-seg c1" cx="70" cy="70" r="54"
+                      stroke-dasharray="131.7 207.6" stroke-dashoffset="0"/>
+                    <!-- ticketed 20% = 67.86 -->
+                    <circle class="donut-seg c2" cx="70" cy="70" r="54"
+                      stroke-dasharray="63.9 275.4" stroke-dashoffset="-135.7"/>
+                    <!-- awaiting payment 20% -->
+                    <circle class="donut-seg c3" cx="70" cy="70" r="54"
+                      stroke-dasharray="63.9 275.4" stroke-dashoffset="-203.6"/>
+                    <!-- completed 10% = 33.93 -->
+                    <circle class="donut-seg c4" cx="70" cy="70" r="54"
+                      stroke="#7C5CE6" stroke-dasharray="29.9 309.4" stroke-dashoffset="-271.4"/>
+                    <!-- draft 10% -->
+                    <circle class="donut-seg" cx="70" cy="70" r="54"
+                      stroke="#C9D0DD" stroke-dasharray="29.9 309.4" stroke-dashoffset="-305.3"/>
+                  </g>
+                  <text class="donut-center-value" x="70" y="68" text-anchor="middle">10</text>
+                  <text class="donut-center-label" x="70" y="84" text-anchor="middle">bookings</text>
+                </svg>
+              </div>
+
+              <div class="donut-legend">
+                <div class="dl-row"><span class="swatch" style="background:var(--c1);"></span><span class="name">Confirmed</span><span class="val">4</span></div>
+                <div class="dl-row"><span class="swatch" style="background:var(--c2);"></span><span class="name">Ticketed</span><span class="val">2</span></div>
+                <div class="dl-row"><span class="swatch" style="background:var(--c3);"></span><span class="name">Awaiting payment</span><span class="val">2</span></div>
+                <div class="dl-row"><span class="swatch" style="background:#7C5CE6;"></span><span class="name">Completed</span><span class="val">1</span></div>
+                <div class="dl-row"><span class="swatch" style="background:#C9D0DD;"></span><span class="name">Draft</span><span class="val">1</span></div>
+              </div>
+            </div>
+
+            <hr class="divider">
+            <div class="between">
+              <span class="text-sm muted">Outstanding balance</span>
+              <span class="strong tabular">7,240,000 DZD</span>
+            </div>
+            <div class="between mt-2">
+              <span class="text-sm muted">Avg. booking value</span>
+              <span class="strong tabular">254,800 DZD</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ======= ROW 2: Pipeline funnel + Upcoming departures + Tasks ======= -->
+      <div class="dash-grid-3">
+
+        <!-- Pipeline mini-funnel -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              Pipeline funnel
+              <span class="sub">96.5M DZD open · 10 deals</span>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="funnel">
+              <div class="funnel-row">
+                <div class="funnel-head"><span class="fl">Lead</span><span class="fr">2 · 1.7M</span></div>
+                <div class="funnel-track"><div class="funnel-fill s1" style="width:100%;">100%</div></div>
+              </div>
+              <div class="funnel-row">
+                <div class="funnel-head"><span class="fl">Qualified</span><span class="fr">2 · 5.9M</span></div>
+                <div class="funnel-track"><div class="funnel-fill s2" style="width:82%;">82%</div></div>
+              </div>
+              <div class="funnel-row">
+                <div class="funnel-head"><span class="fl">Proposal</span><span class="fr">3 · 8.3M</span></div>
+                <div class="funnel-track"><div class="funnel-fill s3" style="width:61%;">61%</div></div>
+              </div>
+              <div class="funnel-row">
+                <div class="funnel-head"><span class="fl">Negotiation</span><span class="fr">2 · 17.1M</span></div>
+                <div class="funnel-track"><div class="funnel-fill s3" style="width:44%; background:#7FA1ED;">44%</div></div>
+              </div>
+              <div class="funnel-row">
+                <div class="funnel-head"><span class="fl">Won</span><span class="fr">1 · 1.2M</span></div>
+                <div class="funnel-track"><div class="funnel-fill s4" style="width:34%;">34%</div></div>
+              </div>
+            </div>
+            <hr class="divider">
+            <div class="between">
+              <span class="text-sm muted">Proposal win rate</span>
+              <span class="badge badge-success"><span class="dot"></span>41.0%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Upcoming departures -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              Upcoming departures
+              <span class="sub">Next 5 trips</span>
+            </div>
+            <a href="bookings.html" class="text-sm text-brand" style="font-weight:550;">View all</a>
+          </div>
+          <div class="card-body" style="padding-top:6px; padding-bottom:6px;">
+            <div class="dep-row">
+              <div class="dep-date"><div class="d">30</div><div class="m">Jun</div></div>
+              <div class="dep-main">
+                <div class="t">Mehdi Cherkaoui</div>
+                <div class="s">Istanbul · BKG-2026-009</div>
+              </div>
+              <span class="badge badge-neutral"><span class="dot"></span>Completed</span>
+            </div>
+            <div class="dep-row">
+              <div class="dep-date"><div class="d">05</div><div class="m">Jul</div></div>
+              <div class="dep-main">
+                <div class="t">Amine Belkacem</div>
+                <div class="s">Dubai · BKG-2026-001</div>
+              </div>
+              <span class="badge badge-info"><span class="dot"></span>Ticketed</span>
+            </div>
+            <div class="dep-row">
+              <div class="dep-date"><div class="d">08</div><div class="m">Jul</div></div>
+              <div class="dep-main">
+                <div class="t">Sonatrach (3 pax)</div>
+                <div class="s">Paris · BKG-2026-005</div>
+              </div>
+              <span class="badge badge-info"><span class="dot"></span>Ticketed</span>
+            </div>
+            <div class="dep-row">
+              <div class="dep-date"><div class="d">14</div><div class="m">Jul</div></div>
+              <div class="dep-main">
+                <div class="t">Khaled Bouazza</div>
+                <div class="s">Dubai · BKG-2026-002</div>
+              </div>
+              <span class="badge badge-success"><span class="dot"></span>Confirmed</span>
+            </div>
+            <div class="dep-row">
+              <div class="dep-date"><div class="d">20</div><div class="m">Jul</div></div>
+              <div class="dep-main">
+                <div class="t">Yacine Brahimi</div>
+                <div class="s">Antalya · BKG-2026-007</div>
+              </div>
+              <span class="badge badge-success"><span class="dot"></span>Confirmed</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tasks / follow-ups -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              Tasks &amp; follow-ups
+              <span class="sub">6 open · 3 due this week</span>
+            </div>
+          </div>
+          <div class="card-body" style="padding-top:6px; padding-bottom:6px;">
+            <div class="task-row">
+              <span class="task-check"></span>
+              <div class="task-body">
+                <div class="tt">Collect balance on Maldives honeymoon (BKG-2026-003)</div>
+                <div class="tm"><span class="prio-dot prio-high"></span>High · Due Jul 1 · Lina C.</div>
+              </div>
+            </div>
+            <div class="task-row">
+              <span class="task-check"></span>
+              <div class="task-body">
+                <div class="tt">Send Umrah rooming list to Haramain DMC (BKG-2026-004)</div>
+                <div class="tm"><span class="prio-dot prio-high"></span>High · Due Jul 2 · Omar S.</div>
+              </div>
+            </div>
+            <div class="task-row">
+              <span class="task-check"></span>
+              <div class="task-body">
+                <div class="tt">Follow up GreenField on Istanbul conference proposal</div>
+                <div class="tm"><span class="prio-dot prio-medium"></span>Medium · Due Jul 3 · Yasmine H.</div>
+              </div>
+            </div>
+            <div class="task-row">
+              <span class="task-check"></span>
+              <div class="task-body">
+                <div class="tt">Call Ines Hamidi to qualify Europe enquiry</div>
+                <div class="tm"><span class="prio-dot prio-medium"></span>Medium · Due Jun 30 · Omar S.</div>
+              </div>
+            </div>
+            <div class="task-row">
+              <span class="task-check"></span>
+              <div class="task-body">
+                <div class="tt">Re-verify passport expiry — Tarek Djebbar</div>
+                <div class="tm"><span class="prio-dot prio-low"></span>Low · Due Jul 4 · Omar S.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ======= ROW 3: Recent activity + Atlas suggests ======= -->
+      <div class="dash-grid">
+
+        <!-- Recent activity timeline -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              Recent activity
+              <span class="sub">Across your team today</span>
+            </div>
+            <a href="#" class="text-sm text-brand" style="font-weight:550;">View log</a>
+          </div>
+          <div class="card-body">
+            <div class="timeline">
+              <div class="timeline-item">
+                <span class="timeline-dot success"></span>
+                <div class="flex gap-2" style="align-items:flex-start;">
+                  <span class="avatar sm av3">KB</span>
+                  <div>
+                    <div class="tl-title">Karim Benali ticketed BKG-2026-001 — Dubai, Amine Belkacem</div>
+                    <div class="tl-time">Today · 09:12</div>
+                  </div>
+                </div>
+              </div>
+              <div class="timeline-item">
+                <span class="timeline-dot success"></span>
+                <div class="flex gap-2" style="align-items:flex-start;">
+                  <span class="avatar sm av4">LC</span>
+                  <div>
+                    <div class="tl-title">Leïla Mansour accepted proposal PRD-2044 — Maldives honeymoon</div>
+                    <div class="tl-time">Yesterday · 17:40</div>
+                  </div>
+                </div>
+              </div>
+              <div class="timeline-item">
+                <span class="timeline-dot success"></span>
+                <div class="flex gap-2" style="align-items:flex-start;">
+                  <span class="avatar sm av2">NT</span>
+                  <div>
+                    <div class="tl-title">Payment received: <span class="strong">1,240,000 DZD</span> on BKG-2026-003</div>
+                    <div class="tl-time">Yesterday · 15:05</div>
+                  </div>
+                </div>
+              </div>
+              <div class="timeline-item">
+                <span class="timeline-dot"></span>
+                <div class="flex gap-2" style="align-items:flex-start;">
+                  <span class="avatar sm av3">OS</span>
+                  <div>
+                    <div class="tl-title">New lead: Ines Hamidi — Europe enquiry (Rome &amp; Paris)</div>
+                    <div class="tl-time">Yesterday · 11:22</div>
+                  </div>
+                </div>
+              </div>
+              <div class="timeline-item">
+                <span class="timeline-dot warning"></span>
+                <div class="flex gap-2" style="align-items:flex-start;">
+                  <span class="avatar sm av1">YH</span>
+                  <div>
+                    <div class="tl-title">GreenField Pharma viewed proposal PRD-2042 — Istanbul conference</div>
+                    <div class="tl-time">Jun 27 · 18:03</div>
+                  </div>
+                </div>
+              </div>
+              <div class="timeline-item">
+                <span class="timeline-dot muted"></span>
+                <div class="flex gap-2" style="align-items:flex-start;">
+                  <span class="avatar sm av6">SM</span>
+                  <div>
+                    <div class="tl-title">Sofiane Mansouri resolved a re-issue request on BKG-2026-007</div>
+                    <div class="tl-time">Jun 26 · 14:30</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Atlas suggests -->
+        <div class="stack">
+          <div class="card" style="border-color:#D6E2FA;">
+            <div class="card-header" style="border-bottom-color:#D6E2FA;">
+              <div class="card-title flex gap-2">
+                <span class="suggest-ico" style="width:24px; height:24px; border-radius:6px;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 9.5 8.5 3 11l6.5 2.5L12 20l2.5-6.5L21 11l-6.5-2.5z"/></svg>
+                </span>
+                Atlas suggests
+              </div>
+              <span class="badge badge-info">2 actions</span>
+            </div>
+            <div class="card-body">
+              <div class="suggest-item">
+                <span class="suggest-ico">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                </span>
+                <div class="suggest-body">
+                  <div class="st">Chase 2.43M DZD before the Umrah group departs</div>
+                  <div class="sd">BKG-2026-004 (Fatima Zohra Saidi, 18 pilgrims) departs in 27 days with 75% still outstanding. Sending the payment link now keeps the allotment from releasing.</div>
+                  <div class="sa">
+                    <button class="btn btn-primary btn-sm">Send payment link</button>
+                    <button class="btn btn-ghost btn-sm">Dismiss</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="suggest-item">
+                <span class="suggest-ico" style="background:var(--c2);">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                </span>
+                <div class="suggest-body">
+                  <div class="st">Convert the Maldives proposal expiring in 5 days</div>
+                  <div class="sd">Nour El Houda Benamar (VIP) has not signed PRD-2041 — 2.96M DZD. She viewed the Maldives villa twice. A nudge from Lina now could close it before it expires Jul 4.</div>
+                  <div class="sa">
+                    <button class="btn btn-primary btn-sm">Draft follow-up</button>
+                    <button class="btn btn-ghost btn-sm">Dismiss</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Top destinations mini-card -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                Top destinations
+                <span class="sub">By revenue this month</span>
+              </div>
+            </div>
+            <div class="card-body" style="padding-top:14px;">
+              <div class="funnel" style="gap:11px;">
+                <div class="funnel-row">
+                  <div class="funnel-head"><span class="fl">Dubai</span><span class="fr">22.4% · 11.2M</span></div>
+                  <div class="progress"><div class="bar" style="width:100%;"></div></div>
+                </div>
+                <div class="funnel-row">
+                  <div class="funnel-head"><span class="fl">Istanbul</span><span class="fr">17.8% · 8.9M</span></div>
+                  <div class="progress"><div class="bar" style="width:79%;"></div></div>
+                </div>
+                <div class="funnel-row">
+                  <div class="funnel-head"><span class="fl">Paris</span><span class="fr">12.6% · 6.3M</span></div>
+                  <div class="progress"><div class="bar" style="width:56%;"></div></div>
+                </div>
+                <div class="funnel-row">
+                  <div class="funnel-head"><span class="fl">Jeddah</span><span class="fr">10.8% · 5.4M</span></div>
+                  <div class="progress"><div class="bar" style="width:48%;"></div></div>
+                </div>
+                <div class="funnel-row">
+                  <div class="funnel-head"><span class="fl">Maldives</span><span class="fr">9.6% · 4.8M</span></div>
+                  <div class="progress"><div class="bar" style="width:43%;"></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+</body>
+</html>

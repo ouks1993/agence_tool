@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Amine Belkacem — Client Profile · Atlas Travel Desk</title>
+<link rel="stylesheet" href="../assets/atlas-ui.css">
+<style>
+  /* ---- Page-specific layout for the client profile ---- */
+  .crm-layout {
+    display: grid;
+    grid-template-columns: 312px 1fr 268px;
+    gap: 20px;
+    align-items: start;
+  }
+
+  /* Left identity rail */
+  .id-card { position: sticky; top: 80px; }
+  .id-hero {
+    padding: 22px 20px 20px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  .id-hero .vip-ribbon {
+    position: absolute;
+    top: 14px; right: 14px;
+  }
+  .id-avatar {
+    width: 76px; height: 76px;
+    border-radius: var(--r-full);
+    margin: 0 auto 14px;
+    font-size: 26px;
+    background: linear-gradient(135deg, var(--av1) 0%, #4D7CE6 100%);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.2), 0 4px 12px rgba(43,89,195,0.25);
+  }
+  .id-name { font-size: 19px; font-weight: 680; letter-spacing: -0.02em; }
+  .id-sub { color: var(--muted); font-size: 13px; margin-top: 3px; }
+  .id-loc { display: inline-flex; align-items: center; gap: 5px; margin-top: 9px; font-size: 12.5px; color: var(--muted); }
+
+  .id-stats { display: grid; grid-template-columns: 1fr 1fr; }
+  .id-stat { padding: 15px 16px; border-bottom: 1px solid var(--border); }
+  .id-stat:nth-child(odd) { border-right: 1px solid var(--border); }
+  .id-stat .v { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
+  .id-stat .l { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .id-section { padding: 16px 20px; border-bottom: 1px solid var(--border); }
+  .id-section:last-child { border-bottom: 0; }
+  .id-section .lab {
+    font-size: 10.5px; font-weight: 650; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--faint); margin-bottom: 11px;
+  }
+  .contact-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 13px; }
+  .contact-row .ico { color: var(--faint); flex-shrink: 0; }
+  .contact-row a { color: var(--text); }
+  .contact-row a:hover { color: var(--brand); }
+  .tag-cloud { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  /* Tabs */
+  .tabbar {
+    display: flex; gap: 2px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+    overflow-x: auto;
+  }
+  .tabbar .tab {
+    padding: 10px 14px;
+    font-size: 13.5px; font-weight: 550;
+    color: var(--muted);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    cursor: pointer;
+    white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 7px;
+    transition: color 0.15s ease, border-color 0.15s ease;
+  }
+  .tabbar .tab:hover { color: var(--text); }
+  .tabbar .tab.active { color: var(--brand); border-bottom-color: var(--brand); }
+  .tabbar .tab .cnt {
+    font-size: 11px; font-weight: 600;
+    background: var(--canvas); border: 1px solid var(--border);
+    color: var(--muted); border-radius: var(--r-full);
+    padding: 0 6px; line-height: 16px;
+  }
+  .tabbar .tab.active .cnt { background: var(--brand-soft); border-color: #D6E2FA; color: var(--brand); }
+
+  /* Right rail */
+  .rail { position: sticky; top: 80px; display: flex; flex-direction: column; gap: 16px; }
+  .qa-list { display: flex; flex-direction: column; gap: 8px; }
+  .qa-btn { justify-content: flex-start; width: 100%; }
+
+  .owner-card { display: flex; align-items: center; gap: 11px; }
+  .owner-card .meta .n { font-weight: 580; font-size: 13.5px; }
+  .owner-card .meta .r { font-size: 12px; color: var(--muted); }
+
+  /* Overview composition */
+  .ov-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px; }
+  .mini-trip {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 0; border-bottom: 1px solid var(--border);
+  }
+  .mini-trip:last-child { border-bottom: 0; }
+  .trip-flag {
+    width: 38px; height: 38px; border-radius: var(--r);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 17px; flex-shrink: 0;
+    background: var(--canvas); border: 1px solid var(--border);
+  }
+  .pref-row { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .pref-row:last-child { border-bottom: 0; }
+  .pref-row .k { color: var(--muted); }
+  .pref-row .v { font-weight: 540; text-align: right; }
+
+  .timeline .tl-card {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 10px 12px;
+    margin-top: 7px;
+    font-size: 12.5px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .tl-chan {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+    padding: 1px 7px; border-radius: var(--r-full);
+  }
+  .tl-chan.email { background: var(--info-soft); color: #2249A6; }
+  .tl-chan.call { background: var(--brand-soft); color: var(--brand); }
+  .tl-chan.proposal { background: #F1ECFC; color: #6A45C7; }
+  .tl-chan.payment { background: var(--success-soft); color: #14794F; }
+  .tl-chan.note { background: var(--warning-soft); color: #9A5D00; }
+
+  /* Passport card */
+  .passport {
+    background: linear-gradient(135deg, #1B2239 0%, #2A3556 100%);
+    color: #E8ECF4;
+    border-radius: var(--r-lg);
+    padding: 22px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+  }
+  .passport::after {
+    content: ''; position: absolute; right: -40px; top: -40px;
+    width: 160px; height: 160px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 70%);
+  }
+  .passport .pp-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; }
+  .passport .pp-head .crest {
+    display: inline-flex; align-items: center; gap: 9px;
+    font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em;
+    color: #AEB6C8;
+  }
+  .passport .pp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 24px; position: relative; z-index: 1; }
+  .passport .pp-k { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #8A93AD; margin-bottom: 4px; }
+  .passport .pp-v { font-size: 15px; font-weight: 600; color: #fff; font-variant-numeric: tabular-nums; }
+  .passport .pp-mrz {
+    margin-top: 22px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.12);
+    font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.08em; color: #7E879F;
+    white-space: nowrap; overflow: hidden;
+  }
+
+  /* Family cards */
+  .fam-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .fam-card { display: flex; align-items: center; gap: 11px; padding: 13px; border: 1px solid var(--border); border-radius: var(--r); }
+
+  .doc-ico {
+    width: 34px; height: 34px; border-radius: var(--r-sm);
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .doc-ico.pdf { background: var(--danger-soft); color: #B43232; }
+  .doc-ico.img { background: var(--info-soft); color: #2249A6; }
+  .doc-ico.visa { background: var(--success-soft); color: #14794F; }
+
+  /* Tab panels visibility */
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  @media (max-width: 1180px) {
+    .crm-layout { grid-template-columns: 280px 1fr; }
+    .rail { display: none; }
+  }
+  @media (max-width: 880px) {
+    .crm-layout { grid-template-columns: 1fr; }
+    .id-card { position: static; }
+    .ov-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <span class="logo-mark">A</span>
+      Atlas Travel Desk
+    </div>
+
+    <nav class="nav">
+      <a class="nav-item" href="#">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+        Dashboard
+      </a>
+      <a class="nav-item active" href="#">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Clients
+      </a>
+      <a class="nav-item" href="#">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        Pipeline
+        <span class="nav-badge">10</span>
+      </a>
+      <a class="nav-item" href="#">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Proposals
+        <span class="nav-badge">6</span>
+      </a>
+      <a class="nav-item" href="#">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+        Bookings
+        <span class="nav-badge">168</span>
+      </a>
+      <a class="nav-item" href="#">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 16.1A5 5 0 0 1 5.9 20M2 12.05A9 9 0 0 1 9.95 20M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"/><line x1="2" y1="20" x2="2.01" y2="20"/></svg>
+        Search & Book
+      </a>
+
+      <div class="nav-section-label">Workspace</div>
+      <a class="nav-item" href="#">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Reports
+      </a>
+      <a class="nav-item" href="#">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+        AI Assistant
+      </a>
+      <a class="nav-item" href="#">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+      </a>
+    </nav>
+
+    <div class="sidebar-foot">
+      <span class="avatar av1">YH</span>
+      <div style="min-width:0;">
+        <div style="color:#fff;font-size:13px;font-weight:600;">Yasmine Haddad</div>
+        <div style="color:#8A93AD;font-size:11.5px;">Atlas Travel Demo · Scale</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <div class="main">
+
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="topbar-search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" placeholder="Search clients, bookings, proposals…">
+        <span class="kbd">⌘K</span>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn-icon bordered" title="Notifications">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        </button>
+        <button class="btn btn-primary btn-sm">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New booking
+        </button>
+      </div>
+    </header>
+
+    <div class="page">
+
+      <!-- Breadcrumb -->
+      <div class="breadcrumb">
+        <a href="#">Clients</a>
+        <span class="sep">/</span>
+        <a href="#">Individuals</a>
+        <span class="sep">/</span>
+        <span class="current">Amine Belkacem</span>
+      </div>
+
+      <!-- ===== 3-column layout ===== -->
+      <div class="crm-layout">
+
+        <!-- ---------- LEFT: identity card ---------- -->
+        <div class="card id-card">
+          <div class="id-hero">
+            <span class="badge badge-warning vip-ribbon">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2l2.4 7.4H22l-6 4.6 2.3 7.4-6.3-4.6L5.7 21.4 8 14 2 9.4h7.6z"/></svg>
+              VIP
+            </span>
+            <span class="avatar id-avatar">AB</span>
+            <div class="id-name">Amine Belkacem</div>
+            <div class="id-sub">Individual traveller · Client since 2019</div>
+            <div class="id-loc">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              Algiers, Algeria
+            </div>
+          </div>
+
+          <div class="id-stats">
+            <div class="id-stat">
+              <div class="v tabular">4.28M</div>
+              <div class="l">Lifetime value (DZD)</div>
+            </div>
+            <div class="id-stat">
+              <div class="v tabular">11</div>
+              <div class="l">Trips booked</div>
+            </div>
+            <div class="id-stat">
+              <div class="v tabular text-brand">A+</div>
+              <div class="l">Client grade</div>
+            </div>
+            <div class="id-stat">
+              <div class="v tabular">3 days</div>
+              <div class="l">Last activity</div>
+            </div>
+          </div>
+
+          <div class="id-section">
+            <div class="lab">Contact</div>
+            <div class="contact-row">
+              <svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              <a href="mailto:amine.belkacem@gmail.com">amine.belkacem@gmail.com</a>
+            </div>
+            <div class="contact-row">
+              <svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+              <a href="tel:+213661234567">+213 661 23 45 67</a>
+            </div>
+            <div class="contact-row">
+              <svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+              <span class="muted">Algerian · GMT+1</span>
+            </div>
+          </div>
+
+          <div class="id-section">
+            <div class="lab">Tags</div>
+            <div class="tag-cloud">
+              <span class="tag">frequent flyer</span>
+              <span class="tag">business class</span>
+              <span class="tag">Gulf routes</span>
+            </div>
+          </div>
+
+          <div class="id-section">
+            <div class="lab">Loyalty &amp; programmes</div>
+            <div class="contact-row" style="padding:4px 0;">
+              <span class="badge badge-info">Emirates Skywards · Gold</span>
+            </div>
+            <div class="contact-row" style="padding:4px 0;">
+              <span class="badge badge-neutral">Qatar Privilege Club</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ---------- CENTER: tabs + content ---------- -->
+        <div style="min-width:0;">
+
+          <!-- Header strip -->
+          <div class="between mb-4" style="gap:14px;">
+            <div>
+              <h2 style="font-size:21px;">Amine Belkacem</h2>
+              <div class="muted text-sm mt-1">Individual · Algiers · Owned by Karim Benali</div>
+            </div>
+            <div class="flex gap-2">
+              <button class="btn btn-outline btn-sm">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
+                Edit
+              </button>
+              <button class="btn btn-primary btn-sm">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                New trip
+              </button>
+            </div>
+          </div>
+
+          <!-- Tabs -->
+          <div class="tabbar">
+            <div class="tab active" data-tab="overview">Overview</div>
+            <div class="tab" data-tab="trips">Trips <span class="cnt">11</span></div>
+            <div class="tab" data-tab="documents">Documents <span class="cnt">6</span></div>
+            <div class="tab" data-tab="passport">Passport</div>
+            <div class="tab" data-tab="preferences">Preferences</div>
+            <div class="tab" data-tab="family">Family <span class="cnt">3</span></div>
+            <div class="tab" data-tab="notes">Notes <span class="cnt">4</span></div>
+          </div>
+
+          <!-- ============ OVERVIEW ============ -->
+          <div class="tab-panel active" data-panel="overview">
+
+            <div class="ov-grid mb-4">
+              <!-- Recent trips -->
+              <div class="card">
+                <div class="card-header">
+                  <div class="card-title">Recent trips</div>
+                  <a href="#" class="text-sm text-brand" data-jump="trips">View all 11 →</a>
+                </div>
+                <div class="card-body" style="padding:8px 20px;">
+                  <div class="mini-trip">
+                    <span class="trip-flag">🇦🇪</span>
+                    <div class="grow" style="min-width:0;">
+                      <div class="strong" style="font-size:13.5px;">Dubai · 5 nights</div>
+                      <div class="muted text-sm">BKG-2026-001 · Address Downtown · 5–10 Jul 2026</div>
+                    </div>
+                    <div class="right">
+                      <div class="tabular strong" style="font-size:13px;">486,000</div>
+                      <span class="badge badge-info" style="margin-top:4px;">Ticketed</span>
+                    </div>
+                  </div>
+                  <div class="mini-trip">
+                    <span class="trip-flag">🇫🇷</span>
+                    <div class="grow" style="min-width:0;">
+                      <div class="strong" style="font-size:13.5px;">Paris · 4 nights</div>
+                      <div class="muted text-sm">BKG-2025-214 · Le Meurice · 12–16 Mar 2026</div>
+                    </div>
+                    <div class="right">
+                      <div class="tabular strong" style="font-size:13px;">612,000</div>
+                      <span class="badge badge-success" style="margin-top:4px;">Completed</span>
+                    </div>
+                  </div>
+                  <div class="mini-trip">
+                    <span class="trip-flag">🇶🇦</span>
+                    <div class="grow" style="min-width:0;">
+                      <div class="strong" style="font-size:13.5px;">Doha · 3 nights</div>
+                      <div class="muted text-sm">BKG-2025-188 · Mandarin Oriental · 2–5 Dec 2025</div>
+                    </div>
+                    <div class="right">
+                      <div class="tabular strong" style="font-size:13px;">428,000</div>
+                      <span class="badge badge-success" style="margin-top:4px;">Completed</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Preferences snapshot -->
+              <div class="card">
+                <div class="card-header">
+                  <div class="card-title">Travel preferences</div>
+                </div>
+                <div class="card-body" style="padding:8px 20px 16px;">
+                  <div class="pref-row"><span class="k">Cabin / seat</span><span class="v">Aisle, front cabin</span></div>
+                  <div class="pref-row"><span class="k">Hotel tier</span><span class="v">5★</span></div>
+                  <div class="pref-row"><span class="k">Dietary</span><span class="v">Halal</span></div>
+                  <div class="pref-row"><span class="k">Preferred airlines</span><span class="v">Emirates, Qatar</span></div>
+                  <div class="pref-row"><span class="k">Payment</span><span class="v">Bank transfer · NET 7</span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Value sparkline + KPIs -->
+            <div class="card mb-4">
+              <div class="card-header">
+                <div class="card-title">Spend over time
+                  <span class="sub">Annual booked value · last 5 years</span>
+                </div>
+                <div class="flex gap-2">
+                  <span class="kpi-inline"><span class="muted text-sm">Avg / trip</span> <span class="n tabular">389K</span></span>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="chart">
+                  <svg viewBox="0 0 640 160" preserveAspectRatio="none" style="height:160px;">
+                    <defs>
+                      <linearGradient id="atlasAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="#2B59C3" stop-opacity="0.22"/>
+                        <stop offset="100%" stop-color="#2B59C3" stop-opacity="0"/>
+                      </linearGradient>
+                    </defs>
+                    <g class="grid">
+                      <line x1="0" y1="20" x2="640" y2="20"/>
+                      <line x1="0" y1="60" x2="640" y2="60"/>
+                      <line x1="0" y1="100" x2="640" y2="100"/>
+                      <line x1="0" y1="140" x2="640" y2="140"/>
+                    </g>
+                    <path class="area" d="M0,118 L160,92 L320,70 L480,46 L640,28 L640,160 L0,160 Z"/>
+                    <path class="line" d="M0,118 L160,92 L320,70 L480,46 L640,28"/>
+                    <circle class="dot" cx="0" cy="118" r="4"/>
+                    <circle class="dot" cx="160" cy="92" r="4"/>
+                    <circle class="dot" cx="320" cy="70" r="4"/>
+                    <circle class="dot" cx="480" cy="46" r="4"/>
+                    <circle class="dot" cx="640" cy="28" r="4"/>
+                  </svg>
+                </div>
+                <div class="flex between mt-3" style="font-size:11px;color:var(--faint);">
+                  <span>2021</span><span>2022</span><span>2023</span><span>2024</span><span>2025</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Communication timeline -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Communication timeline
+                  <span class="sub">Emails, calls, proposals &amp; payments</span>
+                </div>
+                <button class="btn btn-outline btn-sm">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Log activity
+                </button>
+              </div>
+              <div class="card-body">
+                <div class="timeline">
+
+                  <div class="timeline-item">
+                    <span class="timeline-dot success"></span>
+                    <div class="flex between">
+                      <div class="flex gap-2"><span class="tl-chan payment">Payment</span><span class="tl-title">Full payment received — Dubai trip</span></div>
+                      <span class="tl-time">26 Jun 2026 · 09:12</span>
+                    </div>
+                    <div class="tl-meta">Karim reconciled 486,000 DZD on BKG-2026-001 (paid in full).</div>
+                  </div>
+
+                  <div class="timeline-item">
+                    <span class="timeline-dot"></span>
+                    <div class="flex between">
+                      <div class="flex gap-2"><span class="tl-chan email">Email</span><span class="tl-title">Sent e-tickets &amp; hotel voucher</span></div>
+                      <span class="tl-time">26 Jun 2026 · 09:05</span>
+                    </div>
+                    <div class="tl-card">"Bonjour Amine, please find attached your Emirates Business e-tickets (PNR EK7QMZ) and the Address Downtown voucher for 5–10 July. Wishing you a great trip — Karim."</div>
+                  </div>
+
+                  <div class="timeline-item">
+                    <span class="timeline-dot" style="border-color:#6A45C7;"></span>
+                    <div class="flex between">
+                      <div class="flex gap-2"><span class="tl-chan proposal">Proposal</span><span class="tl-title">Quote accepted — Dubai, Business class</span></div>
+                      <span class="tl-time">24 Jun 2026 · 16:40</span>
+                    </div>
+                    <div class="tl-meta">Amine accepted proposal PRD-2038 (486,000 DZD) — 5★ + Emirates Business.</div>
+                  </div>
+
+                  <div class="timeline-item">
+                    <span class="timeline-dot"></span>
+                    <div class="flex between">
+                      <div class="flex gap-2"><span class="tl-chan call">Call</span><span class="tl-title">Inbound call — itinerary tweaks</span></div>
+                      <span class="tl-time">23 Jun 2026 · 11:18</span>
+                    </div>
+                    <div class="tl-meta">12 min · Requested a later return flight and a higher-floor room. Karim updated the quote.</div>
+                  </div>
+
+                  <div class="timeline-item">
+                    <span class="timeline-dot"></span>
+                    <div class="flex between">
+                      <div class="flex gap-2"><span class="tl-chan email">Email</span><span class="tl-title">Dubai proposal sent for review</span></div>
+                      <span class="tl-time">22 Jun 2026 · 14:02</span>
+                    </div>
+                    <div class="tl-meta">PRD-2038 shared via the client portal — opened twice within an hour.</div>
+                  </div>
+
+                  <div class="timeline-item">
+                    <span class="timeline-dot warning"></span>
+                    <div class="flex between">
+                      <div class="flex gap-2"><span class="tl-chan note">Note</span><span class="tl-title">Passport renewal flagged</span></div>
+                      <span class="tl-time">18 Jun 2026 · 10:30</span>
+                    </div>
+                    <div class="tl-meta">Passport AG7841239 valid to Apr 2029 — no action needed for upcoming Gulf trips.</div>
+                  </div>
+
+                  <div class="timeline-item">
+                    <span class="timeline-dot muted"></span>
+                    <div class="flex between">
+                      <div class="flex gap-2"><span class="tl-chan call">Call</span><span class="tl-title">Annual check-in — summer plans</span></div>
+                      <span class="tl-time">02 Jun 2026 · 15:45</span>
+                    </div>
+                    <div class="tl-meta">Discussed a possible Maldives anniversary trip in Q4 — added to watchlist.</div>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ============ TRIPS ============ -->
+          <div class="tab-panel" data-panel="trips">
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Trip history
+                  <span class="sub">11 bookings · 4,280,000 DZD lifetime</span>
+                </div>
+                <div class="flex gap-2">
+                  <button class="btn btn-outline btn-sm">All statuses</button>
+                  <button class="btn btn-outline btn-sm">2026</button>
+                </div>
+              </div>
+              <div class="card-body flush">
+                <table class="table">
+                  <thead>
+                    <tr>
+                      <th>Reference</th>
+                      <th>Destination</th>
+                      <th>Dates</th>
+                      <th>Hotel</th>
+                      <th>Status</th>
+                      <th>Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><span class="primary mono" style="font-size:12.5px;">BKG-2026-001</span></td>
+                      <td><span class="flex gap-2">🇦🇪 <span class="primary">Dubai</span></span></td>
+                      <td class="secondary">5–10 Jul 2026</td>
+                      <td class="secondary">Address Downtown · 5★</td>
+                      <td><span class="badge badge-info">Ticketed</span></td>
+                      <td class="right tabular strong">486,000</td>
+                    </tr>
+                    <tr>
+                      <td><span class="primary mono" style="font-size:12.5px;">BKG-2026-002</span></td>
+                      <td><span class="flex gap-2">🇦🇪 <span class="primary">Dubai (family)</span></span></td>
+                      <td class="secondary">14–19 Jul 2026</td>
+                      <td class="secondary">Rove Downtown · 4★</td>
+                      <td><span class="badge badge-success">Confirmed</span></td>
+                      <td class="right tabular strong">1,240,000</td>
+                    </tr>
+                    <tr>
+                      <td><span class="primary mono" style="font-size:12.5px;">BKG-2025-214</span></td>
+                      <td><span class="flex gap-2">🇫🇷 <span class="primary">Paris</span></span></td>
+                      <td class="secondary">12–16 Mar 2026</td>
+                      <td class="secondary">Le Meurice · 5★</td>
+                      <td><span class="badge badge-neutral">Completed</span></td>
+                      <td class="right tabular strong">612,000</td>
+                    </tr>
+                    <tr>
+                      <td><span class="primary mono" style="font-size:12.5px;">BKG-2025-188</span></td>
+                      <td><span class="flex gap-2">🇶🇦 <span class="primary">Doha</span></span></td>
+                      <td class="secondary">2–5 Dec 2025</td>
+                      <td class="secondary">Mandarin Oriental · 5★</td>
+                      <td><span class="badge badge-neutral">Completed</span></td>
+                      <td class="right tabular strong">428,000</td>
+                    </tr>
+                    <tr>
+                      <td><span class="primary mono" style="font-size:12.5px;">BKG-2025-141</span></td>
+                      <td><span class="flex gap-2">🇹🇷 <span class="primary">Istanbul</span></span></td>
+                      <td class="secondary">8–12 Sep 2025</td>
+                      <td class="secondary">Çırağan Palace Kempinski · 5★</td>
+                      <td><span class="badge badge-neutral">Completed</span></td>
+                      <td class="right tabular strong">374,000</td>
+                    </tr>
+                    <tr>
+                      <td><span class="primary mono" style="font-size:12.5px;">BKG-2025-097</span></td>
+                      <td><span class="flex gap-2">🇦🇪 <span class="primary">Abu Dhabi</span></span></td>
+                      <td class="secondary">21–24 May 2025</td>
+                      <td class="secondary">Emirates Palace · 5★</td>
+                      <td><span class="badge badge-neutral">Completed</span></td>
+                      <td class="right tabular strong">456,000</td>
+                    </tr>
+                    <tr>
+                      <td><span class="primary mono" style="font-size:12.5px;">BKG-2025-040</span></td>
+                      <td><span class="flex gap-2">🇬🇧 <span class="primary">London</span></span></td>
+                      <td class="secondary">3–7 Feb 2025</td>
+                      <td class="secondary">The Savoy · 5★</td>
+                      <td><span class="badge badge-neutral">Completed</span></td>
+                      <td class="right tabular strong">534,000</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div class="flex between" style="padding:13px 20px;border-top:1px solid var(--border);">
+                  <span class="muted text-sm">Showing 7 of 11 trips</span>
+                  <button class="btn btn-ghost btn-sm">Load older trips</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ============ DOCUMENTS ============ -->
+          <div class="tab-panel" data-panel="documents">
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Documents
+                  <span class="sub">Passports, visas, invoices &amp; vouchers</span>
+                </div>
+                <button class="btn btn-primary btn-sm">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  Upload
+                </button>
+              </div>
+              <div class="card-body flush">
+                <table class="table">
+                  <thead>
+                    <tr><th>Document</th><th>Type</th><th>Linked to</th><th>Expiry / date</th><th>Size</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><span class="flex gap-3"><span class="doc-ico img"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></span><span class="primary">Passport_AG7841239.jpg</span></span></td>
+                      <td class="secondary">Passport scan</td>
+                      <td class="secondary">Profile</td>
+                      <td><span class="badge badge-success">Valid to Apr 2029</span></td>
+                      <td class="secondary tabular">1.8 MB</td>
+                    </tr>
+                    <tr>
+                      <td><span class="flex gap-3"><span class="doc-ico visa"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13a8 8 0 1 0 16 0 8 8 0 1 0-16 0"/><path d="M9 9h.01M15 9h.01M9 15a3 3 0 0 0 6 0"/></svg></span><span class="primary">UAE_eVisa_DXB.pdf</span></span></td>
+                      <td class="secondary">Visa</td>
+                      <td class="secondary mono">BKG-2026-001</td>
+                      <td><span class="badge badge-success">Approved</span></td>
+                      <td class="secondary tabular">342 KB</td>
+                    </tr>
+                    <tr>
+                      <td><span class="flex gap-3"><span class="doc-ico pdf"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span><span class="primary">Invoice_INV-2026-0481.pdf</span></span></td>
+                      <td class="secondary">Invoice</td>
+                      <td class="secondary mono">BKG-2026-001</td>
+                      <td class="secondary">26 Jun 2026</td>
+                      <td class="secondary tabular">128 KB</td>
+                    </tr>
+                    <tr>
+                      <td><span class="flex gap-3"><span class="doc-ico pdf"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span><span class="primary">Emirates_eTicket_EK7QMZ.pdf</span></span></td>
+                      <td class="secondary">E-ticket</td>
+                      <td class="secondary mono">BKG-2026-001</td>
+                      <td class="secondary">26 Jun 2026</td>
+                      <td class="secondary tabular">96 KB</td>
+                    </tr>
+                    <tr>
+                      <td><span class="flex gap-3"><span class="doc-ico pdf"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span><span class="primary">Hotel_Voucher_Address.pdf</span></span></td>
+                      <td class="secondary">Voucher</td>
+                      <td class="secondary mono">BKG-2026-001</td>
+                      <td class="secondary">26 Jun 2026</td>
+                      <td class="secondary tabular">204 KB</td>
+                    </tr>
+                    <tr>
+                      <td><span class="flex gap-3"><span class="doc-ico pdf"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span><span class="primary">Travel_Insurance_Allianz.pdf</span></span></td>
+                      <td class="secondary">Insurance</td>
+                      <td class="secondary mono">BKG-2026-001</td>
+                      <td><span class="badge badge-success">Active</span></td>
+                      <td class="secondary tabular">158 KB</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- ============ PASSPORT ============ -->
+          <div class="tab-panel" data-panel="passport">
+            <div class="grid-2 gap-4 mb-4" style="align-items:start;">
+              <div class="passport">
+                <div class="pp-head">
+                  <span class="crest">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                    Passport · République Algérienne
+                  </span>
+                  <span class="badge badge-success" style="background:rgba(30,158,106,0.18);border-color:rgba(30,158,106,0.3);color:#7BE0B4;">Valid</span>
+                </div>
+                <div class="pp-grid">
+                  <div><div class="pp-k">Surname</div><div class="pp-v">BELKACEM</div></div>
+                  <div><div class="pp-k">Given names</div><div class="pp-v">AMINE</div></div>
+                  <div><div class="pp-k">Passport No.</div><div class="pp-v">AG7841239</div></div>
+                  <div><div class="pp-k">Nationality</div><div class="pp-v">Algerian</div></div>
+                  <div><div class="pp-k">Date of expiry</div><div class="pp-v">12 APR 2029</div></div>
+                  <div><div class="pp-k">Place of issue</div><div class="pp-v">Algiers</div></div>
+                </div>
+                <div class="pp-mrz">P&lt;DZABELKACEM&lt;&lt;AMINE&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;</div>
+              </div>
+
+              <div class="col gap-4">
+                <div class="card">
+                  <div class="card-header"><div class="card-title">Validity &amp; checks</div></div>
+                  <div class="card-body">
+                    <div class="pref-row"><span class="k">Issued</span><span class="v">12 Apr 2019</span></div>
+                    <div class="pref-row"><span class="k">Expires</span><span class="v">12 Apr 2029</span></div>
+                    <div class="pref-row"><span class="k">Months remaining</span><span class="v text-success">33 months</span></div>
+                    <div class="pref-row"><span class="k">6-month rule</span><span class="v text-success">Passes ✓</span></div>
+                    <div class="pref-row"><span class="k">Blank pages</span><span class="v">8 remaining</span></div>
+                  </div>
+                </div>
+                <div class="panel tint">
+                  <div class="flex gap-2" style="align-items:flex-start;">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                    <div class="text-sm">Passport meets entry requirements for all upcoming trips (Dubai, Jul 2026). No renewal action required.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ============ PREFERENCES ============ -->
+          <div class="tab-panel" data-panel="preferences">
+            <div class="grid-2 gap-4">
+              <div class="card">
+                <div class="card-header"><div class="card-title">Flight preferences</div></div>
+                <div class="card-body">
+                  <div class="pref-row"><span class="k">Preferred cabin</span><span class="v">Business</span></div>
+                  <div class="pref-row"><span class="k">Seat</span><span class="v">Aisle, front cabin</span></div>
+                  <div class="pref-row"><span class="k">Preferred airlines</span><span class="v">Emirates, Qatar Airways</span></div>
+                  <div class="pref-row"><span class="k">Meal</span><span class="v">Halal (HNML)</span></div>
+                  <div class="pref-row"><span class="k">Frequent flyer</span><span class="v">EK Skywards · Gold</span></div>
+                </div>
+              </div>
+              <div class="card">
+                <div class="card-header"><div class="card-title">Hotel &amp; ground</div></div>
+                <div class="card-body">
+                  <div class="pref-row"><span class="k">Hotel tier</span><span class="v">5★</span></div>
+                  <div class="pref-row"><span class="k">Room</span><span class="v">High floor, king, city view</span></div>
+                  <div class="pref-row"><span class="k">Bed</span><span class="v">King</span></div>
+                  <div class="pref-row"><span class="k">Transfers</span><span class="v">Private car, meet &amp; greet</span></div>
+                  <div class="pref-row"><span class="k">Loyalty</span><span class="v">Marriott Bonvoy · Platinum</span></div>
+                </div>
+              </div>
+              <div class="card">
+                <div class="card-header"><div class="card-title">Dietary &amp; assistance</div></div>
+                <div class="card-body">
+                  <div class="pref-row"><span class="k">Dietary</span><span class="v">Halal</span></div>
+                  <div class="pref-row"><span class="k">Allergies</span><span class="v">None recorded</span></div>
+                  <div class="pref-row"><span class="k">Mobility</span><span class="v">No assistance needed</span></div>
+                </div>
+              </div>
+              <div class="card">
+                <div class="card-header"><div class="card-title">Communication &amp; billing</div></div>
+                <div class="card-body">
+                  <div class="pref-row"><span class="k">Language</span><span class="v">French / Arabic</span></div>
+                  <div class="pref-row"><span class="k">Preferred channel</span><span class="v">Email + WhatsApp</span></div>
+                  <div class="pref-row"><span class="k">Payment method</span><span class="v">Bank transfer</span></div>
+                  <div class="pref-row"><span class="k">Terms</span><span class="v">NET 7 days</span></div>
+                  <div class="pref-row"><span class="k">Invoice currency</span><span class="v">DZD</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ============ FAMILY ============ -->
+          <div class="tab-panel" data-panel="family">
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Travel companions
+                  <span class="sub">Linked travellers &amp; family members</span>
+                </div>
+                <button class="btn btn-outline btn-sm">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Add companion
+                </button>
+              </div>
+              <div class="card-body">
+                <div class="fam-grid">
+                  <div class="fam-card">
+                    <span class="avatar av6 lg">SB</span>
+                    <div class="grow">
+                      <div class="strong" style="font-size:13.5px;">Sara Belkacem</div>
+                      <div class="muted text-sm">Spouse · Passport AG7841402</div>
+                    </div>
+                    <span class="tag">Adult</span>
+                  </div>
+                  <div class="fam-card">
+                    <span class="avatar av3 lg">YB</span>
+                    <div class="grow">
+                      <div class="strong" style="font-size:13.5px;">Yanis Belkacem</div>
+                      <div class="muted text-sm">Son · Born 2014</div>
+                    </div>
+                    <span class="tag">Child</span>
+                  </div>
+                  <div class="fam-card">
+                    <span class="avatar av4 lg">LB</span>
+                    <div class="grow">
+                      <div class="strong" style="font-size:13.5px;">Lina Belkacem</div>
+                      <div class="muted text-sm">Daughter · Born 2017</div>
+                    </div>
+                    <span class="tag">Child</span>
+                  </div>
+                  <div class="fam-card" style="border-style:dashed;color:var(--muted);justify-content:center;cursor:pointer;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Link another traveller
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ============ NOTES ============ -->
+          <div class="tab-panel" data-panel="notes">
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Internal notes</div>
+                <button class="btn btn-primary btn-sm">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Add note
+                </button>
+              </div>
+              <div class="card-body">
+                <div class="timeline">
+                  <div class="timeline-item">
+                    <span class="timeline-dot"></span>
+                    <div class="flex between">
+                      <span class="tl-title">High-value VIP — prioritise upgrades</span>
+                      <span class="tl-time">Karim Benali · 24 Jun 2026</span>
+                    </div>
+                    <div class="tl-card">Always offer Business on Gulf routes and confirm a high-floor room. Amine values speed of response over price — quote fast.</div>
+                  </div>
+                  <div class="timeline-item">
+                    <span class="timeline-dot"></span>
+                    <div class="flex between">
+                      <span class="tl-title">Anniversary trip opportunity</span>
+                      <span class="tl-time">Karim Benali · 02 Jun 2026</span>
+                    </div>
+                    <div class="tl-card">Mentioned a Maldives anniversary trip for Q4 — likely Business + overwater villa. Follow up in September.</div>
+                  </div>
+                  <div class="timeline-item">
+                    <span class="timeline-dot muted"></span>
+                    <div class="flex between">
+                      <span class="tl-title">Payment behaviour</span>
+                      <span class="tl-time">Nadia Toure · 15 May 2026</span>
+                    </div>
+                    <div class="tl-card">Reliable payer — settles within terms by bank transfer. No deposit risk; can be ticketed on confirmation.</div>
+                  </div>
+                  <div class="timeline-item">
+                    <span class="timeline-dot muted"></span>
+                    <div class="flex between">
+                      <span class="tl-title">Travels with family in summer</span>
+                      <span class="tl-time">Karim Benali · 10 Apr 2026</span>
+                    </div>
+                    <div class="tl-card">July trips usually include spouse + 2 children (see Family). Pre-block connecting rooms where possible.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ---------- RIGHT RAIL ---------- -->
+        <div class="rail">
+
+          <!-- Quick actions -->
+          <div class="card">
+            <div class="card-header"><div class="card-title">Quick actions</div></div>
+            <div class="card-body">
+              <div class="qa-list">
+                <button class="btn btn-primary btn-sm qa-btn">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
+                  Start new booking
+                </button>
+                <button class="btn btn-outline btn-sm qa-btn">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  Build proposal
+                </button>
+                <button class="btn btn-outline btn-sm qa-btn">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                  Send email
+                </button>
+                <button class="btn btn-outline btn-sm qa-btn">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                  Log a call
+                </button>
+                <button class="btn btn-ghost btn-sm qa-btn">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                  Share portal access
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Owner -->
+          <div class="card">
+            <div class="card-header"><div class="card-title">Account owner</div></div>
+            <div class="card-body">
+              <div class="owner-card">
+                <span class="avatar av5 lg">KB</span>
+                <div class="meta grow">
+                  <div class="n">Karim Benali</div>
+                  <div class="r">Agent · Atlas Travel Demo</div>
+                </div>
+              </div>
+              <div class="flex gap-2 mt-3">
+                <button class="btn btn-outline btn-sm grow">Message</button>
+                <button class="btn btn-outline btn-sm">Reassign</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Financial snapshot -->
+          <div class="card">
+            <div class="card-header"><div class="card-title">Financial snapshot</div></div>
+            <div class="card-body">
+              <div class="pref-row"><span class="k">Lifetime value</span><span class="v tabular">4,280,000 DZD</span></div>
+              <div class="pref-row"><span class="k">Outstanding</span><span class="v tabular text-success">0 DZD</span></div>
+              <div class="pref-row"><span class="k">Avg booking</span><span class="v tabular">389,000 DZD</span></div>
+              <div class="pref-row"><span class="k">Payment terms</span><span class="v">NET 7</span></div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../assets/demo-data.js"></script>
+<script>
+  // Tab switching
+  document.querySelectorAll('.tabbar .tab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      var name = tab.getAttribute('data-tab');
+      document.querySelectorAll('.tabbar .tab').forEach(function (t) { t.classList.remove('active'); });
+      document.querySelectorAll('.tab-panel').forEach(function (p) { p.classList.remove('active'); });
+      tab.classList.add('active');
+      var panel = document.querySelector('.tab-panel[data-panel="' + name + '"]');
+      if (panel) panel.classList.add('active');
+    });
+  });
+
+  // "View all" jump links
+  document.querySelectorAll('[data-jump]').forEach(function (link) {
+    link.addEventListener('click', function (e) {
+      e.preventDefault();
+      var target = document.querySelector('.tabbar .tab[data-tab="' + link.getAttribute('data-jump') + '"]');
+      if (target) target.click();
+    });
+  });
+</script>
+</body>
+</html>

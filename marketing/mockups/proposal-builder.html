@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proposal Builder — Atlas Travel Desk</title>
+<link rel="stylesheet" href="../assets/atlas-ui.css">
+<style>
+  /* ===== Page-specific layout for the proposal builder ===== */
+  .builder-layout {
+    display: grid;
+    grid-template-columns: 1fr 460px;
+    gap: 24px;
+    align-items: start;
+  }
+
+  /* Sticky preview rail */
+  .preview-rail { position: sticky; top: calc(var(--topbar-h) + 24px); }
+
+  /* --- Trip header strip --- */
+  .trip-head {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1fr 0.9fr;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    overflow: hidden;
+    background: var(--surface);
+  }
+  .trip-cell { padding: 14px 16px; border-right: 1px solid var(--border); }
+  .trip-cell:last-child { border-right: 0; }
+  .trip-cell .tc-label {
+    font-size: 10.5px; font-weight: 650; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--faint); margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .trip-cell .tc-value { font-size: 14.5px; font-weight: 600; color: var(--text); letter-spacing: -0.01em; }
+  .trip-cell .tc-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* --- Section block --- */
+  .ls-section { margin-bottom: 18px; }
+  .ls-head {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+  }
+  .ls-head .ls-ico {
+    width: 28px; height: 28px; border-radius: var(--r-sm);
+    display: inline-flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .ls-ico.flights  { background: var(--brand-soft); color: var(--brand); }
+  .ls-ico.hotels   { background: var(--success-soft); color: #14794F; }
+  .ls-ico.activities { background: #F1E9FB; color: #6B41C4; }
+  .ls-ico.transfers { background: #E2F4F8; color: #1180A0; }
+  .ls-ico.insurance { background: var(--warning-soft); color: #9A5D00; }
+  .ls-head .ls-name { font-size: 13.5px; font-weight: 620; color: var(--text); }
+  .ls-head .ls-sub  { font-size: 12px; color: var(--muted); }
+  .ls-head .ls-add  { margin-left: auto; }
+
+  /* Line-item table */
+  .li-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+  .li-table thead th {
+    text-align: left; font-size: 10.5px; font-weight: 650; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--faint); padding: 0 10px 7px; white-space: nowrap;
+  }
+  .li-table thead th.num { text-align: right; }
+  .li-table tbody td {
+    padding: 11px 10px; border-top: 1px solid var(--border); vertical-align: middle;
+  }
+  .li-table tbody tr:first-child td { border-top: 0; }
+  .li-supplier { display: flex; align-items: center; gap: 9px; }
+  .li-supplier .s-logo {
+    width: 28px; height: 28px; border-radius: var(--r-sm); flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; color: #fff; letter-spacing: -0.02em;
+  }
+  .li-supplier .s-meta { line-height: 1.3; min-width: 0; }
+  .li-supplier .s-name { font-weight: 580; color: var(--text); font-size: 13px; }
+  .li-supplier .s-detail { font-size: 11.5px; color: var(--muted); }
+  .li-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .li-cost { color: var(--muted); }
+  .li-sell { font-weight: 650; color: var(--text); }
+  .li-markup { color: var(--success); font-weight: 580; font-size: 12.5px; }
+  .li-row-act { width: 28px; text-align: right; }
+  .li-empty-add {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px;
+    color: var(--muted); font-weight: 500; padding: 8px 10px; cursor: pointer;
+    border-radius: var(--r-sm); border: 1px dashed var(--border-strong); background: var(--surface-2);
+    width: 100%; justify-content: center; margin-top: 4px;
+  }
+  .li-empty-add:hover { color: var(--brand); border-color: var(--brand); background: var(--brand-soft); }
+
+  /* AI assist chip */
+  .ai-chip {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 7px 13px 7px 11px; border-radius: var(--r-full);
+    background: linear-gradient(135deg, #F2EEFC 0%, #EAF0FC 100%);
+    border: 1px solid #DCD6F2; color: #5B3FB8; font-size: 12.5px; font-weight: 600;
+    cursor: pointer; transition: box-shadow .15s ease, transform .15s ease;
+  }
+  .ai-chip:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+  .ai-chip .spark {
+    width: 20px; height: 20px; border-radius: var(--r-full);
+    background: linear-gradient(135deg, #7C5CE6, #2B59C3);
+    display: inline-flex; align-items: center; justify-content: center; color: #fff;
+  }
+
+  /* Totals panel */
+  .totals-line { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; font-size: 13px; }
+  .totals-line .tl-k { color: var(--muted); }
+  .totals-line .tl-v { font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+  .totals-grand {
+    display: flex; align-items: baseline; justify-content: space-between;
+    padding: 14px 0 2px; border-top: 1px solid var(--border); margin-top: 6px;
+  }
+  .totals-grand .tg-k { font-size: 13px; font-weight: 600; color: var(--text); }
+  .totals-grand .tg-v { font-size: 24px; font-weight: 720; letter-spacing: -0.025em; color: var(--text); font-variant-numeric: tabular-nums; }
+  .margin-pill {
+    display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 650;
+    padding: 2px 9px; border-radius: var(--r-full); background: var(--success-soft);
+    color: #14794F; border: 1px solid #C6ECDA;
+  }
+
+  /* ===== Right rail: branded client preview ===== */
+  .preview-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--r-lg); box-shadow: var(--shadow-lg); overflow: hidden;
+  }
+  .preview-toolbar {
+    display: flex; align-items: center; gap: 8px; padding: 9px 12px;
+    background: var(--surface-2); border-bottom: 1px solid var(--border);
+  }
+  .preview-toolbar .pt-dot { width: 9px; height: 9px; border-radius: 50%; }
+  .preview-toolbar .pt-label {
+    font-size: 11.5px; font-weight: 600; color: var(--muted);
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .preview-scroll { max-height: 1180px; overflow-y: auto; }
+
+  /* Cover */
+  .pv-cover {
+    position: relative; padding: 26px 24px 22px;
+    background:
+      linear-gradient(180deg, rgba(14,21,37,0.05) 0%, rgba(14,21,37,0.55) 70%, rgba(14,21,37,0.78) 100%),
+      radial-gradient(120% 100% at 80% -10%, #2B59C3 0%, #1B2239 55%, #0E1525 100%);
+    color: #fff; min-height: 230px; display: flex; flex-direction: column;
+  }
+  .pv-brandrow { display: flex; align-items: center; justify-content: space-between; }
+  .pv-agency { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 14px; letter-spacing: -0.01em; }
+  .pv-agency .pv-mark {
+    width: 28px; height: 28px; border-radius: 7px;
+    background: linear-gradient(135deg, #3E72E0, #2B59C3);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 14px; box-shadow: inset 0 1px 0 rgba(255,255,255,.25);
+  }
+  .pv-ref { font-size: 11px; color: rgba(255,255,255,.7); font-variant-numeric: tabular-nums; }
+  .pv-cover .pv-eyebrow {
+    font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: .12em;
+    color: rgba(255,255,255,.75); margin-top: auto;
+  }
+  .pv-cover .pv-title { font-size: 27px; font-weight: 720; letter-spacing: -0.025em; line-height: 1.1; margin-top: 6px; color: #fff; }
+  .pv-cover .pv-meta { display: flex; gap: 16px; margin-top: 14px; font-size: 12px; color: rgba(255,255,255,.85); flex-wrap: wrap; }
+  .pv-cover .pv-meta span { display: inline-flex; align-items: center; gap: 5px; }
+
+  .pv-body { padding: 22px 24px 24px; }
+  .pv-greeting { font-size: 13px; color: var(--text); line-height: 1.6; }
+  .pv-greeting strong { font-weight: 650; }
+
+  .pv-sec-label {
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em;
+    color: var(--muted); margin: 22px 0 12px; display: flex; align-items: center; gap: 8px;
+  }
+  .pv-sec-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* Itinerary day-by-day */
+  .pv-day { display: flex; gap: 12px; padding-bottom: 16px; position: relative; }
+  .pv-day:last-child { padding-bottom: 0; }
+  .pv-day-rail { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
+  .pv-day-num {
+    width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+    background: var(--brand-soft); color: var(--brand);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; border: 1px solid #D6E2FA;
+  }
+  .pv-day-line { width: 2px; flex: 1; background: var(--border); margin: 4px 0; border-radius: 2px; }
+  .pv-day:last-child .pv-day-line { display: none; }
+  .pv-day-body { padding-top: 3px; }
+  .pv-day-date { font-size: 11px; color: var(--faint); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+  .pv-day-title { font-size: 13.5px; font-weight: 620; color: var(--text); margin-top: 1px; }
+  .pv-day-desc { font-size: 12.5px; color: var(--muted); line-height: 1.55; margin-top: 4px; }
+  .pv-day-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+  .pv-day-chip {
+    display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 550;
+    padding: 3px 8px; border-radius: var(--r-full); background: var(--canvas);
+    border: 1px solid var(--border); color: var(--muted);
+  }
+
+  /* Price summary */
+  .pv-price-box { border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; }
+  .pv-price-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; font-size: 12.5px; border-top: 1px solid var(--border); }
+  .pv-price-row:first-child { border-top: 0; }
+  .pv-price-row .pp-k { color: var(--muted); display: flex; align-items: center; gap: 8px; }
+  .pv-price-row .pp-v { font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+  .pv-price-total { background: var(--brand-soft); padding: 14px; display: flex; align-items: baseline; justify-content: space-between; }
+  .pv-price-total .ppt-k { font-size: 12.5px; font-weight: 650; color: #2249A6; }
+  .pv-price-total .ppt-v { font-size: 21px; font-weight: 720; letter-spacing: -0.02em; color: #1F3D8A; font-variant-numeric: tabular-nums; }
+  .pv-price-total .ppt-sub { font-size: 11px; color: #4A6BB5; font-weight: 500; }
+
+  /* e-signature */
+  .pv-sign {
+    margin-top: 20px; border: 1px dashed var(--border-strong); border-radius: var(--r);
+    padding: 18px 16px; text-align: center; background: var(--surface-2);
+  }
+  .pv-sign-status {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 650;
+    padding: 3px 10px; border-radius: var(--r-full); background: var(--warning-soft);
+    color: #9A5D00; border: 1px solid #F0DCB4; margin-bottom: 12px;
+  }
+  .pv-sign-status .pulse { width: 6px; height: 6px; border-radius: 50%; background: var(--warning); }
+  .pv-sign-line {
+    height: 38px; border-bottom: 1.5px solid var(--border-strong); margin: 8px 18px 6px;
+    display: flex; align-items: flex-end; justify-content: center; padding-bottom: 4px;
+  }
+  .pv-sign-line .ghost { font-family: 'Brush Script MT', cursive; font-size: 19px; color: var(--faint); opacity: .5; font-style: italic; }
+  .pv-sign-caption { font-size: 11px; color: var(--faint); }
+  .pv-sign-btn {
+    width: 100%; margin-top: 14px; height: 40px; border-radius: var(--r);
+    background: var(--brand); color: #fff; border: 0; font-family: inherit;
+    font-size: 13.5px; font-weight: 600; display: inline-flex; align-items: center;
+    justify-content: center; gap: 7px; cursor: pointer;
+    box-shadow: 0 1px 2px rgba(43,89,195,.25), inset 0 1px 0 rgba(255,255,255,.12);
+  }
+  .pv-foot { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--faint); }
+
+  .client-select {
+    display: flex; align-items: center; gap: 11px; padding: 11px 14px;
+    border: 1px solid var(--border); border-radius: var(--r); background: var(--surface);
+    cursor: pointer; transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  .client-select:hover { border-color: var(--border-strong); box-shadow: var(--shadow-sm); }
+  .client-select .cs-meta { line-height: 1.3; min-width: 0; }
+  .client-select .cs-name { font-weight: 600; font-size: 13.5px; color: var(--text); display: flex; align-items: center; gap: 7px; }
+  .client-select .cs-sub { font-size: 12px; color: var(--muted); margin-top: 1px; }
+  .client-select .cs-change { margin-left: auto; }
+
+  .saved-flag { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+  .saved-flag .dot-ok { width: 7px; height: 7px; border-radius: 50%; background: var(--success); }
+
+  @media (max-width: 1100px) {
+    .builder-layout { grid-template-columns: 1fr; }
+    .preview-rail { position: static; }
+    .trip-head { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ===================== SIDEBAR ===================== -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <span class="logo-mark">A</span>
+      Atlas
+    </div>
+
+    <nav class="nav">
+      <a class="nav-item" href="#">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </a>
+      <a class="nav-item" href="#">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Clients
+      </a>
+      <a class="nav-item" href="#">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="11" y2="18"/></svg>
+        Pipeline
+      </a>
+      <a class="nav-item active" href="#">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Proposals
+        <span class="nav-badge">6</span>
+      </a>
+      <a class="nav-item" href="#">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        Bookings
+        <span class="nav-badge">10</span>
+      </a>
+
+      <div class="nav-section-label">Tools</div>
+      <a class="nav-item" href="#">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
+        Flight search
+      </a>
+      <a class="nav-item" href="#">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9v.01M9 12v.01M9 15v.01M9 18v.01"/></svg>
+        Hotel search
+      </a>
+      <a class="nav-item" href="#">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Calendar
+      </a>
+      <a class="nav-item" href="#">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+        AI assistant
+      </a>
+      <a class="nav-item" href="#">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Reports
+      </a>
+    </nav>
+
+    <div class="sidebar-foot">
+      <span class="avatar av3 sm">LC</span>
+      <div style="line-height:1.3;min-width:0;">
+        <div style="color:#E8ECF4;font-weight:600;font-size:12.5px;">Lina Cherif</div>
+        <div style="color:#6E7790;font-size:11px;">Agent · Atlas Travel</div>
+      </div>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6E7790" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+  </aside>
+
+  <!-- ===================== MAIN ===================== -->
+  <div class="main">
+
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="topbar-search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input placeholder="Search clients, bookings, proposals…">
+        <span class="kbd">⌘K</span>
+      </div>
+      <div class="topbar-actions">
+        <span class="saved-flag"><span class="dot-ok"></span> All changes saved · 11:48</span>
+        <button class="btn-icon bordered" title="Notifications">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        </button>
+        <span class="avatar av3">LC</span>
+      </div>
+    </header>
+
+    <!-- Page -->
+    <div class="page">
+
+      <div class="breadcrumb">
+        <a href="#">Proposals</a>
+        <span class="sep">/</span>
+        <span class="current">PRD-2041 · Maldives</span>
+      </div>
+
+      <div class="page-header">
+        <div>
+          <div class="flex gap-3" style="align-items:center;">
+            <h1 class="page-title">Maldives Anniversary Escape</h1>
+            <span class="badge badge-info"><span class="dot"></span> Sent</span>
+          </div>
+          <div class="page-subtitle">Proposal <strong class="strong">PRD-2041</strong> · Owned by Lina Cherif · Valid until 4 Jul 2026 · Last edited 2 min ago</div>
+        </div>
+        <div class="flex gap-2">
+          <button class="btn btn-ghost">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+            Preview
+          </button>
+          <button class="btn btn-outline">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            Save
+          </button>
+          <button class="btn btn-outline">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            Send
+          </button>
+          <button class="btn btn-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+            Convert to booking
+          </button>
+        </div>
+      </div>
+
+      <!-- ===================== SPLIT LAYOUT ===================== -->
+      <div class="builder-layout">
+
+        <!-- ============ LEFT: BUILDER ============ -->
+        <div class="builder-col">
+
+          <!-- Client + trip header -->
+          <div class="card mb-4">
+            <div class="card-body">
+              <div class="section-title">Client</div>
+              <div class="client-select">
+                <span class="avatar av4 lg">NB</span>
+                <div class="cs-meta">
+                  <div class="cs-name">Nour El Houda Benamar <span class="badge badge-warning" style="font-size:10px;padding:1px 7px;">VIP</span></div>
+                  <div class="cs-sub">Algiers, Algeria · nour.benamar@gmail.com · 6 trips · 4.69M DZD lifetime</div>
+                </div>
+                <button class="btn btn-outline btn-sm cs-change">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                  Change
+                </button>
+              </div>
+
+              <div class="section-title mt-6">Trip details</div>
+              <div class="trip-head">
+                <div class="trip-cell">
+                  <div class="tc-label">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    Destination
+                  </div>
+                  <div class="tc-value">Maldives</div>
+                  <div class="tc-sub">Noonu Atoll · overwater</div>
+                </div>
+                <div class="trip-cell">
+                  <div class="tc-label">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    Dates
+                  </div>
+                  <div class="tc-value">12–19 Sep 2026</div>
+                  <div class="tc-sub">7 nights</div>
+                </div>
+                <div class="trip-cell">
+                  <div class="tc-label">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                    Travellers
+                  </div>
+                  <div class="tc-value">2 adults</div>
+                  <div class="tc-sub">Nour & Adel Benamar</div>
+                </div>
+                <div class="trip-cell">
+                  <div class="tc-label">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    Valid until
+                  </div>
+                  <div class="tc-value">4 Jul 2026</div>
+                  <div class="tc-sub">in 5 days</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Line items -->
+          <div class="card mb-4">
+            <div class="card-header">
+              <div class="card-title">Line items
+                <span class="sub">Build the quote — costs in, markup applied, sell price out</span>
+              </div>
+              <div class="ai-chip">
+                <span class="spark">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.9 5.8L19.5 9l-4.6 3.4L16.5 18 12 14.6 7.5 18l1.6-5.6L4.5 9l5.6-1.2z"/></svg>
+                </span>
+                Generate itinerary with AI
+              </div>
+            </div>
+            <div class="card-body">
+
+              <!-- FLIGHTS -->
+              <div class="ls-section">
+                <div class="ls-head">
+                  <span class="ls-ico flights">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
+                  </span>
+                  <span>
+                    <span class="ls-name">Flights</span>
+                    <span class="ls-sub"> · 2 segments</span>
+                  </span>
+                  <button class="btn btn-ghost btn-sm ls-add">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Add flight
+                  </button>
+                </div>
+                <table class="li-table">
+                  <thead>
+                    <tr>
+                      <th>Supplier / detail</th>
+                      <th class="num">Cost</th>
+                      <th class="num">Markup</th>
+                      <th class="num">Sell</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <div class="li-supplier">
+                          <span class="s-logo" style="background:#C2272D;">EK</span>
+                          <div class="s-meta">
+                            <div class="s-name">Emirates · ALG → DXB → MLE</div>
+                            <div class="s-detail">Business · 12 Sep · via Duffel · PNR pending</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td class="li-num li-cost">654,000</td>
+                      <td class="li-num li-markup">+10%</td>
+                      <td class="li-num li-sell">720,000</td>
+                      <td class="li-row-act"><button class="btn-icon" style="width:26px;height:26px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg></button></td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <div class="li-supplier">
+                          <span class="s-logo" style="background:#C2272D;">EK</span>
+                          <div class="s-meta">
+                            <div class="s-name">Emirates · MLE → DXB → ALG</div>
+                            <div class="s-detail">Business · 19 Sep · via Duffel · PNR pending</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td class="li-num li-cost">744,000</td>
+                      <td class="li-num li-markup">+10%</td>
+                      <td class="li-num li-sell">818,400</td>
+                      <td class="li-row-act"><button class="btn-icon" style="width:26px;height:26px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg></button></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- HOTELS -->
+              <div class="ls-section">
+                <div class="ls-head">
+                  <span class="ls-ico hotels">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>
+                  </span>
+                  <span>
+                    <span class="ls-name">Hotels</span>
+                    <span class="ls-sub"> · 1 property, 7 nights</span>
+                  </span>
+                  <button class="btn btn-ghost btn-sm ls-add">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Add hotel
+                  </button>
+                </div>
+                <table class="li-table">
+                  <thead>
+                    <tr>
+                      <th>Supplier / detail</th>
+                      <th class="num">Cost</th>
+                      <th class="num">Markup</th>
+                      <th class="num">Sell</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <div class="li-supplier">
+                          <span class="s-logo" style="background:#1E9E6A;">HB</span>
+                          <div class="s-meta">
+                            <div class="s-name">Soneva Jani · Overwater Villa</div>
+                            <div class="s-detail">5★ · 7 nights · Half board · via Hotelbeds · HB-MLE-8890</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td class="li-num li-cost">1,036,000</td>
+                      <td class="li-num li-markup">+12%</td>
+                      <td class="li-num li-sell">1,160,320</td>
+                      <td class="li-row-act"><button class="btn-icon" style="width:26px;height:26px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg></button></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- ACTIVITIES -->
+              <div class="ls-section">
+                <div class="ls-head">
+                  <span class="ls-ico activities">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l1.9 5.8L19.5 9l-4.6 3.4L16.5 18 12 14.6 7.5 18l1.6-5.6L4.5 9l5.6-1.2z"/></svg>
+                  </span>
+                  <span>
+                    <span class="ls-name">Activities</span>
+                    <span class="ls-sub"> · 2 experiences</span>
+                  </span>
+                  <button class="btn btn-ghost btn-sm ls-add">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Add activity
+                  </button>
+                </div>
+                <table class="li-table">
+                  <thead>
+                    <tr>
+                      <th>Supplier / detail</th>
+                      <th class="num">Cost</th>
+                      <th class="num">Markup</th>
+                      <th class="num">Sell</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <div class="li-supplier">
+                          <span class="s-logo" style="background:#7C5CE6;">SJ</span>
+                          <div class="s-meta">
+                            <div class="s-name">Sunset dolphin cruise + private dinner</div>
+                            <div class="s-detail">Resort experience · anniversary set-up · 14 Sep</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td class="li-num li-cost">94,000</td>
+                      <td class="li-num li-markup">+18%</td>
+                      <td class="li-num li-sell">110,920</td>
+                      <td class="li-row-act"><button class="btn-icon" style="width:26px;height:26px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg></button></td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <div class="li-supplier">
+                          <span class="s-logo" style="background:#7C5CE6;">SJ</span>
+                          <div class="s-meta">
+                            <div class="s-name">Couples spa journey (90 min ×2)</div>
+                            <div class="s-detail">Soneva spa · 16 Sep · overwater treatment</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td class="li-num li-cost">76,000</td>
+                      <td class="li-num li-markup">+18%</td>
+                      <td class="li-num li-sell">89,680</td>
+                      <td class="li-row-act"><button class="btn-icon" style="width:26px;height:26px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg></button></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- TRANSFERS -->
+              <div class="ls-section">
+                <div class="ls-head">
+                  <span class="ls-ico transfers">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 17h20M5 17V7a2 2 0 0 1 2-2h2l3 4h6a2 2 0 0 1 2 2v6"/><circle cx="7.5" cy="17.5" r="1.5"/><circle cx="17.5" cy="17.5" r="1.5"/></svg>
+                  </span>
+                  <span>
+                    <span class="ls-name">Transfers</span>
+                    <span class="ls-sub"> · seaplane, return</span>
+                  </span>
+                  <button class="btn btn-ghost btn-sm ls-add">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Add transfer
+                  </button>
+                </div>
+                <table class="li-table">
+                  <thead>
+                    <tr>
+                      <th>Supplier / detail</th>
+                      <th class="num">Cost</th>
+                      <th class="num">Markup</th>
+                      <th class="num">Sell</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <div class="li-supplier">
+                          <span class="s-logo" style="background:#1FA2C7;">TM</span>
+                          <div class="s-meta">
+                            <div class="s-name">TMA seaplane · MLE ⇄ Soneva Jani</div>
+                            <div class="s-detail">Return scenic transfer · 2 pax · resort lounge</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td class="li-num li-cost">138,000</td>
+                      <td class="li-num li-markup">+12%</td>
+                      <td class="li-num li-sell">154,560</td>
+                      <td class="li-row-act"><button class="btn-icon" style="width:26px;height:26px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg></button></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- INSURANCE -->
+              <div class="ls-section">
+                <div class="ls-head">
+                  <span class="ls-ico insurance">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                  </span>
+                  <span>
+                    <span class="ls-name">Insurance</span>
+                    <span class="ls-sub"> · 1 policy</span>
+                  </span>
+                  <button class="btn btn-ghost btn-sm ls-add">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Add policy
+                  </button>
+                </div>
+                <table class="li-table">
+                  <thead>
+                    <tr>
+                      <th>Supplier / detail</th>
+                      <th class="num">Cost</th>
+                      <th class="num">Markup</th>
+                      <th class="num">Sell</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <div class="li-supplier">
+                          <span class="s-logo" style="background:#B45313;">AZ</span>
+                          <div class="s-meta">
+                            <div class="s-name">Allianz Travel · Premier worldwide</div>
+                            <div class="s-detail">2 travellers · 8 days · medical + cancellation</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td class="li-num li-cost">32,000</td>
+                      <td class="li-num li-markup">+20%</td>
+                      <td class="li-num li-sell">38,400</td>
+                      <td class="li-row-act"><button class="btn-icon" style="width:26px;height:26px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg></button></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Notes / terms -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Notes &amp; conditions <span class="sub">Shown on the client proposal</span></div>
+            </div>
+            <div class="card-body">
+              <div class="field" style="margin-bottom:0;">
+                <textarea class="textarea">Prices are per the package above and include all taxes and service fees. A 50% deposit (1,480,000 DZD) confirms the booking; balance due 30 days before departure. Overwater villa, half-board dining and the anniversary set-up are guaranteed at the rates quoted. Visa-free entry for Algerian passport holders (30 days on arrival). Quote held until 4 Jul 2026, subject to availability at time of confirmation.</textarea>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ============ RIGHT: TOTALS + LIVE PREVIEW ============ -->
+        <div class="preview-rail">
+
+          <!-- Running totals -->
+          <div class="card mb-4">
+            <div class="card-header">
+              <div class="card-title">Quote summary</div>
+              <span class="margin-pill">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+                18.4% margin
+              </span>
+            </div>
+            <div class="card-body">
+              <div class="totals-line"><span class="tl-k">Flights</span><span class="tl-v">1,654,400 DZD</span></div>
+              <div class="totals-line"><span class="tl-k">Hotels</span><span class="tl-v">1,160,320 DZD</span></div>
+              <div class="totals-line"><span class="tl-k">Activities</span><span class="tl-v">200,600 DZD</span></div>
+              <div class="totals-line"><span class="tl-k">Transfers</span><span class="tl-v">154,560 DZD</span></div>
+              <div class="totals-line"><span class="tl-k">Insurance</span><span class="tl-v">38,400 DZD</span></div>
+              <hr class="divider" style="margin:10px 0;">
+              <div class="totals-line"><span class="tl-k">Total cost</span><span class="tl-v">2,500,000 DZD</span></div>
+              <div class="totals-line"><span class="tl-k">Total margin</span><span class="tl-v text-success">+544,280 DZD</span></div>
+              <div class="totals-grand">
+                <span class="tg-k">Total to client</span>
+                <span class="tg-v">2,960,000<span style="font-size:13px;font-weight:600;color:var(--muted);margin-left:4px;">DZD</span></span>
+              </div>
+              <div class="text-sm muted mt-2">≈ €20,414 · deposit 50% = 1,480,000 DZD</div>
+            </div>
+          </div>
+
+          <!-- LIVE CLIENT PREVIEW -->
+          <div class="preview-card">
+            <div class="preview-toolbar">
+              <span class="pt-dot" style="background:#FF5F57;"></span>
+              <span class="pt-dot" style="background:#FEBC2E;"></span>
+              <span class="pt-dot" style="background:#28C840;"></span>
+              <span class="pt-label" style="margin-left:6px;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                Live client preview
+              </span>
+              <span class="tag" style="margin-left:auto;">What Nour sees</span>
+            </div>
+
+            <div class="preview-scroll">
+
+              <!-- Cover -->
+              <div class="pv-cover">
+                <div class="pv-brandrow">
+                  <div class="pv-agency"><span class="pv-mark">A</span> Atlas Travel</div>
+                  <div class="pv-ref">PRD-2041</div>
+                </div>
+                <div class="pv-eyebrow">Private travel proposal</div>
+                <div class="pv-title">Maldives Anniversary Escape</div>
+                <div class="pv-meta">
+                  <span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> Noonu Atoll, Maldives</span>
+                  <span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/></svg> 12–19 Sep 2026</span>
+                  <span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg> 2 travellers</span>
+                </div>
+              </div>
+
+              <!-- Body -->
+              <div class="pv-body">
+                <p class="pv-greeting">Dear <strong>Nour &amp; Adel</strong>, it would be our pleasure to host your anniversary in the Maldives. Below is a seven-night escape built around an overwater villa at Soneva Jani, with Business-class flights and a few private moments we think you'll love.</p>
+
+                <!-- Itinerary -->
+                <div class="pv-sec-label">Day by day</div>
+                <div>
+                  <div class="pv-day">
+                    <div class="pv-day-rail"><div class="pv-day-num">1</div><div class="pv-day-line"></div></div>
+                    <div class="pv-day-body">
+                      <div class="pv-day-date">Sat 12 Sep</div>
+                      <div class="pv-day-title">Algiers → Malé, in Business</div>
+                      <div class="pv-day-desc">Emirates Business class via Dubai, arriving to a private seaplane transfer over the turquoise atolls to Soneva Jani.</div>
+                      <div class="pv-day-chips">
+                        <span class="pv-day-chip">Emirates · Business</span>
+                        <span class="pv-day-chip">Seaplane transfer</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="pv-day">
+                    <div class="pv-day-rail"><div class="pv-day-num">2</div><div class="pv-day-line"></div></div>
+                    <div class="pv-day-body">
+                      <div class="pv-day-date">Sun 13 Sep</div>
+                      <div class="pv-day-title">Settle into your overwater villa</div>
+                      <div class="pv-day-desc">A slow day on your private deck with a retractable roof — breakfast on the water, the lagoon at your steps, and a candlelit half-board dinner.</div>
+                      <div class="pv-day-chips"><span class="pv-day-chip">Overwater villa · 5★</span><span class="pv-day-chip">Half board</span></div>
+                    </div>
+                  </div>
+                  <div class="pv-day">
+                    <div class="pv-day-rail"><div class="pv-day-num">3</div><div class="pv-day-line"></div></div>
+                    <div class="pv-day-body">
+                      <div class="pv-day-date">Mon 14 Sep</div>
+                      <div class="pv-day-title">Sunset dolphin cruise &amp; private dinner</div>
+                      <div class="pv-day-desc">An evening cruise to meet the spinner dolphins, followed by a private anniversary dinner set on the sandbank under the stars.</div>
+                      <div class="pv-day-chips"><span class="pv-day-chip">Dolphin cruise</span><span class="pv-day-chip">Anniversary set-up</span></div>
+                    </div>
+                  </div>
+                  <div class="pv-day">
+                    <div class="pv-day-rail"><div class="pv-day-num">5</div><div class="pv-day-line"></div></div>
+                    <div class="pv-day-body">
+                      <div class="pv-day-date">Wed 16 Sep</div>
+                      <div class="pv-day-title">Couples spa journey</div>
+                      <div class="pv-day-desc">A 90-minute overwater treatment for two, with the reef visible through the glass floor below.</div>
+                      <div class="pv-day-chips"><span class="pv-day-chip">Soneva spa</span></div>
+                    </div>
+                  </div>
+                  <div class="pv-day">
+                    <div class="pv-day-rail"><div class="pv-day-num">8</div></div>
+                    <div class="pv-day-body">
+                      <div class="pv-day-date">Sat 19 Sep</div>
+                      <div class="pv-day-title">Malé → Algiers</div>
+                      <div class="pv-day-desc">A final morning on the water before your seaplane and Business-class return home via Dubai.</div>
+                      <div class="pv-day-chips"><span class="pv-day-chip">Return · Business</span></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Price summary -->
+                <div class="pv-sec-label">What's included</div>
+                <div class="pv-price-box">
+                  <div class="pv-price-row"><span class="pp-k"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg> Return Business flights (ALG–MLE)</span><span class="pp-v">1,654,400</span></div>
+                  <div class="pv-price-row"><span class="pp-k"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#14794F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg> 7 nights overwater villa · half board</span><span class="pp-v">1,160,320</span></div>
+                  <div class="pv-price-row"><span class="pp-k"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B41C4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l1.9 5.8L19.5 9l-4.6 3.4L16.5 18 12 14.6 7.5 18l1.6-5.6L4.5 9l5.6-1.2z"/></svg> Dolphin cruise, dinner &amp; spa</span><span class="pp-v">200,600</span></div>
+                  <div class="pv-price-row"><span class="pp-k"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1180A0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 17h20M5 17V7a2 2 0 0 1 2-2h2l3 4h6a2 2 0 0 1 2 2v6"/></svg> Seaplane transfers (return)</span><span class="pp-v">154,560</span></div>
+                  <div class="pv-price-row"><span class="pp-k"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9A5D00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Travel insurance (2 pax)</span><span class="pp-v">38,400</span></div>
+                  <div class="pv-price-total">
+                    <div>
+                      <div class="ppt-k">Total package</div>
+                      <div class="ppt-sub">All taxes &amp; fees included · ≈ €20,414</div>
+                    </div>
+                    <div class="ppt-v">2,960,000 DZD</div>
+                  </div>
+                </div>
+
+                <!-- e-signature -->
+                <div class="pv-sign">
+                  <div class="pv-sign-status"><span class="pulse"></span> Awaiting signature</div>
+                  <div class="pv-sign-line"><span class="ghost">Nour El Houda Benamar</span></div>
+                  <div class="pv-sign-caption">Sign here to confirm — a 50% deposit secures your dates</div>
+                  <button class="pv-sign-btn">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+                    Accept &amp; sign proposal
+                  </button>
+                </div>
+
+                <div class="pv-foot">
+                  <span>Atlas Travel · Algiers · atlastravel.dz</span>
+                  <span>Prepared by Lina Cherif</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../assets/demo-data.js"></script>
+</body>
+</html>

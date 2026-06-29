@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Atlas in your pocket — Mobile</title>
+  <link rel="stylesheet" href="../assets/atlas-ui.css">
+  <style>
+    /* ======================================================================
+       PRESENTATION BOARD — local layout for the four-phone showcase
+       Reuses the shared tokens from atlas-ui.css. No new colours invented.
+       ====================================================================== */
+    body {
+      background:
+        radial-gradient(circle at 18% 0%, #EEF2FB 0%, transparent 46%),
+        radial-gradient(circle at 88% 12%, #EAF0FC 0%, transparent 40%),
+        var(--canvas);
+      min-height: 100vh;
+    }
+
+    .board-wrap {
+      max-width: 1640px;
+      margin: 0 auto;
+      padding: 56px 40px 72px;
+    }
+
+    .board-head {
+      text-align: center;
+      margin-bottom: 12px;
+    }
+    .board-head .eyebrow { justify-content: center; margin-bottom: 16px; }
+    .board-head h1 {
+      font-size: 46px;
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+      font-weight: 720;
+    }
+    .board-head .lead {
+      max-width: 620px;
+      margin: 14px auto 0;
+      font-size: 17px;
+    }
+
+    .device-meta {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 28px;
+      margin-top: 26px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .device-meta .mi { display: inline-flex; align-items: center; gap: 7px; }
+    .device-meta .mi svg { width: 15px; height: 15px; color: var(--brand); }
+
+    .phones {
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      gap: 34px;
+      flex-wrap: wrap;
+      margin-top: 56px;
+    }
+
+    .device {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+    }
+    /* subtle staggered lift for a presentation feel */
+    .device:nth-child(odd) { transform: translateY(-14px); }
+
+    .device-label {
+      text-align: center;
+    }
+    .device-label .dl-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border-radius: var(--r-full);
+      background: var(--brand);
+      color: #fff;
+      font-size: 11.5px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .device-label .dl-title {
+      font-size: 14.5px;
+      font-weight: 640;
+      color: var(--text);
+      letter-spacing: -0.01em;
+    }
+    .device-label .dl-sub {
+      font-size: 12.5px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* --- Phone frame: render screen content directly (no iframe) --- */
+    .phone-frame { width: 312px; }
+    .phone-frame .pf-screen {
+      aspect-ratio: 9 / 19.5;
+      display: flex;
+      flex-direction: column;
+      background: var(--canvas);
+    }
+
+    /* iOS-style status bar */
+    .pf-status {
+      height: 38px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      padding: 0 22px 4px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      position: relative;
+      z-index: 6;
+    }
+    .pf-status .clock { letter-spacing: -0.02em; }
+    .pf-status .status-icons { display: inline-flex; align-items: center; gap: 5px; }
+    .pf-status .status-icons svg { width: 16px; height: 12px; }
+    .pf-status .battery {
+      width: 22px; height: 11px;
+      border: 1.4px solid var(--text);
+      border-radius: 3px;
+      position: relative;
+      display: inline-block;
+    }
+    .pf-status .battery::after {
+      content: ''; position: absolute; right: -3px; top: 3px;
+      width: 1.6px; height: 5px; background: var(--text); border-radius: 0 1px 1px 0;
+    }
+    .pf-status .battery .lvl {
+      position: absolute; inset: 1.4px; width: 72%; background: var(--text); border-radius: 1px;
+    }
+
+    /* App top bar inside phone */
+    .pf-appbar {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 16px 12px;
+      background: var(--canvas);
+    }
+    .pf-appbar.onbrand { background: var(--ink); }
+    .pf-appbar .ab-logo {
+      width: 28px; height: 28px; border-radius: 8px;
+      background: linear-gradient(135deg, var(--brand) 0%, #3E72E0 100%);
+      display: inline-flex; align-items: center; justify-content: center;
+      color: #fff; font-weight: 800; font-size: 14px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.2);
+      flex-shrink: 0;
+    }
+    .pf-appbar .ab-title { font-size: 16px; font-weight: 680; letter-spacing: -0.02em; }
+    .pf-appbar.onbrand .ab-title { color: #fff; }
+    .pf-appbar .ab-sub { font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+    .pf-appbar.onbrand .ab-sub { color: #9AA6C2; }
+    .pf-appbar .ab-spacer { margin-left: auto; }
+    .pf-appbar .ab-ico {
+      width: 32px; height: 32px; border-radius: var(--r-full);
+      display: inline-flex; align-items: center; justify-content: center;
+      color: var(--muted); position: relative;
+    }
+    .pf-appbar.onbrand .ab-ico { color: #C7CEDC; }
+    .pf-appbar .ab-ico svg { width: 18px; height: 18px; }
+    .pf-appbar .ab-ico .ping {
+      position: absolute; top: 5px; right: 6px;
+      width: 7px; height: 7px; border-radius: var(--r-full);
+      background: var(--danger); border: 1.5px solid var(--canvas);
+    }
+    .pf-appbar .ab-back {
+      width: 32px; height: 32px; border-radius: var(--r-full);
+      display: inline-flex; align-items: center; justify-content: center;
+      color: var(--text); flex-shrink: 0; margin-left: -4px;
+    }
+    .pf-appbar .ab-back svg { width: 20px; height: 20px; }
+
+    /* Scrollable app body */
+    .pf-body {
+      flex: 1;
+      overflow: hidden;
+      padding: 2px 14px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .pf-body.chat { background: var(--surface-2); }
+
+    /* Bottom tab bar */
+    .pf-tabbar {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      padding: 8px 8px 16px;
+      background: rgba(255,255,255,0.92);
+      backdrop-filter: saturate(180%) blur(8px);
+      border-top: 1px solid var(--border);
+    }
+    .pf-tab {
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      color: var(--faint); font-size: 9.5px; font-weight: 560;
+      flex: 1;
+    }
+    .pf-tab svg { width: 21px; height: 21px; }
+    .pf-tab.active { color: var(--brand); }
+
+    .home-indicator {
+      position: absolute; bottom: 7px; left: 50%; transform: translateX(-50%);
+      width: 108px; height: 4.5px; border-radius: var(--r-full);
+      background: rgba(20,28,46,0.32); z-index: 6;
+    }
+
+    /* --- Mobile-condensed component variants --- */
+    .m-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .m-kpi-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .m-kpi {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 11px 12px 12px;
+      box-shadow: var(--shadow-sm);
+    }
+    .m-kpi .k-label { font-size: 10.5px; color: var(--muted); font-weight: 500; }
+    .m-kpi .k-value { font-size: 18px; font-weight: 720; letter-spacing: -0.022em; margin-top: 5px; line-height: 1.05; }
+    .m-kpi .k-value .u { font-size: 10.5px; font-weight: 600; color: var(--muted); margin-left: 2px; }
+    .m-kpi .k-delta { font-size: 10.5px; font-weight: 650; margin-top: 5px; display: inline-flex; align-items: center; gap: 2px; }
+    .m-kpi .k-delta.up { color: var(--success); }
+    .m-kpi .k-delta.down { color: var(--success); } /* outstanding down = good */
+    .m-kpi .k-delta svg { width: 11px; height: 11px; }
+
+    .m-section-label {
+      font-size: 10.5px; font-weight: 650; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--muted);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .m-section-label .more { color: var(--brand); font-weight: 600; text-transform: none; letter-spacing: 0; font-size: 11.5px; }
+
+    .m-list-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px;
+    }
+    .m-list-row + .m-list-row { border-top: 1px solid var(--border); }
+    .m-list-row .lr-main { min-width: 0; flex: 1; }
+    .m-list-row .lr-title { font-size: 12.5px; font-weight: 580; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .m-list-row .lr-sub { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .m-list-row .lr-right { text-align: right; flex-shrink: 0; }
+
+    .flag {
+      width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 15px;
+      background: var(--brand-soft);
+    }
+
+    .badge.xs { font-size: 10px; padding: 2px 7px; }
+
+    /* Booking detail stepper */
+    .stepper { display: flex; align-items: flex-start; padding: 4px 2px; }
+    .stepper .step { flex: 1; display: flex; flex-direction: column; align-items: center; position: relative; }
+    .stepper .step .node {
+      width: 22px; height: 22px; border-radius: var(--r-full);
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 700; z-index: 2;
+      background: var(--surface); border: 2px solid var(--border-strong); color: var(--faint);
+    }
+    .stepper .step.done .node { background: var(--success); border-color: var(--success); color: #fff; }
+    .stepper .step.current .node { background: var(--brand); border-color: var(--brand); color: #fff; box-shadow: 0 0 0 4px var(--brand-ring); }
+    .stepper .step .lbl { font-size: 9px; font-weight: 600; color: var(--muted); margin-top: 6px; text-align: center; line-height: 1.2; }
+    .stepper .step.current .lbl { color: var(--brand); }
+    .stepper .step::before {
+      content: ''; position: absolute; top: 10px; left: -50%; width: 100%; height: 2px; background: var(--border-strong); z-index: 1;
+    }
+    .stepper .step:first-child::before { display: none; }
+    .stepper .step.done::before, .stepper .step.current::before { background: var(--success); }
+
+    .pay-card {
+      background: var(--ink);
+      border-radius: var(--r);
+      padding: 15px 16px;
+      color: #fff;
+    }
+    .pay-card .pc-label { font-size: 10.5px; color: #9AA6C2; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+    .pay-card .pc-amount { font-size: 23px; font-weight: 720; letter-spacing: -0.022em; margin-top: 4px; }
+    .pay-card .pc-meta { font-size: 11px; color: #AEB6C8; margin-top: 3px; }
+    .pay-card .pc-prog { height: 6px; border-radius: var(--r-full); background: rgba(255,255,255,0.16); overflow: hidden; margin-top: 12px; }
+    .pay-card .pc-prog .fill { height: 100%; background: var(--warning); border-radius: var(--r-full); }
+    .pay-card .btn { width: 100%; margin-top: 13px; }
+
+    .detail-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; }
+    .detail-row + .detail-row { border-top: 1px solid var(--border); }
+    .detail-row .dr-ico { width: 30px; height: 30px; border-radius: 8px; background: var(--brand-soft); color: var(--brand); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .detail-row .dr-ico svg { width: 15px; height: 15px; }
+    .detail-row .dr-label { font-size: 10.5px; color: var(--muted); }
+    .detail-row .dr-value { font-size: 12.5px; font-weight: 560; color: var(--text); margin-top: 1px; }
+
+    /* Client portal */
+    .portal-hero {
+      border-radius: var(--r);
+      overflow: hidden;
+      position: relative;
+      background: linear-gradient(135deg, #1B2239 0%, #2B59C3 130%);
+      color: #fff;
+      padding: 16px;
+    }
+    .portal-hero .ph-eyebrow { font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em; color: #B9C6E8; font-weight: 600; }
+    .portal-hero .ph-title { font-size: 20px; font-weight: 720; letter-spacing: -0.02em; margin-top: 5px; }
+    .portal-hero .ph-dates { font-size: 12px; color: #C7D2EC; margin-top: 4px; }
+    .portal-hero .ph-count {
+      position: absolute; top: 16px; right: 16px;
+      background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.22);
+      border-radius: var(--r-full); padding: 4px 11px;
+      font-size: 11px; font-weight: 650; text-align: center; line-height: 1.15;
+    }
+    .portal-hero .ph-count b { font-size: 15px; display: block; }
+    .portal-hero .ph-strip { display: flex; gap: 14px; margin-top: 14px; padding-top: 13px; border-top: 1px solid rgba(255,255,255,0.16); }
+    .portal-hero .ph-strip .pi { font-size: 10.5px; color: #B9C6E8; }
+    .portal-hero .ph-strip .pi b { display: block; font-size: 12.5px; color: #fff; font-weight: 640; margin-top: 2px; }
+
+    .doc-row { display: flex; align-items: center; gap: 11px; padding: 10px 12px; }
+    .doc-row + .doc-row { border-top: 1px solid var(--border); }
+    .doc-row .doc-ico { width: 32px; height: 38px; border-radius: 5px; background: var(--danger-soft); color: var(--danger); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; position: relative; }
+    .doc-row .doc-ico.ok { background: var(--success-soft); color: var(--success); }
+    .doc-row .doc-ico svg { width: 16px; height: 16px; }
+    .doc-row .doc-main { flex: 1; min-width: 0; }
+    .doc-row .doc-name { font-size: 12.5px; font-weight: 560; color: var(--text); }
+    .doc-row .doc-meta { font-size: 10.5px; color: var(--muted); margin-top: 1px; }
+    .doc-row .doc-dl { color: var(--brand); flex-shrink: 0; }
+    .doc-row .doc-dl svg { width: 17px; height: 17px; }
+
+    /* AI assistant chat */
+    .chat-day { text-align: center; font-size: 10px; color: var(--faint); font-weight: 560; margin: 2px 0 4px; }
+    .bubble {
+      max-width: 86%;
+      padding: 9px 12px;
+      font-size: 12.5px;
+      line-height: 1.45;
+      border-radius: 14px;
+    }
+    .bubble.ai {
+      align-self: flex-start;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 5px;
+      color: var(--text);
+      box-shadow: var(--shadow-sm);
+    }
+    .bubble.me {
+      align-self: flex-end;
+      background: var(--brand);
+      color: #fff;
+      border-bottom-right-radius: 5px;
+    }
+    .bubble .b-strong { font-weight: 650; }
+    .chat-ai-head { display: flex; align-items: center; gap: 7px; margin-bottom: 2px; }
+    .chat-ai-head .ai-dot { width: 19px; height: 19px; border-radius: var(--r-full); background: linear-gradient(135deg, var(--c4), var(--brand)); display: inline-flex; align-items: center; justify-content: center; }
+    .chat-ai-head .ai-dot svg { width: 11px; height: 11px; color: #fff; }
+    .chat-ai-head .ai-name { font-size: 11px; font-weight: 650; color: var(--text); }
+    .chat-msg { display: flex; flex-direction: column; }
+
+    .ai-quote-card {
+      margin-top: 8px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      background: var(--surface-2);
+    }
+    .ai-quote-card .qc-head { padding: 9px 11px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .ai-quote-card .qc-head .qc-t { font-size: 11.5px; font-weight: 640; }
+    .ai-quote-card .qc-line { display: flex; align-items: center; justify-content: space-between; padding: 6px 11px; font-size: 11px; }
+    .ai-quote-card .qc-line + .qc-line { border-top: 1px solid var(--border); }
+    .ai-quote-card .qc-line .l { color: var(--muted); }
+    .ai-quote-card .qc-line .v { font-weight: 580; }
+    .ai-quote-card .qc-total { padding: 8px 11px; background: var(--brand-soft); display: flex; align-items: center; justify-content: space-between; font-size: 12px; }
+    .ai-quote-card .qc-total .v { font-weight: 720; color: var(--brand-hover); }
+
+    .ai-chips { display: flex; gap: 6px; flex-wrap: wrap; align-self: flex-start; max-width: 92%; }
+    .ai-chip {
+      font-size: 11px; font-weight: 550; color: var(--brand);
+      background: var(--surface); border: 1px solid #D6E2FA;
+      border-radius: var(--r-full); padding: 5px 11px;
+    }
+
+    .chat-input {
+      flex-shrink: 0;
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 12px 14px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+    }
+    .chat-input .ci-box {
+      flex: 1; display: flex; align-items: center; gap: 7px;
+      background: var(--canvas); border: 1px solid var(--border-strong);
+      border-radius: var(--r-full); padding: 8px 13px;
+      font-size: 12px; color: var(--faint);
+    }
+    .chat-input .ci-send {
+      width: 34px; height: 34px; border-radius: var(--r-full);
+      background: var(--brand); color: #fff; flex-shrink: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .chat-input .ci-send svg { width: 16px; height: 16px; }
+
+    .mini-spark { width: 100%; height: 40px; display: block; }
+
+    .board-foot {
+      text-align: center;
+      margin-top: 64px;
+      color: var(--faint);
+      font-size: 12.5px;
+    }
+    .board-foot .dot { margin: 0 8px; }
+
+    @media (max-width: 1400px) {
+      .phones { gap: 26px; }
+      .device:nth-child(odd) { transform: none; }
+    }
+    @media (max-width: 720px) {
+      .board-wrap { padding: 36px 16px 48px; }
+      .board-head h1 { font-size: 32px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="board-wrap">
+
+    <!-- ============================ HEADER ============================ -->
+    <header class="board-head">
+      <span class="eyebrow">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2.5"/><path d="M12 18h.01"/></svg>
+        Atlas Mobile
+      </span>
+      <h1>Atlas in your pocket</h1>
+      <p class="lead">The whole agency travels with you. Watch revenue, collect balances, keep clients informed, and quote a trip from a beach or a boarding gate — the same Atlas, sized for a thumb.</p>
+
+      <div class="device-meta">
+        <span class="mi">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+          Live dashboard
+        </span>
+        <span class="mi">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+          Collect payments
+        </span>
+        <span class="mi">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+          Client portal
+        </span>
+        <span class="mi">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+          AI assistant
+        </span>
+      </div>
+    </header>
+
+    <!-- ============================ PHONES ============================ -->
+    <section class="phones">
+
+      <!-- ───────────── PHONE 1 — DASHBOARD ───────────── -->
+      <div class="device">
+        <div class="device-label">
+          <span class="dl-num">1</span>
+          <div class="dl-title">Dashboard</div>
+          <div class="dl-sub">Today at a glance</div>
+        </div>
+        <div class="phone-frame">
+          <div class="pf-notch"></div>
+          <div class="pf-screen">
+            <!-- status bar -->
+            <div class="pf-status">
+              <span class="clock">9:41</span>
+              <span class="status-icons">
+                <svg viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="5" y="4" width="3" height="8" rx="1"/><rect x="10" y="2" width="3" height="10" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg>
+                <svg viewBox="0 0 18 12" fill="currentColor"><path d="M9 11.5 1 4.2a11 11 0 0 1 16 0z" opacity="0.95"/></svg>
+                <span class="battery"><span class="lvl"></span></span>
+              </span>
+            </div>
+            <!-- app bar -->
+            <div class="pf-appbar">
+              <div class="ab-logo">A</div>
+              <div>
+                <div class="ab-title">Good morning</div>
+                <div class="ab-sub">Yasmine · Atlas Travel Demo</div>
+              </div>
+              <div class="ab-spacer"></div>
+              <div class="ab-ico">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+                <span class="ping"></span>
+              </div>
+            </div>
+            <!-- body -->
+            <div class="pf-body">
+              <!-- KPI grid -->
+              <div class="m-kpi-grid">
+                <div class="m-kpi">
+                  <div class="k-label">Revenue · June</div>
+                  <div class="k-value">42.8M<span class="u">DZD</span></div>
+                  <div class="k-delta up">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15 6-6 6 6"/></svg>
+                    +12.4%
+                  </div>
+                </div>
+                <div class="m-kpi">
+                  <div class="k-label">Bookings</div>
+                  <div class="k-value">168</div>
+                  <div class="k-delta up">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15 6-6 6 6"/></svg>
+                    +8.0%
+                  </div>
+                </div>
+                <div class="m-kpi">
+                  <div class="k-label">Open pipeline</div>
+                  <div class="k-value">96.5M<span class="u">DZD</span></div>
+                  <div class="k-delta up">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15 6-6 6 6"/></svg>
+                    +5.1%
+                  </div>
+                </div>
+                <div class="m-kpi">
+                  <div class="k-label">Outstanding</div>
+                  <div class="k-value">7.24M<span class="u">DZD</span></div>
+                  <div class="k-delta down">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                    −9.5%
+                  </div>
+                </div>
+              </div>
+
+              <!-- revenue sparkline -->
+              <div class="m-card" style="padding:13px 14px 11px;">
+                <div class="between" style="margin-bottom:4px;">
+                  <span class="m-section-label" style="display:block;">Revenue · 12 mo</span>
+                  <span class="badge badge-success xs">
+                    <span class="dot"></span>Trending up
+                  </span>
+                </div>
+                <svg class="mini-spark" viewBox="0 0 280 48" preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="#2B59C3" stop-opacity="0.18"/>
+                      <stop offset="100%" stop-color="#2B59C3" stop-opacity="0"/>
+                    </linearGradient>
+                  </defs>
+                  <!-- 12 pts: 28.4→33.9→26.7→29.5→24.8→35.6→27.2→30.1→32.8→36.4→38.1→42.8 (M) -->
+                  <path d="M0,30 L25,20 L51,35 L76,29 L102,40 L127,15 L153,33 L178,28 L204,23 L229,16 L255,12 L280,4 L280,48 L0,48 Z" fill="url(#sparkFill)"/>
+                  <path d="M0,30 L25,20 L51,35 L76,29 L102,40 L127,15 L153,33 L178,28 L204,23 L229,16 L255,12 L280,4" fill="none" stroke="#2B59C3" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+                  <circle cx="280" cy="4" r="3.4" fill="#fff" stroke="#2B59C3" stroke-width="2.4"/>
+                </svg>
+                <div class="between" style="margin-top:2px;">
+                  <span class="text-xs faint">Jul ’25</span>
+                  <span class="text-xs faint">Jun ’26</span>
+                </div>
+              </div>
+
+              <!-- next departure -->
+              <div>
+                <div class="m-section-label" style="margin-bottom:7px;">
+                  Next departure
+                  <span class="more">All trips</span>
+                </div>
+                <div class="m-card">
+                  <div class="m-list-row" style="padding:12px;">
+                    <span class="flag">🇦🇪</span>
+                    <div class="lr-main">
+                      <div class="lr-title">Amine Belkacem · Dubai</div>
+                      <div class="lr-sub">BKG-2026-001 · Jul 5 · in 6 days</div>
+                    </div>
+                    <div class="lr-right">
+                      <span class="badge badge-info xs"><span class="dot"></span>Ticketed</span>
+                    </div>
+                  </div>
+                </div>
+                <!-- one more compact upcoming -->
+                <div class="m-card" style="margin-top:8px;">
+                  <div class="m-list-row" style="padding:11px 12px;">
+                    <span class="flag" style="background:var(--warning-soft);">🇫🇷</span>
+                    <div class="lr-main">
+                      <div class="lr-title">Sonatrach · Paris</div>
+                      <div class="lr-sub">BKG-2026-005 · 3 pax · Jul 8</div>
+                    </div>
+                    <div class="lr-right">
+                      <span class="badge badge-info xs"><span class="dot"></span>Ticketed</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- tab bar -->
+            <div class="pf-tabbar">
+              <div class="pf-tab active">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+                Home
+              </div>
+              <div class="pf-tab">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>
+                Clients
+              </div>
+              <div class="pf-tab">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+                Bookings
+              </div>
+              <div class="pf-tab">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2M20 14h2"/></svg>
+                Atlas AI
+              </div>
+            </div>
+            <div class="home-indicator"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ───────────── PHONE 2 — BOOKING DETAIL ───────────── -->
+      <div class="device">
+        <div class="device-label">
+          <span class="dl-num">2</span>
+          <div class="dl-title">Booking detail</div>
+          <div class="dl-sub">Status &amp; balance</div>
+        </div>
+        <div class="phone-frame">
+          <div class="pf-notch"></div>
+          <div class="pf-screen">
+            <div class="pf-status">
+              <span class="clock">9:41</span>
+              <span class="status-icons">
+                <svg viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="5" y="4" width="3" height="8" rx="1"/><rect x="10" y="2" width="3" height="10" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg>
+                <svg viewBox="0 0 18 12" fill="currentColor"><path d="M9 11.5 1 4.2a11 11 0 0 1 16 0z" opacity="0.95"/></svg>
+                <span class="battery"><span class="lvl"></span></span>
+              </span>
+            </div>
+            <div class="pf-appbar">
+              <div class="ab-back">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+              </div>
+              <div>
+                <div class="ab-title" style="font-size:15px;">BKG-2026-003</div>
+                <div class="ab-sub">Maldives · 7 nights</div>
+              </div>
+              <div class="ab-spacer"></div>
+              <div class="ab-ico">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+              </div>
+            </div>
+            <div class="pf-body">
+              <!-- client + dest header -->
+              <div class="m-card" style="padding:13px 14px;">
+                <div class="flex" style="gap:11px;">
+                  <span class="avatar av3 lg">LM</span>
+                  <div style="min-width:0;flex:1;">
+                    <div style="font-size:14px;font-weight:640;letter-spacing:-0.01em;">Leïla Mansour</div>
+                    <div class="text-xs muted" style="margin-top:1px;">Conrad Maldives Rangali · 2 travellers</div>
+                  </div>
+                  <span class="badge badge-info xs"><span class="dot"></span>Confirmed</span>
+                </div>
+              </div>
+
+              <!-- status stepper -->
+              <div class="m-card" style="padding:14px 12px 13px;">
+                <div class="m-section-label" style="margin:0 2px 11px;">Booking status</div>
+                <div class="stepper">
+                  <div class="step done">
+                    <span class="node">✓</span>
+                    <span class="lbl">Draft</span>
+                  </div>
+                  <div class="step done">
+                    <span class="node">✓</span>
+                    <span class="lbl">Confirmed</span>
+                  </div>
+                  <div class="step current">
+                    <span class="node">3</span>
+                    <span class="lbl">Awaiting<br>balance</span>
+                  </div>
+                  <div class="step">
+                    <span class="node">4</span>
+                    <span class="lbl">Ticketed</span>
+                  </div>
+                  <div class="step">
+                    <span class="node">5</span>
+                    <span class="lbl">Travelled</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- pay balance -->
+              <div class="pay-card">
+                <div class="pc-label">Balance outstanding</div>
+                <div class="pc-amount">1,240,000 DZD</div>
+                <div class="pc-meta">1,240,000 of 2,480,000 DZD paid · due Jul 1</div>
+                <div class="pc-prog"><span class="fill" style="width:50%;"></span></div>
+                <a class="btn btn-primary">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                  Collect balance
+                </a>
+              </div>
+
+              <!-- trip details -->
+              <div class="m-card" style="padding:4px 14px;">
+                <div class="detail-row">
+                  <span class="dr-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg></span>
+                  <div class="lr-main">
+                    <div class="dr-label">Flights · Qatar Airways</div>
+                    <div class="dr-value">ALG → DOH → MLE · Business</div>
+                  </div>
+                  <span class="tag">QR5WXY</span>
+                </div>
+                <div class="detail-row">
+                  <span class="dr-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9v.01M9 12v.01M9 15v.01"/></svg></span>
+                  <div class="lr-main">
+                    <div class="dr-label">Hotel · 5★ · 7 nights</div>
+                    <div class="dr-value">Conrad Maldives Rangali</div>
+                  </div>
+                  <span class="tag">Aug 2–9</span>
+                </div>
+                <div class="detail-row">
+                  <span class="dr-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span>
+                  <div class="lr-main">
+                    <div class="dr-label">Agent</div>
+                    <div class="dr-value">Lina Cherif</div>
+                  </div>
+                  <span class="avatar av3 sm">LC</span>
+                </div>
+              </div>
+            </div>
+            <div class="home-indicator"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ───────────── PHONE 3 — CLIENT PORTAL ───────────── -->
+      <div class="device">
+        <div class="device-label">
+          <span class="dl-num">3</span>
+          <div class="dl-title">Client portal</div>
+          <div class="dl-sub">Your trip, shared</div>
+        </div>
+        <div class="phone-frame">
+          <div class="pf-notch"></div>
+          <div class="pf-screen">
+            <div class="pf-status">
+              <span class="clock">9:41</span>
+              <span class="status-icons">
+                <svg viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="5" y="4" width="3" height="8" rx="1"/><rect x="10" y="2" width="3" height="10" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg>
+                <svg viewBox="0 0 18 12" fill="currentColor"><path d="M9 11.5 1 4.2a11 11 0 0 1 16 0z" opacity="0.95"/></svg>
+                <span class="battery"><span class="lvl"></span></span>
+              </span>
+            </div>
+            <div class="pf-appbar">
+              <div class="ab-logo">A</div>
+              <div>
+                <div class="ab-title" style="font-size:15px;">My trip</div>
+                <div class="ab-sub">Hello, Khaled 👋</div>
+              </div>
+              <div class="ab-spacer"></div>
+              <div class="ab-ico">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              </div>
+            </div>
+            <div class="pf-body">
+              <!-- upcoming trip hero -->
+              <div class="portal-hero">
+                <div class="ph-count">in <b>15</b> days</div>
+                <div class="ph-eyebrow">Upcoming trip</div>
+                <div class="ph-title">Dubai · Family break</div>
+                <div class="ph-dates">14 – 19 Jul 2026 · 4 travellers</div>
+                <div class="ph-strip">
+                  <div class="pi">Stay<b>Rove Downtown · 4★</b></div>
+                  <div class="pi">Flights<b>Emirates · ALG–DXB</b></div>
+                </div>
+              </div>
+
+              <!-- pay reminder strip -->
+              <div class="m-card" style="padding:11px 13px;background:var(--warning-soft);border-color:#F0DCB4;">
+                <div class="between">
+                  <div>
+                    <div style="font-size:12px;font-weight:620;color:#9A5D00;">Balance due before travel</div>
+                    <div class="text-xs" style="color:#9A5D00;opacity:0.85;margin-top:1px;">620,000 DZD remaining</div>
+                  </div>
+                  <a class="btn btn-sm" style="background:var(--warning);color:#fff;">Pay now</a>
+                </div>
+              </div>
+
+              <!-- documents -->
+              <div>
+                <div class="m-section-label" style="margin-bottom:7px;">
+                  Travel documents
+                  <span class="more">4 files</span>
+                </div>
+                <div class="m-card" style="padding:0;">
+                  <div class="doc-row">
+                    <span class="doc-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></span>
+                    <div class="doc-main">
+                      <div class="doc-name">E-tickets · Emirates</div>
+                      <div class="doc-meta">PDF · PNR EK3TLP · 2 pages</div>
+                    </div>
+                    <span class="doc-dl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>
+                  </div>
+                  <div class="doc-row">
+                    <span class="doc-ico ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m9 15 2 2 4-4"/></svg></span>
+                    <div class="doc-main">
+                      <div class="doc-name">Hotel voucher</div>
+                      <div class="doc-meta">Rove Downtown · confirmed</div>
+                    </div>
+                    <span class="doc-dl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>
+                  </div>
+                  <div class="doc-row">
+                    <span class="doc-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></span>
+                    <div class="doc-main">
+                      <div class="doc-name">Itinerary &amp; day plan</div>
+                      <div class="doc-meta">PDF · 5 days · Atlas Travel</div>
+                    </div>
+                    <span class="doc-dl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- contact agent -->
+              <div class="m-card" style="padding:11px 13px;">
+                <div class="flex" style="gap:10px;">
+                  <span class="avatar av2 sm">KB</span>
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:12px;font-weight:600;">Karim Benali · your agent</div>
+                    <div class="text-xs muted">Replies in minutes</div>
+                  </div>
+                  <a class="btn btn-outline btn-sm">Message</a>
+                </div>
+              </div>
+            </div>
+            <div class="home-indicator"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ───────────── PHONE 4 — AI ASSISTANT ───────────── -->
+      <div class="device">
+        <div class="device-label">
+          <span class="dl-num">4</span>
+          <div class="dl-title">Atlas AI</div>
+          <div class="dl-sub">Quote on the go</div>
+        </div>
+        <div class="phone-frame">
+          <div class="pf-notch"></div>
+          <div class="pf-screen">
+            <div class="pf-status">
+              <span class="clock">9:41</span>
+              <span class="status-icons">
+                <svg viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="5" y="4" width="3" height="8" rx="1"/><rect x="10" y="2" width="3" height="10" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg>
+                <svg viewBox="0 0 18 12" fill="currentColor"><path d="M9 11.5 1 4.2a11 11 0 0 1 16 0z" opacity="0.95"/></svg>
+                <span class="battery"><span class="lvl"></span></span>
+              </span>
+            </div>
+            <div class="pf-appbar">
+              <div class="ab-back">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+              </div>
+              <div class="chat-ai-head" style="margin:0;">
+                <span class="ai-dot" style="width:28px;height:28px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg></span>
+                <div>
+                  <div class="ab-title" style="font-size:14px;">Atlas AI</div>
+                  <div class="ab-sub" style="color:var(--success);">● Online · context-aware</div>
+                </div>
+              </div>
+            </div>
+            <div class="pf-body chat">
+              <div class="chat-day">Today</div>
+
+              <!-- user message -->
+              <div class="chat-msg" style="align-items:flex-end;">
+                <div class="bubble me">Quote 7 nights Maldives, business class, 2 pax for Nour El Houda — overwater villa.</div>
+              </div>
+
+              <!-- AI reply -->
+              <div class="chat-msg">
+                <div class="chat-ai-head">
+                  <span class="ai-dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/></svg></span>
+                  <span class="ai-name">Atlas AI</span>
+                </div>
+                <div class="bubble ai">
+                  Here’s a draft for <span class="b-strong">Nour El Houda Benamar</span> — Soneva Jani, Sep 12–19. Margins applied at your agency default.
+                  <div class="ai-quote-card">
+                    <div class="qc-head">
+                      <span class="qc-t">Maldives · 7 nights</span>
+                      <span class="badge badge-info xs">Draft</span>
+                    </div>
+                    <div class="qc-line"><span class="l">Business flights ALG–DXB–MLE ×2</span><span class="v">1.18M</span></div>
+                    <div class="qc-line"><span class="l">Overwater villa · 5★ · 7 nts</span><span class="v">1.52M</span></div>
+                    <div class="qc-line"><span class="l">Seaplane transfers · half board</span><span class="v">0.26M</span></div>
+                    <div class="qc-total"><span class="l" style="font-weight:600;color:var(--text);">Total</span><span class="v">2,960,000 DZD</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- quick chips -->
+              <div class="ai-chips">
+                <span class="ai-chip">Send as proposal</span>
+                <span class="ai-chip">Add insurance</span>
+                <span class="ai-chip">Draft email</span>
+              </div>
+            </div>
+            <!-- chat input -->
+            <div class="chat-input">
+              <div class="ci-box">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;color:var(--faint);"><path d="M21.44 11.05 12.25 20.24a6 6 0 0 1-8.49-8.49l8.49-8.49a4 4 0 0 1 5.66 5.66l-8.49 8.49a2 2 0 0 1-2.83-2.83l7.78-7.78"/></svg>
+                <span style="flex:1;">Ask Atlas anything…</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;color:var(--faint);"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"/></svg>
+              </div>
+              <span class="ci-send">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+              </span>
+            </div>
+            <div class="home-indicator"></div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ============================ FOOTER ============================ -->
+    <footer class="board-foot">
+      Atlas Travel Desk — the operating system for modern travel agencies
+      <span class="dot">·</span> iOS &amp; Android
+      <span class="dot">·</span> Real-time sync with your desk
+    </footer>
+
+  </div>
+</body>
+</html>

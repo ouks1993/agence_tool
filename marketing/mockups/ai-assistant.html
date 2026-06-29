@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Atlas AI Assistant — Atlas Travel Desk</title>
+  <link rel="stylesheet" href="../assets/atlas-ui.css" />
+  <style>
+    /* ======================================================================
+       AI ASSISTANT — page-local layout & components
+       Built on top of atlas-ui.css tokens only (no new colors invented).
+       ====================================================================== */
+
+    /* Three-pane layout: nav rail (from shell) | conversation | context panel */
+    .ai-shell {
+      display: grid;
+      grid-template-columns: 1fr 332px;
+      gap: 0;
+      flex: 1;
+      min-height: 0;
+      height: calc(100vh - var(--topbar-h));
+    }
+
+    /* ---- Conversation column ---- */
+    .convo {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 0;
+      background: var(--canvas);
+      border-right: 1px solid var(--border);
+    }
+
+    .convo-head {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 28px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: saturate(180%) blur(6px);
+    }
+    .convo-head .ai-orb {
+      width: 34px;
+      height: 34px;
+      border-radius: var(--r);
+      background: linear-gradient(135deg, var(--brand) 0%, var(--c4) 100%);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      flex-shrink: 0;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 2px 6px rgba(43, 89, 195, 0.25);
+    }
+    .convo-head .meta .title {
+      font-size: 15px;
+      font-weight: 640;
+      letter-spacing: -0.01em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .convo-head .meta .subtitle {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 1px;
+    }
+    .live-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: var(--r-full);
+      background: var(--success);
+      box-shadow: 0 0 0 3px var(--success-soft);
+    }
+
+    .convo-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 28px 28px 8px;
+    }
+    .convo-thread {
+      max-width: 760px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 26px;
+    }
+
+    /* day separator */
+    .day-sep {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--faint);
+      font-size: 11.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .day-sep::before, .day-sep::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* message rows */
+    .msg { display: flex; gap: 12px; }
+    .msg.user { flex-direction: row-reverse; }
+
+    .msg-ava {
+      width: 30px;
+      height: 30px;
+      border-radius: var(--r-full);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 11px;
+      font-weight: 650;
+      color: #fff;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+    }
+    .msg-ava.ai {
+      background: linear-gradient(135deg, var(--brand) 0%, var(--c4) 100%);
+    }
+
+    .msg-col { min-width: 0; max-width: 86%; }
+    .msg.user .msg-col { display: flex; flex-direction: column; align-items: flex-end; }
+
+    .msg-name {
+      font-size: 11.5px;
+      color: var(--faint);
+      margin-bottom: 5px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .msg.user .msg-name { flex-direction: row-reverse; }
+
+    .bubble-user {
+      background: var(--brand);
+      color: #fff;
+      padding: 11px 15px;
+      border-radius: 16px 16px 4px 16px;
+      font-size: 13.5px;
+      line-height: 1.55;
+      box-shadow: 0 1px 2px rgba(43, 89, 195, 0.25);
+      max-width: 520px;
+    }
+
+    .bubble-ai {
+      font-size: 13.5px;
+      line-height: 1.6;
+      color: var(--text);
+    }
+    .bubble-ai p { margin: 0 0 10px; }
+    .bubble-ai p:last-child { margin-bottom: 0; }
+
+    /* ---- Itinerary card ---- */
+    .gen-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      box-shadow: var(--shadow-md);
+      overflow: hidden;
+      margin-top: 4px;
+    }
+    .gen-card-head {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface-2);
+    }
+    .gen-card-head .gc-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--r-sm);
+      background: var(--brand-soft);
+      color: var(--brand);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .gen-card-head .gc-title { font-size: 14px; font-weight: 640; letter-spacing: -0.01em; }
+    .gen-card-head .gc-sub { font-size: 12px; color: var(--muted); margin-top: 1px; }
+
+    .itin-summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .itin-days { padding: 6px 18px 4px; }
+
+    .itin-day {
+      display: flex;
+      gap: 14px;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .itin-day:last-child { border-bottom: 0; }
+
+    .itin-daymark {
+      flex-shrink: 0;
+      width: 46px;
+      text-align: center;
+    }
+    .itin-daymark .dn {
+      font-size: 10px;
+      font-weight: 650;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--faint);
+    }
+    .itin-daymark .dnum {
+      width: 32px;
+      height: 32px;
+      margin: 4px auto 0;
+      border-radius: var(--r);
+      background: var(--brand-soft);
+      color: var(--brand);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .itin-daybody { min-width: 0; flex: 1; }
+    .itin-daybody .dtitle {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .itin-line {
+      display: flex;
+      gap: 9px;
+      align-items: flex-start;
+      font-size: 12.5px;
+      color: var(--muted);
+      padding: 3px 0;
+      line-height: 1.45;
+    }
+    .itin-line .ti {
+      flex-shrink: 0;
+      font-variant-numeric: tabular-nums;
+      width: 52px;
+      color: var(--faint);
+      font-weight: 550;
+      font-size: 11.5px;
+      padding-top: 1px;
+    }
+    .itin-line .tx strong { color: var(--text); font-weight: 580; }
+
+    .gen-card-foot {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 18px;
+      border-top: 1px solid var(--border);
+      background: var(--surface-2);
+      flex-wrap: wrap;
+    }
+    .gen-card-foot .spacer { flex: 1; }
+    .gen-meta-note {
+      font-size: 11.5px;
+      color: var(--faint);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* ---- Email preview card ---- */
+    .email-card .email-meta {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      font-size: 12.5px;
+    }
+    .email-row { display: flex; gap: 10px; padding: 3px 0; }
+    .email-row .lbl { width: 54px; color: var(--faint); flex-shrink: 0; }
+    .email-row .val { color: var(--text); }
+    .email-body {
+      padding: 16px 18px;
+      font-size: 13px;
+      line-height: 1.65;
+      color: var(--text);
+    }
+    .email-body p { margin: 0 0 11px; }
+    .email-body p:last-child { margin-bottom: 0; }
+    .email-body .sig { color: var(--muted); }
+
+    /* thinking / typing indicator */
+    .typing {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 11px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px 16px 16px 4px;
+      box-shadow: var(--shadow-sm);
+    }
+    .typing span {
+      width: 6px;
+      height: 6px;
+      border-radius: var(--r-full);
+      background: var(--faint);
+      animation: blink 1.4s infinite ease-in-out both;
+    }
+    .typing span:nth-child(2) { animation-delay: 0.2s; }
+    .typing span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes blink {
+      0%, 80%, 100% { opacity: 0.3; transform: translateY(0); }
+      40% { opacity: 1; transform: translateY(-2px); }
+    }
+
+    /* ---- Composer ---- */
+    .composer-wrap {
+      padding: 12px 28px 20px;
+      border-top: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: saturate(180%) blur(6px);
+    }
+    .composer-inner { max-width: 760px; margin: 0 auto; }
+
+    .chips {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 11px;
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 6px 12px;
+      border-radius: var(--r-full);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      cursor: pointer;
+      transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+      white-space: nowrap;
+    }
+    .chip:hover { border-color: var(--brand); color: var(--brand); background: var(--brand-soft); }
+    .chip svg { width: 13px; height: 13px; }
+
+    .composer {
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+      background: var(--surface);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--r-lg);
+      padding: 8px 8px 8px 14px;
+      box-shadow: var(--shadow-sm);
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .composer:focus-within { border-color: var(--brand); box-shadow: var(--ring); }
+    .composer .ed {
+      flex: 1;
+      border: 0;
+      outline: none;
+      background: transparent;
+      resize: none;
+      font-family: inherit;
+      font-size: 13.5px;
+      line-height: 1.5;
+      color: var(--text);
+      padding: 6px 0;
+      max-height: 120px;
+    }
+    .composer .ed::placeholder { color: var(--faint); }
+    .composer-tools { display: flex; align-items: center; gap: 4px; }
+    .composer-foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--faint);
+    }
+    .composer-foot .kbd {
+      border: 1px solid var(--border);
+      background: var(--surface);
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-size: 10.5px;
+      color: var(--muted);
+    }
+
+    /* ---- Context panel (right) ---- */
+    .ctx {
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .ctx-section { padding: 18px 20px; border-bottom: 1px solid var(--border); }
+    .ctx-section:last-child { border-bottom: 0; }
+    .ctx-label {
+      font-size: 11px;
+      font-weight: 650;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--faint);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .ctx-label .lk { font-size: 11px; font-weight: 500; color: var(--brand); text-transform: none; letter-spacing: 0; cursor: pointer; }
+
+    .ctx-client {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .ctx-client .meta .nm { font-size: 14px; font-weight: 620; letter-spacing: -0.01em; }
+    .ctx-client .meta .sub { font-size: 12px; color: var(--muted); margin-top: 1px; }
+
+    .ctx-kv {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 12.5px;
+      padding: 6px 0;
+    }
+    .ctx-kv .k { color: var(--muted); }
+    .ctx-kv .v { color: var(--text); font-weight: 550; text-align: right; }
+
+    .ctx-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+    /* booking mini card */
+    .ctx-booking {
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 13px;
+      background: var(--surface-2);
+    }
+    .ctx-booking .bk-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; }
+    .ctx-booking .bk-ref { font-size: 12px; font-weight: 650; color: var(--text); letter-spacing: -0.01em; }
+    .ctx-booking .bk-route { font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+    .ctx-booking .bk-prog { margin-top: 11px; }
+    .ctx-booking .bk-money { display: flex; justify-content: space-between; font-size: 11.5px; margin-top: 7px; }
+
+    /* suggested actions */
+    .sa {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      width: 100%;
+      text-align: left;
+      padding: 11px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      background: var(--surface);
+      cursor: pointer;
+      transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+      margin-bottom: 8px;
+      font-family: inherit;
+    }
+    .sa:last-child { margin-bottom: 0; }
+    .sa:hover { border-color: var(--brand); background: var(--brand-soft); box-shadow: var(--shadow-sm); }
+    .sa .sa-ico {
+      width: 30px;
+      height: 30px;
+      border-radius: var(--r-sm);
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .sa .sa-ico.i1 { background: var(--brand-soft); color: var(--brand); }
+    .sa .sa-ico.i2 { background: var(--success-soft); color: var(--success); }
+    .sa .sa-ico.i3 { background: var(--amber-soft); color: var(--amber); }
+    .sa .sa-ico.i4 { background: #EEEAFB; color: var(--c4); }
+    .sa .sa-meta .t { font-size: 13px; font-weight: 560; color: var(--text); }
+    .sa .sa-meta .d { font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+    .sa .sa-arrow { margin-left: auto; color: var(--faint); flex-shrink: 0; }
+
+    .ctx-usage {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11.5px;
+      color: var(--muted);
+    }
+
+    @media (max-width: 1100px) {
+      .ai-shell { grid-template-columns: 1fr; }
+      .ctx { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- ===================== SIDEBAR ===================== -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <span class="logo-mark">A</span>
+        Atlas
+      </div>
+
+      <nav class="nav">
+        <a class="nav-item" href="#">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Dashboard
+        </a>
+        <a class="nav-item" href="#">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Clients
+        </a>
+        <a class="nav-item" href="#">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="9" y2="18"/></svg>
+          Pipeline
+        </a>
+        <a class="nav-item" href="#">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Proposals
+        </a>
+        <a class="nav-item" href="#">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
+          Flights
+        </a>
+        <a class="nav-item" href="#">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>
+          Hotels
+        </a>
+        <a class="nav-item" href="#">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+          Bookings
+          <span class="nav-badge">10</span>
+        </a>
+
+        <div class="nav-section-label">Workspace</div>
+
+        <a class="nav-item active" href="#">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+          AI Assistant
+        </a>
+        <a class="nav-item" href="#">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+          Reports
+        </a>
+        <a class="nav-item" href="#">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Settings
+        </a>
+      </nav>
+
+      <div class="sidebar-foot">
+        <span class="avatar av1">YH</span>
+        <div style="line-height:1.3;min-width:0;">
+          <div style="color:#fff;font-size:12.5px;font-weight:560;">Yasmine Haddad</div>
+          <div style="color:#7B84A0;font-size:11px;">Manager · Atlas Travel</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ===================== MAIN ===================== -->
+    <div class="main">
+      <!-- Topbar -->
+      <header class="topbar">
+        <div class="topbar-search">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" placeholder="Search clients, bookings, proposals…" />
+          <span class="kbd">⌘K</span>
+        </div>
+        <div class="topbar-actions">
+          <button class="btn btn-icon bordered" title="Notifications">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          </button>
+          <span class="avatar av1">YH</span>
+        </div>
+      </header>
+
+      <!-- Three-pane AI workspace -->
+      <div class="ai-shell">
+        <!-- ============ CONVERSATION ============ -->
+        <section class="convo">
+          <div class="convo-head">
+            <span class="ai-orb">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+            </span>
+            <div class="meta grow">
+              <div class="title">Atlas Assistant <span class="badge badge-info" style="font-size:10.5px;"><span class="dot"></span>Beta</span></div>
+              <div class="subtitle"><span class="live-dot" style="display:inline-block;vertical-align:middle;margin-right:5px;"></span>Working with Yacine Brahimi · BKG-2026-007</div>
+            </div>
+            <button class="btn btn-outline btn-sm">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              New chat
+            </button>
+            <button class="btn btn-icon bordered" title="History">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
+            </button>
+          </div>
+
+          <div class="convo-scroll">
+            <div class="convo-thread">
+
+              <div class="day-sep">Today · 29 June 2026</div>
+
+              <!-- USER TURN 1 -->
+              <div class="msg user">
+                <span class="msg-ava avatar av1">YH</span>
+                <div class="msg-col">
+                  <div class="msg-name">You · 09:41</div>
+                  <div class="bubble-user">Draft a 5-day Istanbul itinerary for the Benali family — two adults, two kids (8 &amp; 12), arriving 20 July. Mid-range, walkable, with one Bosphorus day.</div>
+                </div>
+              </div>
+
+              <!-- AI TURN 1 — itinerary -->
+              <div class="msg">
+                <span class="msg-ava ai">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+                </span>
+                <div class="msg-col">
+                  <div class="msg-name">Atlas Assistant · 09:41</div>
+                  <div class="bubble-ai">
+                    <p>Here's a family-friendly 5-day plan centred in Sultanahmet, all stops within walking distance or a short tram ride. I've kept day 3 free for the Bosphorus and paced the days for younger travellers.</p>
+
+                    <!-- ITINERARY CARD -->
+                    <div class="gen-card">
+                      <div class="gen-card-head">
+                        <span class="gc-icon">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                        </span>
+                        <div class="grow">
+                          <div class="gc-title">Istanbul Family Escape — 5 days</div>
+                          <div class="gc-sub">20–24 Jul 2026 · 2 adults + 2 children · Sultanahmet base</div>
+                        </div>
+                        <span class="badge badge-neutral">Draft</span>
+                      </div>
+
+                      <div class="itin-summary">
+                        <span class="tag"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:5px;"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg>4★ Sirkeci Mansion</span>
+                        <span class="tag">5 nights</span>
+                        <span class="tag">Walkable old city</span>
+                        <span class="tag">Bosphorus cruise day</span>
+                        <span class="tag">Kid-friendly pacing</span>
+                      </div>
+
+                      <div class="itin-days">
+                        <!-- Day 1 -->
+                        <div class="itin-day">
+                          <div class="itin-daymark"><div class="dn">Mon</div><div class="dnum">1</div></div>
+                          <div class="itin-daybody">
+                            <div class="dtitle">Arrival &amp; Sultanahmet on foot</div>
+                            <div class="itin-line"><span class="ti">14:20</span><span class="tx">Land at <strong>IST</strong> (TK from Oran via Istanbul) · private transfer to hotel</span></div>
+                            <div class="itin-line"><span class="ti">17:00</span><span class="tx">Check in at <strong>Sirkeci Mansion</strong>, settle, family dinner nearby</span></div>
+                            <div class="itin-line"><span class="ti">19:30</span><span class="tx">Gentle stroll through <strong>Gülhane Park</strong> &amp; Hippodrome</span></div>
+                          </div>
+                        </div>
+                        <!-- Day 2 -->
+                        <div class="itin-day">
+                          <div class="itin-daymark"><div class="dn">Tue</div><div class="dnum">2</div></div>
+                          <div class="itin-daybody">
+                            <div class="dtitle">Old City landmarks</div>
+                            <div class="itin-line"><span class="ti">09:00</span><span class="tx"><strong>Hagia Sophia</strong> &amp; the <strong>Blue Mosque</strong> (skip-the-line, modest dress)</span></div>
+                            <div class="itin-line"><span class="ti">13:00</span><span class="tx">Lunch at a köfte house, then <strong>Basilica Cistern</strong> — a hit with kids</span></div>
+                            <div class="itin-line"><span class="ti">16:00</span><span class="tx"><strong>Grand Bazaar</strong> browse · Turkish delight tasting</span></div>
+                          </div>
+                        </div>
+                        <!-- Day 3 -->
+                        <div class="itin-day">
+                          <div class="itin-daymark"><div class="dn">Wed</div><div class="dnum">3</div></div>
+                          <div class="itin-daybody">
+                            <div class="dtitle">Bosphorus day</div>
+                            <div class="itin-line"><span class="ti">10:00</span><span class="tx">Private <strong>Bosphorus cruise</strong> — Rumeli Fortress, Ortaköy, palaces from the water</span></div>
+                            <div class="itin-line"><span class="ti">13:30</span><span class="tx">Seaside lunch in <strong>Ortaköy</strong>, famous baked potatoes for the kids</span></div>
+                            <div class="itin-line"><span class="ti">16:00</span><span class="tx">Ferry to <strong>Kadıköy</strong> (Asian side) for a relaxed evening</span></div>
+                          </div>
+                        </div>
+                        <!-- Day 4 -->
+                        <div class="itin-day">
+                          <div class="itin-daymark"><div class="dn">Thu</div><div class="dnum">4</div></div>
+                          <div class="itin-daybody">
+                            <div class="dtitle">Palaces &amp; a treat for the kids</div>
+                            <div class="itin-line"><span class="ti">09:30</span><span class="tx"><strong>Topkapı Palace</strong> &amp; gardens · harem optional</span></div>
+                            <div class="itin-line"><span class="ti">14:00</span><span class="tx"><strong>Miniatürk</strong> open-air park — Turkey in miniature, great for ages 8–12</span></div>
+                            <div class="itin-line"><span class="ti">19:00</span><span class="tx">Dinner with a view at a rooftop in Sultanahmet</span></div>
+                          </div>
+                        </div>
+                        <!-- Day 5 -->
+                        <div class="itin-day">
+                          <div class="itin-daymark"><div class="dn">Fri</div><div class="dnum">5</div></div>
+                          <div class="itin-daybody">
+                            <div class="dtitle">Free morning &amp; departure</div>
+                            <div class="itin-line"><span class="ti">10:00</span><span class="tx">Last-minute shopping at <strong>Spice Bazaar</strong>, riverside walk</span></div>
+                            <div class="itin-line"><span class="ti">13:00</span><span class="tx">Check out · private transfer to <strong>IST</strong></span></div>
+                            <div class="itin-line"><span class="ti">16:05</span><span class="tx">Return flight to <strong>Oran</strong> via Istanbul</span></div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="gen-card-foot">
+                        <button class="btn btn-primary btn-sm">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                          Add to proposal
+                        </button>
+                        <button class="btn btn-outline btn-sm">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
+                          Refine
+                        </button>
+                        <button class="btn btn-ghost btn-sm">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                          Copy
+                        </button>
+                        <span class="spacer"></span>
+                        <span class="gen-meta-note">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/></svg>
+                          Generated in 4.2s · review before sending
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- USER TURN 2 -->
+              <div class="msg user">
+                <span class="msg-ava avatar av1">YH</span>
+                <div class="msg-col">
+                  <div class="msg-name">You · 09:44</div>
+                  <div class="bubble-user">Looks great. Draft a short email to Yacine sharing the plan and asking to confirm the dates.</div>
+                </div>
+              </div>
+
+              <!-- AI TURN 2 — email preview -->
+              <div class="msg">
+                <span class="msg-ava ai">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+                </span>
+                <div class="msg-col">
+                  <div class="msg-name">Atlas Assistant · 09:44</div>
+                  <div class="bubble-ai">
+                    <p>Here's a draft, warm but concise, ready to send from your Atlas mailbox.</p>
+
+                    <!-- EMAIL CARD -->
+                    <div class="gen-card email-card">
+                      <div class="gen-card-head">
+                        <span class="gc-icon">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 5L2 7"/></svg>
+                        </span>
+                        <div class="grow">
+                          <div class="gc-title">Email draft</div>
+                          <div class="gc-sub">Client follow-up · Antalya trip context</div>
+                        </div>
+                        <span class="badge badge-info"><span class="dot"></span>Preview</span>
+                      </div>
+
+                      <div class="email-meta">
+                        <div class="email-row"><span class="lbl">To</span><span class="val">Yacine Brahimi &lt;y.brahimi@outlook.com&gt;</span></div>
+                        <div class="email-row"><span class="lbl">From</span><span class="val">Yasmine Haddad · Atlas Travel &lt;yasmine@atlastravel.dz&gt;</span></div>
+                        <div class="email-row"><span class="lbl">Subject</span><span class="val">Your Istanbul family itinerary — a quick look</span></div>
+                      </div>
+
+                      <div class="email-body">
+                        <p>Dear Mr. Brahimi,</p>
+                        <p>Thank you for thinking of Atlas Travel for your family trip. I've put together a relaxed 5-day Istanbul itinerary built around your dates — two adults and the children, walkable old-city stays, and a full Bosphorus day in the middle that the kids should love.</p>
+                        <p>Before I lock in flights and the hotel allotment, could you confirm that <strong>20–24 July</strong> still works for the whole family? Once you give me the go-ahead I'll send the full proposal with pricing.</p>
+                        <p class="sig">Warm regards,<br />Yasmine Haddad<br />Manager · Atlas Travel · +213 21 54 70 00</p>
+                      </div>
+
+                      <div class="gen-card-foot">
+                        <button class="btn btn-primary btn-sm">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                          Send email
+                        </button>
+                        <button class="btn btn-outline btn-sm">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
+                          Edit
+                        </button>
+                        <button class="btn btn-ghost btn-sm">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                          Regenerate
+                        </button>
+                        <span class="spacer"></span>
+                        <span class="gen-meta-note">Tone: warm · 96 words</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- AI typing -->
+              <div class="msg">
+                <span class="msg-ava ai">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+                </span>
+                <div class="msg-col">
+                  <div class="msg-name">Atlas Assistant</div>
+                  <div class="typing"><span></span><span></span><span></span></div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Composer -->
+          <div class="composer-wrap">
+            <div class="composer-inner">
+              <div class="chips">
+                <span class="chip">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                  Add hotel options
+                </span>
+                <span class="chip">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                  Estimate price in DZD
+                </span>
+                <span class="chip">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                  Add Turkey visa notes
+                </span>
+                <span class="chip">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" y1="9" x2="8" y2="9"/><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  Build the full proposal
+                </span>
+              </div>
+
+              <div class="composer">
+                <textarea class="ed" rows="1" placeholder="Ask Atlas to draft, plan, price or research…">Add three hotel options near Sultanahmet with nightly rates</textarea>
+                <div class="composer-tools">
+                  <button class="btn btn-icon" title="Attach">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                  </button>
+                  <button class="btn btn-icon" title="Voice">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
+                  </button>
+                  <button class="btn btn-primary" style="width:36px;padding:0;" title="Send">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+                  </button>
+                </div>
+              </div>
+              <div class="composer-foot">
+                <span>Atlas can search flights &amp; hotels live, and draft from client context. Always review before sending.</span>
+                <span><span class="kbd">↵</span> to send · <span class="kbd">⇧↵</span> new line</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ CONTEXT PANEL ============ -->
+        <aside class="ctx">
+          <!-- Current client -->
+          <div class="ctx-section">
+            <div class="ctx-label">Current client <span class="lk">View profile</span></div>
+            <div class="ctx-client">
+              <span class="avatar lg av3">YB</span>
+              <div class="meta">
+                <div class="nm">Yacine Brahimi</div>
+                <div class="sub">Oran, Algeria · Individual</div>
+              </div>
+            </div>
+            <div class="ctx-kv"><span class="k">Status</span><span class="v"><span class="badge badge-success"><span class="dot"></span>Active</span></span></div>
+            <div class="ctx-kv"><span class="k">Owner</span><span class="v">Lina Cherif</span></div>
+            <div class="ctx-kv"><span class="k">Lifetime value</span><span class="v tabular">2,140,000 DZD</span></div>
+            <div class="ctx-kv"><span class="k">Trips</span><span class="v">6 · last 22 Jun</span></div>
+            <div class="ctx-tags">
+              <span class="tag">family travel</span>
+              <span class="tag">school holidays</span>
+              <span class="tag">4★ hotels</span>
+            </div>
+          </div>
+
+          <!-- Active booking -->
+          <div class="ctx-section">
+            <div class="ctx-label">Active booking</div>
+            <div class="ctx-booking">
+              <div class="bk-top">
+                <span class="bk-ref">BKG-2026-007</span>
+                <span class="badge badge-success"><span class="dot"></span>Confirmed</span>
+              </div>
+              <div class="bk-route">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                Antalya · 20–27 Jul · 4 travellers
+              </div>
+              <div class="bk-prog">
+                <div class="progress"><div class="bar success" style="width:100%;"></div></div>
+                <div class="bk-money">
+                  <span class="muted">Paid in full</span>
+                  <span class="strong tabular">980,000 DZD</span>
+                </div>
+              </div>
+            </div>
+            <p class="text-xs muted mt-3" style="line-height:1.5;">The new Istanbul itinerary is a fresh enquiry for the same family — Atlas pulled their preferences from this trip.</p>
+          </div>
+
+          <!-- Suggested actions -->
+          <div class="ctx-section grow">
+            <div class="ctx-label">Suggested actions</div>
+
+            <button class="sa">
+              <span class="sa-ico i1">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+              </span>
+              <span class="sa-meta">
+                <span class="t">Generate quote</span>
+                <span class="d">Price the Istanbul plan in DZD</span>
+              </span>
+              <svg class="sa-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+
+            <button class="sa">
+              <span class="sa-ico i2">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              </span>
+              <span class="sa-meta">
+                <span class="t">Draft follow-up</span>
+                <span class="d">Nudge on the date confirmation</span>
+              </span>
+              <svg class="sa-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+
+            <button class="sa">
+              <span class="sa-ico i3">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><path d="M21 12c-1 0-3-1-3-3s2-3 3-3-3-1-3-3 1-3 3-3"/><path d="M3 12c1 0 3-1 3-3S4 6 3 6s3-1 3-3-1-3-3-3"/><rect x="3" y="6" width="18" height="15" rx="2"/></svg>
+              </span>
+              <span class="sa-meta">
+                <span class="t">Check visa</span>
+                <span class="d">Turkey e-visa for Algerian passport</span>
+              </span>
+              <svg class="sa-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+
+            <button class="sa">
+              <span class="sa-ico i4">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
+              </span>
+              <span class="sa-meta">
+                <span class="t">Search flights</span>
+                <span class="d">ORN → IST, 20 Jul · 4 pax</span>
+              </span>
+              <svg class="sa-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+
+          <!-- Footer usage -->
+          <div class="ctx-section">
+            <div class="ctx-usage">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/></svg>
+              <span>Grounded on your live CRM &amp; supplier data — never the open web.</span>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+  <script src="../assets/demo-data.js"></script>
+</body>
+</html>

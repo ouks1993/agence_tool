@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flight search — Atlas Travel Desk</title>
+<link rel="stylesheet" href="../assets/atlas-ui.css">
+<style>
+  /* ---- Screen-specific composition (built on shared tokens) ---- */
+  .results-layout {
+    display: grid;
+    grid-template-columns: 256px 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+
+  /* --- Search bar --- */
+  .search-bar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 14px 16px;
+    display: flex;
+    align-items: flex-end;
+    gap: 0;
+    margin-bottom: 20px;
+  }
+  .sb-seg {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 0 14px;
+    position: relative;
+    flex: 1;
+    min-width: 0;
+  }
+  .sb-seg:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 4px;
+    bottom: 4px;
+    width: 1px;
+    background: var(--border);
+  }
+  .sb-seg.swap { flex: 0 0 auto; padding: 0 6px; align-self: center; }
+  .sb-seg.action { flex: 0 0 auto; padding-left: 16px; }
+  .sb-label {
+    font-size: 10.5px;
+    font-weight: 650;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--faint);
+  }
+  .sb-value { font-size: 15px; font-weight: 620; color: var(--text); letter-spacing: -0.01em; line-height: 1.2; }
+  .sb-value .code { font-weight: 700; }
+  .sb-sub { font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+  .sb-swap-btn {
+    width: 32px; height: 32px;
+    border-radius: var(--r-full);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+    display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+  }
+  .sb-swap-btn:hover { background: var(--canvas); color: var(--brand); }
+
+  /* --- Trip type tabs --- */
+  .trip-tabs { display: inline-flex; gap: 2px; background: var(--canvas); border: 1px solid var(--border); border-radius: var(--r); padding: 3px; margin-bottom: 14px; }
+  .trip-tab { font-size: 12.5px; font-weight: 550; color: var(--muted); padding: 5px 14px; border-radius: var(--r-sm); cursor: pointer; }
+  .trip-tab.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
+
+  /* --- Filters --- */
+  .filters { position: sticky; top: calc(var(--topbar-h) + 20px); }
+  .filter-group { padding: 16px 0; border-bottom: 1px solid var(--border); }
+  .filter-group:last-child { border-bottom: 0; padding-bottom: 4px; }
+  .filter-group:first-child { padding-top: 4px; }
+  .filter-head {
+    font-size: 12px; font-weight: 650; color: var(--text);
+    letter-spacing: -0.005em; margin-bottom: 12px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .filter-head .clear { font-size: 11px; font-weight: 500; color: var(--brand); cursor: pointer; }
+  .check-row { display: flex; align-items: center; gap: 9px; padding: 6px 0; cursor: pointer; }
+  .check-row .cb {
+    width: 16px; height: 16px; border-radius: 5px; border: 1.5px solid var(--border-strong);
+    flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+    color: #fff; background: var(--surface);
+  }
+  .check-row .cb.on { background: var(--brand); border-color: var(--brand); }
+  .check-row .cb.on svg { width: 11px; height: 11px; }
+  .check-row .cb.off svg { display: none; }
+  .check-row .lbl { font-size: 13px; color: var(--text); flex: 1; }
+  .check-row .cnt { font-size: 11.5px; color: var(--faint); font-variant-numeric: tabular-nums; }
+
+  /* price slider (static, visual) */
+  .price-track { height: 5px; border-radius: var(--r-full); background: var(--border); position: relative; margin: 18px 4px 8px; }
+  .price-fill { position: absolute; left: 14%; right: 22%; top: 0; bottom: 0; background: var(--brand); border-radius: var(--r-full); }
+  .price-knob { position: absolute; top: 50%; width: 15px; height: 15px; border-radius: var(--r-full); background: var(--surface); border: 2px solid var(--brand); transform: translate(-50%, -50%); box-shadow: var(--shadow-sm); }
+  .price-vals { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  /* departure window pills */
+  .time-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px; }
+  .time-pill { border: 1px solid var(--border); border-radius: var(--r-sm); padding: 7px 6px; text-align: center; cursor: pointer; background: var(--surface); }
+  .time-pill.on { border-color: var(--brand); background: var(--brand-soft); }
+  .time-pill .tp-icon { color: var(--muted); margin-bottom: 2px; }
+  .time-pill.on .tp-icon { color: var(--brand); }
+  .time-pill .tp-t { font-size: 11.5px; font-weight: 600; color: var(--text); }
+  .time-pill .tp-s { font-size: 10px; color: var(--faint); }
+
+  /* --- Results toolbar --- */
+  .results-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+  .sort-pills { display: inline-flex; gap: 2px; background: var(--canvas); border: 1px solid var(--border); border-radius: var(--r); padding: 3px; }
+  .sort-pill { font-size: 12.5px; font-weight: 550; color: var(--muted); padding: 5px 12px; border-radius: var(--r-sm); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+  .sort-pill.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
+  .sort-pill .price-hint { font-size: 11px; color: var(--success); font-weight: 600; }
+
+  /* --- Flight result card --- */
+  .flight-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 14px;
+    transition: box-shadow 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .flight-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+  .flight-card.featured { border-color: #C9D8F6; box-shadow: 0 0 0 1px #C9D8F6, var(--shadow-md); }
+  .fc-ribbon {
+    position: absolute; top: 0; left: 0;
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase;
+    color: #fff; background: var(--brand);
+    padding: 4px 12px 4px 14px;
+    border-bottom-right-radius: var(--r);
+  }
+  .fc-ribbon.green { background: var(--success); }
+
+  .fc-body { display: grid; grid-template-columns: 1fr 200px; }
+  .fc-main { padding: 18px 20px; }
+  .fc-main.has-ribbon { padding-top: 30px; }
+
+  /* airline logo block */
+  .leg { display: grid; grid-template-columns: 168px 1fr; gap: 18px; align-items: center; }
+  .leg + .leg { margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--border); }
+  .airline-block { display: flex; align-items: center; gap: 11px; }
+  .airline-logo {
+    width: 44px; height: 44px; border-radius: var(--r); flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 15px; color: #fff; letter-spacing: -0.02em;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18);
+  }
+  .lg-ek { background: linear-gradient(135deg, #C8102E 0%, #9e0c24 100%); }
+  .lg-ah { background: linear-gradient(135deg, #0A6B3B 0%, #07502c 100%); }
+  .lg-tk { background: linear-gradient(135deg, #C8102E 0%, #a00d24 100%); }
+  .lg-qr { background: linear-gradient(135deg, #5C0632 0%, #3f0422 100%); }
+  .airline-meta .a-name { font-size: 13px; font-weight: 620; color: var(--text); }
+  .airline-meta .a-flight { font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+
+  /* timeline */
+  .leg-times { display: flex; align-items: center; gap: 14px; }
+  .lt-end { text-align: center; min-width: 64px; }
+  .lt-end .t { font-size: 19px; font-weight: 700; color: var(--text); letter-spacing: -0.02em; line-height: 1.1; }
+  .lt-end .ap { font-size: 11.5px; color: var(--muted); font-weight: 550; margin-top: 1px; }
+  .lt-mid { flex: 1; text-align: center; position: relative; padding: 0 4px; }
+  .lt-mid .dur { font-size: 11.5px; color: var(--muted); font-weight: 550; }
+  .lt-line { position: relative; height: 2px; background: var(--border-strong); margin: 6px 0 5px; border-radius: 2px; }
+  .lt-line .plane { position: absolute; right: -2px; top: 50%; transform: translateY(-50%); color: var(--faint); background: var(--surface); padding-left: 3px; }
+  .lt-line .stop-dot { position: absolute; top: 50%; transform: translate(-50%, -50%); width: 7px; height: 7px; border-radius: var(--r-full); background: var(--surface); border: 2px solid var(--warning); }
+  .lt-stops { font-size: 11px; font-weight: 600; }
+  .lt-stops.direct { color: var(--success); }
+  .lt-stops.one { color: var(--warning); }
+
+  /* extra meta chips under the leg */
+  .fc-tags { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 14px; padding-top: 13px; border-top: 1px solid var(--border); }
+
+  /* price rail */
+  .fc-rail {
+    border-left: 1px solid var(--border);
+    background: var(--surface-2);
+    padding: 18px 20px;
+    display: flex; flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+  }
+  .fc-rail .rail-from { font-size: 11px; color: var(--faint); font-weight: 500; }
+  .fc-rail .rail-price { font-size: 23px; font-weight: 750; color: var(--text); letter-spacing: -0.025em; line-height: 1.05; }
+  .fc-rail .rail-price .cur { font-size: 13px; font-weight: 600; color: var(--muted); margin-left: 3px; letter-spacing: 0; }
+  .fc-rail .rail-pax { font-size: 11.5px; color: var(--muted); margin-bottom: 2px; }
+  .fc-rail .rail-margin { font-size: 11px; color: var(--success); font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
+  .fc-rail .rail-actions { display: flex; flex-direction: column; gap: 7px; margin-top: 12px; }
+  .fc-rail .btn { width: 100%; }
+
+  .icon { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; display: inline-block; vertical-align: middle; }
+  .icon-sm { width: 13px; height: 13px; }
+  .icon-xs { width: 11px; height: 11px; }
+
+  @media (max-width: 1100px) {
+    .results-layout { grid-template-columns: 1fr; }
+    .filters { position: static; }
+  }
+  @media (max-width: 760px) {
+    .fc-body { grid-template-columns: 1fr; }
+    .fc-rail { border-left: 0; border-top: 1px solid var(--border); }
+    .leg { grid-template-columns: 1fr; gap: 12px; }
+    .search-bar { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ============================ SIDEBAR ============================ -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <span class="logo-mark">A</span>
+      Atlas Travel Desk
+    </div>
+
+    <nav class="nav">
+      <a class="nav-item" href="#">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+        Dashboard
+      </a>
+      <a class="nav-item" href="#">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Clients
+      </a>
+      <a class="nav-item" href="#">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="9" y2="18"/></svg>
+        Pipeline
+      </a>
+      <a class="nav-item" href="#">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Proposals
+      </a>
+
+      <div class="nav-section-label">Booking</div>
+      <a class="nav-item active" href="#">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
+        Flight search
+      </a>
+      <a class="nav-item" href="#">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9v.01"/><path d="M9 12v.01"/><path d="M9 15v.01"/><path d="M9 18v.01"/></svg>
+        Hotel search
+      </a>
+      <a class="nav-item" href="#">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+        Bookings
+        <span class="nav-badge">10</span>
+      </a>
+
+      <div class="nav-section-label">Insights</div>
+      <a class="nav-item" href="#">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Reports
+      </a>
+      <a class="nav-item" href="#">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        AI assistant
+      </a>
+      <a class="nav-item" href="#">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+      </a>
+    </nav>
+
+    <div class="sidebar-foot">
+      <span class="avatar av1">YH</span>
+      <div style="line-height:1.3;">
+        <div style="color:#fff;font-size:13px;font-weight:600;">Yasmine Haddad</div>
+        <div style="color:#8b93a7;font-size:11.5px;">Manager · Atlas Travel</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============================ MAIN ============================ -->
+  <div class="main">
+
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="topbar-search">
+        <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input placeholder="Search bookings, clients, references…" />
+        <span class="kbd">⌘K</span>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-outline btn-sm">
+          <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          DZD
+        </button>
+        <button class="btn-icon bordered" aria-label="Notifications">
+          <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        </button>
+        <span class="avatar av1">YH</span>
+      </div>
+    </header>
+
+    <!-- Page -->
+    <div class="page">
+
+      <div class="breadcrumb">
+        <a href="#">Booking</a>
+        <span class="sep">/</span>
+        <a href="#">Flight search</a>
+        <span class="sep">/</span>
+        <span class="current">ALG → DXB</span>
+      </div>
+
+      <div class="page-header">
+        <div>
+          <div class="page-title">Flight search</div>
+          <div class="page-subtitle">Live fares from Duffel — Air Algérie, Emirates, Turkish &amp; Qatar · for Khaled Bouazza · 4 travellers</div>
+        </div>
+        <div class="flex gap-2">
+          <button class="btn btn-outline btn-sm">
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export fares
+          </button>
+          <button class="btn btn-primary btn-sm">
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            New search
+          </button>
+        </div>
+      </div>
+
+      <!-- Trip type tabs -->
+      <div class="trip-tabs">
+        <span class="trip-tab active">Round trip</span>
+        <span class="trip-tab">One way</span>
+        <span class="trip-tab">Multi-city</span>
+      </div>
+
+      <!-- Search bar -->
+      <div class="search-bar">
+        <div class="sb-seg">
+          <span class="sb-label">From</span>
+          <span class="sb-value"><span class="code">ALG</span> Algiers</span>
+          <span class="sb-sub">Houari Boumediene</span>
+        </div>
+        <div class="sb-seg swap">
+          <button class="sb-swap-btn" aria-label="Swap">
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+          </button>
+        </div>
+        <div class="sb-seg">
+          <span class="sb-label">To</span>
+          <span class="sb-value"><span class="code">DXB</span> Dubai</span>
+          <span class="sb-sub">Dubai International</span>
+        </div>
+        <div class="sb-seg">
+          <span class="sb-label">Depart</span>
+          <span class="sb-value">14 Jul 2026</span>
+          <span class="sb-sub">Tuesday</span>
+        </div>
+        <div class="sb-seg">
+          <span class="sb-label">Return</span>
+          <span class="sb-value">19 Jul 2026</span>
+          <span class="sb-sub">Sunday</span>
+        </div>
+        <div class="sb-seg">
+          <span class="sb-label">Travellers &amp; cabin</span>
+          <span class="sb-value">2 adults · 2 children</span>
+          <span class="sb-sub">Economy</span>
+        </div>
+        <div class="sb-seg action">
+          <button class="btn btn-primary btn-lg">
+            <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Search
+          </button>
+        </div>
+      </div>
+
+      <!-- =================== RESULTS LAYOUT =================== -->
+      <div class="results-layout">
+
+        <!-- -------- FILTERS -------- -->
+        <aside class="filters card" style="padding:0;">
+          <div style="padding:14px 18px 0;">
+            <div class="between" style="margin-bottom:2px;">
+              <span class="card-title" style="font-size:14px;">Filters</span>
+              <span class="clear" style="font-size:11.5px;font-weight:500;color:var(--brand);cursor:pointer;">Reset</span>
+            </div>
+          </div>
+
+          <div style="padding:0 18px 16px;">
+
+            <!-- Stops -->
+            <div class="filter-group">
+              <div class="filter-head">Stops</div>
+              <label class="check-row">
+                <span class="cb on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+                <span class="lbl">Direct</span>
+                <span class="cnt">2</span>
+              </label>
+              <label class="check-row">
+                <span class="cb on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+                <span class="lbl">1 stop</span>
+                <span class="cnt">3</span>
+              </label>
+              <label class="check-row">
+                <span class="cb off"></span>
+                <span class="lbl">2+ stops</span>
+                <span class="cnt">0</span>
+              </label>
+            </div>
+
+            <!-- Airlines -->
+            <div class="filter-group">
+              <div class="filter-head">Airlines <span class="clear">All</span></div>
+              <label class="check-row">
+                <span class="cb on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+                <span class="lbl">Emirates</span>
+                <span class="cnt">2</span>
+              </label>
+              <label class="check-row">
+                <span class="cb on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+                <span class="lbl">Air Algérie</span>
+                <span class="cnt">1</span>
+              </label>
+              <label class="check-row">
+                <span class="cb on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+                <span class="lbl">Turkish Airlines</span>
+                <span class="cnt">1</span>
+              </label>
+              <label class="check-row">
+                <span class="cb on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+                <span class="lbl">Qatar Airways</span>
+                <span class="cnt">1</span>
+              </label>
+            </div>
+
+            <!-- Departure window -->
+            <div class="filter-group">
+              <div class="filter-head">Departure window</div>
+              <div class="time-grid">
+                <div class="time-pill on">
+                  <div class="tp-icon"><svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M17 18a5 5 0 0 0-10 0"/><line x1="12" y1="2" x2="12" y2="9"/><line x1="4.22" y1="10.22" x2="5.64" y2="11.64"/><line x1="1" y1="18" x2="3" y2="18"/><line x1="21" y1="18" x2="23" y2="18"/><line x1="18.36" y1="11.64" x2="19.78" y2="10.22"/><line x1="23" y1="22" x2="1" y2="22"/><polyline points="8 6 12 2 16 6"/></svg></div>
+                  <div class="tp-t">Morning</div>
+                  <div class="tp-s">06–12</div>
+                </div>
+                <div class="time-pill on">
+                  <div class="tp-icon"><svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg></div>
+                  <div class="tp-t">Afternoon</div>
+                  <div class="tp-s">12–18</div>
+                </div>
+                <div class="time-pill">
+                  <div class="tp-icon"><svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></div>
+                  <div class="tp-t">Evening</div>
+                  <div class="tp-s">18–24</div>
+                </div>
+                <div class="time-pill">
+                  <div class="tp-icon"><svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/></svg></div>
+                  <div class="tp-t">Night</div>
+                  <div class="tp-s">00–06</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Price -->
+            <div class="filter-group">
+              <div class="filter-head">Price per traveller</div>
+              <div class="price-track">
+                <div class="price-fill"></div>
+                <div class="price-knob" style="left:14%;"></div>
+                <div class="price-knob" style="left:78%;"></div>
+              </div>
+              <div class="price-vals">
+                <span>96,000 DZD</span>
+                <span>340,000 DZD</span>
+              </div>
+            </div>
+
+            <!-- Baggage -->
+            <div class="filter-group">
+              <div class="filter-head">Baggage</div>
+              <label class="check-row">
+                <span class="cb on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+                <span class="lbl">Checked bag included</span>
+                <span class="cnt">4</span>
+              </label>
+              <label class="check-row">
+                <span class="cb off"></span>
+                <span class="lbl">Cabin bag only</span>
+                <span class="cnt">1</span>
+              </label>
+            </div>
+
+            <!-- Cabin -->
+            <div class="filter-group">
+              <div class="filter-head">Cabin</div>
+              <label class="check-row">
+                <span class="cb on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+                <span class="lbl">Economy</span>
+                <span class="cnt">4</span>
+              </label>
+              <label class="check-row">
+                <span class="cb off"></span>
+                <span class="lbl">Business</span>
+                <span class="cnt">1</span>
+              </label>
+            </div>
+
+          </div>
+        </aside>
+
+        <!-- -------- RESULTS COLUMN -------- -->
+        <section>
+
+          <!-- Results toolbar -->
+          <div class="results-bar">
+            <div class="text-sm muted"><span class="strong" style="color:var(--text);">5 flights</span> found · ALG → DXB · 14–19 Jul · prices for 4 travellers, incl. taxes</div>
+            <div class="sort-pills">
+              <span class="sort-pill active">Best value</span>
+              <span class="sort-pill">Cheapest <span class="price-hint">404,000</span></span>
+              <span class="sort-pill">Fastest <span class="price-hint">6h 35m</span></span>
+            </div>
+          </div>
+
+          <!-- ===== RESULT 1 — Emirates direct, BEST VALUE ===== -->
+          <article class="flight-card featured">
+            <div class="fc-ribbon green">
+              <svg class="icon icon-xs" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              Best value
+            </div>
+            <div class="fc-body">
+              <div class="fc-main has-ribbon">
+                <!-- outbound -->
+                <div class="leg">
+                  <div class="airline-block">
+                    <span class="airline-logo lg-ek">EK</span>
+                    <div class="airline-meta">
+                      <div class="a-name">Emirates</div>
+                      <div class="a-flight">EK 718 · Boeing 777-300ER</div>
+                    </div>
+                  </div>
+                  <div class="leg-times">
+                    <div class="lt-end"><div class="t">02:45</div><div class="ap">ALG</div></div>
+                    <div class="lt-mid">
+                      <div class="dur">6h 40m</div>
+                      <div class="lt-line"><span class="plane"><svg class="icon icon-xs" viewBox="0 0 24 24"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg></span></div>
+                      <div class="lt-stops direct">Direct</div>
+                    </div>
+                    <div class="lt-end"><div class="t">10:25</div><div class="ap">DXB</div></div>
+                  </div>
+                </div>
+                <!-- return -->
+                <div class="leg">
+                  <div class="airline-block">
+                    <span class="airline-logo lg-ek">EK</span>
+                    <div class="airline-meta">
+                      <div class="a-name">Emirates</div>
+                      <div class="a-flight">EK 717 · Boeing 777-300ER</div>
+                    </div>
+                  </div>
+                  <div class="leg-times">
+                    <div class="lt-end"><div class="t">08:15</div><div class="ap">DXB</div></div>
+                    <div class="lt-mid">
+                      <div class="dur">6h 35m</div>
+                      <div class="lt-line"><span class="plane"><svg class="icon icon-xs" viewBox="0 0 24 24" style="transform:scaleX(-1);"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg></span></div>
+                      <div class="lt-stops direct">Direct</div>
+                    </div>
+                    <div class="lt-end"><div class="t">11:50</div><div class="ap">ALG</div></div>
+                  </div>
+                </div>
+
+                <div class="fc-tags">
+                  <span class="tag"><svg class="icon icon-xs" style="margin-right:5px;" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>Economy</span>
+                  <span class="tag"><svg class="icon icon-xs" style="margin-right:5px;" viewBox="0 0 24 24"><path d="M16 3h-2a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h2"/><path d="M8 21H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2"/><rect x="9" y="7" width="6" height="10" rx="1"/></svg>23 kg checked + cabin</span>
+                  <span class="tag"><svg class="icon icon-xs" style="margin-right:5px;" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Refundable fare</span>
+                  <span class="badge badge-info"><span class="dot"></span>NDC direct · 6% comm.</span>
+                </div>
+              </div>
+
+              <div class="fc-rail">
+                <div class="rail-pax">4 travellers · total</div>
+                <div class="rail-from">from</div>
+                <div class="rail-price">1,240,000<span class="cur">DZD</span></div>
+                <div class="rail-margin">
+                  <svg class="icon icon-xs" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                  18.6% margin
+                </div>
+                <div class="rail-actions">
+                  <button class="btn btn-primary btn-sm">Select</button>
+                  <button class="btn btn-outline btn-sm">
+                    <svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Add to proposal
+                  </button>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <!-- ===== RESULT 2 — Air Algérie direct ===== -->
+          <article class="flight-card">
+            <div class="fc-ribbon">
+              <svg class="icon icon-xs" viewBox="0 0 24 24"><path d="M12 2v20M2 12h20"/></svg>
+              Direct · National carrier
+            </div>
+            <div class="fc-body">
+              <div class="fc-main has-ribbon">
+                <div class="leg">
+                  <div class="airline-block">
+                    <span class="airline-logo lg-ah">AH</span>
+                    <div class="airline-meta">
+                      <div class="a-name">Air Algérie</div>
+                      <div class="a-flight">AH 4060 · Airbus A330-200</div>
+                    </div>
+                  </div>
+                  <div class="leg-times">
+                    <div class="lt-end"><div class="t">23:55</div><div class="ap">ALG</div></div>
+                    <div class="lt-mid">
+                      <div class="dur">7h 05m</div>
+                      <div class="lt-line"><span class="plane"><svg class="icon icon-xs" viewBox="0 0 24 24"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg></span></div>
+                      <div class="lt-stops direct">Direct</div>
+                    </div>
+                    <div class="lt-end"><div class="t">08:00<sup style="font-size:10px;color:var(--faint);">+1</sup></div><div class="ap">DXB</div></div>
+                  </div>
+                </div>
+                <div class="leg">
+                  <div class="airline-block">
+                    <span class="airline-logo lg-ah">AH</span>
+                    <div class="airline-meta">
+                      <div class="a-name">Air Algérie</div>
+                      <div class="a-flight">AH 4061 · Airbus A330-200</div>
+                    </div>
+                  </div>
+                  <div class="leg-times">
+                    <div class="lt-end"><div class="t">09:40</div><div class="ap">DXB</div></div>
+                    <div class="lt-mid">
+                      <div class="dur">6h 55m</div>
+                      <div class="lt-line"><span class="plane"><svg class="icon icon-xs" viewBox="0 0 24 24" style="transform:scaleX(-1);"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg></span></div>
+                      <div class="lt-stops direct">Direct</div>
+                    </div>
+                    <div class="lt-end"><div class="t">13:35</div><div class="ap">ALG</div></div>
+                  </div>
+                </div>
+
+                <div class="fc-tags">
+                  <span class="tag"><svg class="icon icon-xs" style="margin-right:5px;" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>Economy</span>
+                  <span class="tag"><svg class="icon icon-xs" style="margin-right:5px;" viewBox="0 0 24 24"><path d="M16 3h-2a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h2"/><path d="M8 21H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2"/><rect x="9" y="7" width="6" height="10" rx="1"/></svg>30 kg checked + cabin</span>
+                  <span class="tag">Overnight outbound</span>
+                  <span class="badge badge-info"><span class="dot"></span>IATA BSP · 7% comm.</span>
+                </div>
+              </div>
+
+              <div class="fc-rail">
+                <div class="rail-pax">4 travellers · total</div>
+                <div class="rail-from">from</div>
+                <div class="rail-price">1,156,000<span class="cur">DZD</span></div>
+                <div class="rail-margin">
+                  <svg class="icon icon-xs" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                  19.4% margin
+                </div>
+                <div class="rail-actions">
+                  <button class="btn btn-primary btn-sm">Select</button>
+                  <button class="btn btn-outline btn-sm">
+                    <svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Add to proposal
+                  </button>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <!-- ===== RESULT 3 — Cheapest, Turkish 1 stop ===== -->
+          <article class="flight-card">
+            <div class="fc-ribbon green">
+              <svg class="icon icon-xs" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+              Cheapest
+            </div>
+            <div class="fc-body">
+              <div class="fc-main has-ribbon">
+                <div class="leg">
+                  <div class="airline-block">
+                    <span class="airline-logo lg-tk">TK</span>
+                    <div class="airline-meta">
+                      <div class="a-name">Turkish Airlines</div>
+                      <div class="a-flight">TK 656 / TK 762 · A321neo</div>
+                    </div>
+                  </div>
+                  <div class="leg-times">
+                    <div class="lt-end"><div class="t">14:20</div><div class="ap">ALG</div></div>
+                    <div class="lt-mid">
+                      <div class="dur">10h 15m</div>
+                      <div class="lt-line"><span class="stop-dot" style="left:46%;"></span><span class="plane"><svg class="icon icon-xs" viewBox="0 0 24 24"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg></span></div>
+                      <div class="lt-stops one">1 stop · IST 1h 35m</div>
+                    </div>
+                    <div class="lt-end"><div class="t">02:35<sup style="font-size:10px;color:var(--faint);">+1</sup></div><div class="ap">DXB</div></div>
+                  </div>
+                </div>
+                <div class="leg">
+                  <div class="airline-block">
+                    <span class="airline-logo lg-tk">TK</span>
+                    <div class="airline-meta">
+                      <div class="a-name">Turkish Airlines</div>
+                      <div class="a-flight">TK 763 / TK 655 · A321neo</div>
+                    </div>
+                  </div>
+                  <div class="leg-times">
+                    <div class="lt-end"><div class="t">03:45</div><div class="ap">DXB</div></div>
+                    <div class="lt-mid">
+                      <div class="dur">11h 05m</div>
+                      <div class="lt-line"><span class="stop-dot" style="left:52%;"></span><span class="plane"><svg class="icon icon-xs" viewBox="0 0 24 24" style="transform:scaleX(-1);"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg></span></div>
+                      <div class="lt-stops one">1 stop · IST 2h 10m</div>
+                    </div>
+                    <div class="lt-end"><div class="t">10:50</div><div class="ap">ALG</div></div>
+                  </div>
+                </div>
+
+                <div class="fc-tags">
+                  <span class="tag"><svg class="icon icon-xs" style="margin-right:5px;" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>Economy</span>
+                  <span class="tag"><svg class="icon icon-xs" style="margin-right:5px;" viewBox="0 0 24 24"><path d="M16 3h-2a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h2"/><path d="M8 21H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2"/><rect x="9" y="7" width="6" height="10" rx="1"/></svg>23 kg checked + cabin</span>
+                  <span class="tag">Self-transfer at IST</span>
+                  <span class="badge badge-info"><span class="dot"></span>NDC direct · 6.5% comm.</span>
+                </div>
+              </div>
+
+              <div class="fc-rail">
+                <div class="rail-pax">4 travellers · total</div>
+                <div class="rail-from">from</div>
+                <div class="rail-price">1,008,000<span class="cur">DZD</span></div>
+                <div class="rail-margin">
+                  <svg class="icon icon-xs" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                  20.8% margin
+                </div>
+                <div class="rail-actions">
+                  <button class="btn btn-primary btn-sm">Select</button>
+                  <button class="btn btn-outline btn-sm">
+                    <svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Add to proposal
+                  </button>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <!-- ===== RESULT 4 — Qatar 1 stop ===== -->
+          <article class="flight-card">
+            <div class="fc-body">
+              <div class="fc-main">
+                <div class="leg">
+                  <div class="airline-block">
+                    <span class="airline-logo lg-qr">QR</span>
+                    <div class="airline-meta">
+                      <div class="a-name">Qatar Airways</div>
+                      <div class="a-flight">QR 1394 / QR 1010 · Boeing 787-9</div>
+                    </div>
+                  </div>
+                  <div class="leg-times">
+                    <div class="lt-end"><div class="t">21:10</div><div class="ap">ALG</div></div>
+                    <div class="lt-mid">
+                      <div class="dur">9h 40m</div>
+                      <div class="lt-line"><span class="stop-dot" style="left:50%;"></span><span class="plane"><svg class="icon icon-xs" viewBox="0 0 24 24"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg></span></div>
+                      <div class="lt-stops one">1 stop · DOH 1h 50m</div>
+                    </div>
+                    <div class="lt-end"><div class="t">08:50<sup style="font-size:10px;color:var(--faint);">+1</sup></div><div class="ap">DXB</div></div>
+                  </div>
+                </div>
+                <div class="leg">
+                  <div class="airline-block">
+                    <span class="airline-logo lg-qr">QR</span>
+                    <div class="airline-meta">
+                      <div class="a-name">Qatar Airways</div>
+                      <div class="a-flight">QR 1011 / QR 1395 · Boeing 787-9</div>
+                    </div>
+                  </div>
+                  <div class="leg-times">
+                    <div class="lt-end"><div class="t">14:25</div><div class="ap">DXB</div></div>
+                    <div class="lt-mid">
+                      <div class="dur">10h 20m</div>
+                      <div class="lt-line"><span class="stop-dot" style="left:48%;"></span><span class="plane"><svg class="icon icon-xs" viewBox="0 0 24 24" style="transform:scaleX(-1);"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg></span></div>
+                      <div class="lt-stops one">1 stop · DOH 2h 05m</div>
+                    </div>
+                    <div class="lt-end"><div class="t">22:45</div><div class="ap">ALG</div></div>
+                  </div>
+                </div>
+
+                <div class="fc-tags">
+                  <span class="tag"><svg class="icon icon-xs" style="margin-right:5px;" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>Economy</span>
+                  <span class="tag"><svg class="icon icon-xs" style="margin-right:5px;" viewBox="0 0 24 24"><path d="M16 3h-2a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h2"/><path d="M8 21H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2"/><rect x="9" y="7" width="6" height="10" rx="1"/></svg>30 kg checked + cabin</span>
+                  <span class="tag">Protected connection</span>
+                  <span class="badge badge-info"><span class="dot"></span>NDC direct · 6% comm.</span>
+                </div>
+              </div>
+
+              <div class="fc-rail">
+                <div class="rail-pax">4 travellers · total</div>
+                <div class="rail-from">from</div>
+                <div class="rail-price">1,184,000<span class="cur">DZD</span></div>
+                <div class="rail-margin">
+                  <svg class="icon icon-xs" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                  19.1% margin
+                </div>
+                <div class="rail-actions">
+                  <button class="btn btn-primary btn-sm">Select</button>
+                  <button class="btn btn-outline btn-sm">
+                    <svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Add to proposal
+                  </button>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <!-- ===== RESULT 5 — Emirates Business upsell ===== -->
+          <article class="flight-card">
+            <div class="fc-ribbon" style="background:var(--amber);">
+              <svg class="icon icon-xs" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              Business upgrade
+            </div>
+            <div class="fc-body">
+              <div class="fc-main has-ribbon">
+                <div class="leg">
+                  <div class="airline-block">
+                    <span class="airline-logo lg-ek">EK</span>
+                    <div class="airline-meta">
+                      <div class="a-name">Emirates</div>
+                      <div class="a-flight">EK 718 · Boeing 777-300ER</div>
+                    </div>
+                  </div>
+                  <div class="leg-times">
+                    <div class="lt-end"><div class="t">02:45</div><div class="ap">ALG</div></div>
+                    <div class="lt-mid">
+                      <div class="dur">6h 40m</div>
+                      <div class="lt-line"><span class="plane"><svg class="icon icon-xs" viewBox="0 0 24 24"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg></span></div>
+                      <div class="lt-stops direct">Direct</div>
+                    </div>
+                    <div class="lt-end"><div class="t">10:25</div><div class="ap">DXB</div></div>
+                  </div>
+                </div>
+                <div class="leg">
+                  <div class="airline-block">
+                    <span class="airline-logo lg-ek">EK</span>
+                    <div class="airline-meta">
+                      <div class="a-name">Emirates</div>
+                      <div class="a-flight">EK 717 · Boeing 777-300ER</div>
+                    </div>
+                  </div>
+                  <div class="leg-times">
+                    <div class="lt-end"><div class="t">08:15</div><div class="ap">DXB</div></div>
+                    <div class="lt-mid">
+                      <div class="dur">6h 35m</div>
+                      <div class="lt-line"><span class="plane"><svg class="icon icon-xs" viewBox="0 0 24 24" style="transform:scaleX(-1);"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg></span></div>
+                      <div class="lt-stops direct">Direct</div>
+                    </div>
+                    <div class="lt-end"><div class="t">11:50</div><div class="ap">ALG</div></div>
+                  </div>
+                </div>
+
+                <div class="fc-tags">
+                  <span class="tag" style="background:var(--amber-soft);border-color:#EAD3BC;color:var(--amber);"><svg class="icon icon-xs" style="margin-right:5px;" viewBox="0 0 24 24"><path d="M20 12v-2a2 2 0 0 0-2-2h-1V6a3 3 0 0 0-6 0v2H8V6"/><path d="M4 12h16l-1 8H5z"/></svg>Business · lie-flat</span>
+                  <span class="tag"><svg class="icon icon-xs" style="margin-right:5px;" viewBox="0 0 24 24"><path d="M16 3h-2a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h2"/><path d="M8 21H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2"/><rect x="9" y="7" width="6" height="10" rx="1"/></svg>40 kg + 2 cabin</span>
+                  <span class="tag">Lounge · chauffeur transfer</span>
+                  <span class="badge badge-success"><span class="dot"></span>VIP client match</span>
+                </div>
+              </div>
+
+              <div class="fc-rail">
+                <div class="rail-pax">4 travellers · total</div>
+                <div class="rail-from">from</div>
+                <div class="rail-price">2,920,000<span class="cur">DZD</span></div>
+                <div class="rail-margin">
+                  <svg class="icon icon-xs" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                  22.4% margin
+                </div>
+                <div class="rail-actions">
+                  <button class="btn btn-primary btn-sm">Select</button>
+                  <button class="btn btn-outline btn-sm">
+                    <svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Add to proposal
+                  </button>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <div class="center" style="padding:8px 0 4px;">
+            <button class="btn btn-ghost btn-sm">
+              <svg class="icon icon-sm" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+              Show 3 more fares
+            </button>
+          </div>
+
+        </section>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Canonical demo data (entities shared across all mockups) -->
+<script src="../assets/demo-data.js"></script>
+</body>
+</html>
