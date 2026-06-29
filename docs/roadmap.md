@@ -142,6 +142,7 @@ Status: ✅ done · 🟡 partial · 🔴 not started
 
 | Commit | Summary |
 |---|---|
+| `95e0c1b` | fix: run db:migrate on every Vercel deploy (migration 0019 was missing from prod) |
 | `00c6885` | Sprint 2 Waves 1–4: Travel Platform facade — ContentCapable, AutocompleteCapable, `src/lib/travel-platform/index.ts`, consumer migration |
 | `b7eab1b` | Sprint 1 Wave 3: booking-service — quote→book lifecycle, idempotency, event log, supplier ref |
 | `cc65ce1` | Sprint 1 Wave 2: DuffelBookingProvider, HotelbedsBookingProvider, MockBookingProvider, registry wiring |

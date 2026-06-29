@@ -5,8 +5,9 @@
 - Project `atlasproject/agence_tool`, connected to GitHub.
 - **Auto-deploy:** `git push origin main` → builds & ships production.
 - **Manual:** `npx vercel deploy --prod --yes`.
-- `vercel.json` → `buildCommand: npm run build:ci`; `.npmrc` →
+- `vercel.json` → `buildCommand: npm run db:migrate && npm run build:ci`; `.npmrc` →
   `legacy-peer-deps=true`.
+- Migrations run automatically on every deploy — no manual step needed for schema changes.
 
 ## Vercel environment
 
@@ -16,7 +17,9 @@ see [api-integrations.md](api-integrations.md)).
 
 ## Migrations on prod
 
-**Always run migrations on prod after a deploy that changed the schema:**
+Migrations now run automatically as part of every Vercel deploy (`npm run db:migrate` is prepended to the build command). No manual step required.
+
+For one-off manual runs (e.g. emergency hotfix outside a deploy):
 
 ```bash
 POSTGRES_URL=<prod-url> npx drizzle-kit migrate
