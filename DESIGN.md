@@ -43,15 +43,26 @@ All values use the **oklch** color space. Colors are defined as CSS custom prope
 | `input` | `oklch(0.92 0.004 286.32)` | `oklch(1 0 0 / 15%)` | Input borders |
 | `ring` | `oklch(0.705 0.06 270)` | `oklch(0.552 0.05 270)` | Focus rings |
 
+### Brand Accent
+
+| Token | Light | Dark | Usage |
+|---|---|---|---|
+| `brand` | `oklch(0.52 0.16 264)` | `oklch(0.7 0.14 264)` | Premium indigo accent for marketing-grade highlights (charts, KPI emphasis). Exposed to Tailwind as `*-brand`. |
+| `brand-foreground` | `oklch(0.985 0 0)` | `oklch(0.21 0.006 285.885)` | Text on `brand`. |
+
 ### Chart Colors
+
+Refined in the UI-redesign Phase 0 to a cohesive premium palette
+(indigo · teal · amber · violet · rose · sky). Consumed by `src/components/charts/insight-charts.tsx`.
 
 | Token | Light | Dark |
 |---|---|---|
-| `chart-1` | `oklch(0.646 0.222 41.116)` | `oklch(0.488 0.243 264.376)` |
-| `chart-2` | `oklch(0.6 0.118 184.704)` | `oklch(0.696 0.17 162.48)` |
-| `chart-3` | `oklch(0.398 0.07 227.392)` | `oklch(0.769 0.188 70.08)` |
-| `chart-4` | `oklch(0.828 0.189 84.429)` | `oklch(0.627 0.265 303.9)` |
-| `chart-5` | `oklch(0.769 0.188 70.08)` | `oklch(0.645 0.246 16.439)` |
+| `chart-1` (indigo) | `oklch(0.52 0.16 264)` | `oklch(0.7 0.14 264)` |
+| `chart-2` (teal) | `oklch(0.7 0.13 184)` | `oklch(0.78 0.14 184)` |
+| `chart-3` (amber) | `oklch(0.72 0.15 67)` | `oklch(0.8 0.15 70)` |
+| `chart-4` (violet) | `oklch(0.6 0.18 295)` | `oklch(0.72 0.17 295)` |
+| `chart-5` (rose) | `oklch(0.65 0.19 9)` | `oklch(0.74 0.18 9)` |
+| `chart-6` (sky) | `oklch(0.7 0.13 240)` | `oklch(0.78 0.13 240)` |
 
 ### Sidebar Colors
 
@@ -206,7 +217,13 @@ Responsive overrides where needed:
 | `shadow-md` | Card hover, dropdown content |
 | `shadow-lg` | Dialogs, dropdown sub-content |
 
-No custom shadow definitions — all Tailwind defaults.
+**Custom elevation tokens (UI-redesign Phase 0):** soft, layered shadows for
+premium dashboard / KPI cards.
+
+| Token | Usage |
+|---|---|
+| `--shadow-card` | Resting elevation for KPI / dashboard cards (via `.card-elevated`) |
+| `--shadow-card-hover` | Hover elevation for interactive cards (via `.card-interactive:hover`) |
 
 ---
 
@@ -246,7 +263,12 @@ Used on dialogs and dropdowns:
   @apply transition-all duration-200 ease-out;
 }
 .card-interactive:hover {
-  @apply shadow-md -translate-y-0.5;
+  box-shadow: var(--shadow-card-hover);
+  @apply -translate-y-0.5;
+}
+/* Premium resting elevation for dashboard / KPI cards. */
+.card-elevated {
+  box-shadow: var(--shadow-card);
 }
 ```
 
