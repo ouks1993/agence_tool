@@ -57,17 +57,29 @@ by phase, **preserving all functionality**. See the plan at
 [specs/ui-redesign/PLAN.md](../specs/ui-redesign/PLAN.md) and the decision at
 [docs/decisions/0005-app-ui-redesign.md](decisions/0005-app-ui-redesign.md).
 
-| Phase | Scope |
-|---|---|
-| 0 | Design foundation (tokens + primitives) + seed full demo data |
-| 1 | Dashboard · CRM · Pipeline |
-| 2 | Proposal builder · Flight search · Hotel search |
-| 3 | Bookings & Booking details · Finance |
-| 4 | Customer portal · Reports · AI assistant |
-| 5 | Responsive, empty/loading/error states, polish |
+| Phase | Scope | Status |
+|---|---|---|
+| 0 | Design foundation (tokens + primitives) + seed full demo data | ✅ done |
+| 1 | Dashboard · CRM (list + profile) · Pipeline | ✅ done |
+| 2 | Proposal builder · Flight search · Hotel search | ⬜ next |
+| 3 | Bookings & Booking details · Finance | ⬜ |
+| 4 | Customer portal · Reports · AI assistant | ⬜ |
+| 5 | Responsive, empty/loading/error states, polish | ⬜ |
 
 Marketing assets (deck + 11 mockups + demo dataset + design guide) live under
 `marketing/` and are the visual target.
+
+**Phase 1 delivery (command center).** Rebuilt Dashboard, CRM list + client
+profile, and the Pipeline board to the mockup standard, reusing the Phase 0
+primitives (StatCard deltas, insight charts) + three new shadcn primitives
+(Tabs, Breadcrumb, Tooltip). **Delivery policy — redesign, not rewrite:** no
+schema changes; any mockup field without a backing column is **derived from real
+data** (lifetime value, trips, win rate, spend-by-year, MoM deltas, derived
+follow-ups from balances/close-dates/passport alerts) or **omitted** — never
+fabricated. Notable omissions (no backing data): client tags/loyalty/grade/
+travel-preferences/Documents/Passport/Family tabs; opportunity reference ids and
+per-stage micro-labels; the dashboard "Atlas suggests" AI card and free-text
+tasks. This same derive-or-omit policy governs Phases 2–5.
 
 ## Open items
 
@@ -162,6 +174,8 @@ Status: ✅ done · 🟡 partial · 🔴 not started
 
 | Commit | Summary |
 |---|---|
+| _(this)_ | UI redesign **Phase 1**: Dashboard, CRM list + profile, Pipeline rebuilt to mockup standard; +Tabs/Breadcrumb/Tooltip primitives; derive-or-omit policy (no schema changes) |
+| `84aab5e` | UI redesign **Phase 0**: design foundation — refined chart palette, brand accent, elevation tokens, StatCard deltas |
 | _(docs)_ | UI redesign initiative: decision (ADR 0005) + phased plan (`specs/ui-redesign/`) |
 | `e842828` | Marketing: full demo dataset (150 clients), design guide + mockup consistency fixes |
 | `3f58668` | Marketing: premium 18-slide sales deck + 11 high-fidelity UI mockups (`marketing/`) |

@@ -1,7 +1,14 @@
 import Link from "next/link";
-import { Clock } from "lucide-react";
+import {
+  Activity,
+  Banknote,
+  Bell,
+  Clock,
+  TicketCheck,
+  type LucideIcon,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatRelative } from "@/lib/format";
+import { formatDate, formatRelative, formatTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export type TimelineEvent = {
@@ -12,20 +19,51 @@ export type TimelineEvent = {
   entityHref?: string | undefined;
 };
 
-const DOT_CLASS: Record<TimelineEvent["kind"], string> = {
-  activity: "bg-primary",
-  notification: "bg-blue-500",
-  booking_status: "bg-amber-500",
-  payment: "bg-green-500",
+/**
+ * Per-kind presentation: a soft icon chip + a short channel label, mapped from
+ * the existing event kinds. The TimelineEvent shape is unchanged.
+ */
+const KIND_META: Record<
+  TimelineEvent["kind"],
+  { label: string; icon: LucideIcon; chip: string; dot: string }
+> = {
+  activity: {
+    label: "Activity",
+    icon: Activity,
+    chip: "bg-primary/10 text-primary",
+    dot: "bg-primary",
+  },
+  notification: {
+    label: "Notification",
+    icon: Bell,
+    chip: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+    dot: "bg-blue-500",
+  },
+  booking_status: {
+    label: "Booking",
+    icon: TicketCheck,
+    chip: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+    dot: "bg-amber-500",
+  },
+  payment: {
+    label: "Payment",
+    icon: Banknote,
+    chip: "bg-green-500/10 text-green-600 dark:text-green-400",
+    dot: "bg-green-500",
+  },
 };
 
 export function ClientTimeline({ events }: { events: TimelineEvent[] }) {
   return (
-    <Card>
+    <Card className="card-elevated">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
-          <Clock className="size-4" /> Activity timeline
+          <Clock className="text-muted-foreground size-4" />
+          Communication timeline
         </CardTitle>
+        <p className="text-muted-foreground text-sm">
+          Activities, notifications &amp; payments
+        </p>
       </CardHeader>
       <CardContent>
         {events.length === 0 ? (
@@ -33,38 +71,64 @@ export function ClientTimeline({ events }: { events: TimelineEvent[] }) {
             No activity recorded yet.
           </p>
         ) : (
-          <ol className="relative space-y-6">
-            {/* Vertical line connecting the dots. */}
+          <ol className="relative space-y-5">
+            {/* Vertical line connecting the chips. */}
             <span
               aria-hidden
-              className="bg-border absolute top-1 bottom-1 left-[5px] w-px"
+              className="bg-border absolute top-3 bottom-3 left-[15px] w-px"
             />
-            {events.map((event) => (
-              <li key={event.id} className="relative flex gap-4 pl-1">
-                <span
-                  aria-hidden
-                  className={cn(
-                    "relative z-10 mt-1 size-2.5 shrink-0 rounded-full",
-                    DOT_CLASS[event.kind]
-                  )}
-                />
-                <div className="min-w-0 flex-1 space-y-0.5">
-                  {event.entityHref ? (
-                    <Link
-                      href={event.entityHref}
-                      className="text-sm font-medium hover:underline"
-                    >
-                      {event.label}
-                    </Link>
-                  ) : (
-                    <p className="text-sm font-medium">{event.label}</p>
-                  )}
-                  <p className="text-muted-foreground text-xs">
-                    {formatRelative(event.date)}
-                  </p>
-                </div>
-              </li>
-            ))}
+            {events.map((event) => {
+              const meta = KIND_META[event.kind];
+              const Icon = meta.icon;
+              return (
+                <li key={event.id} className="relative flex gap-3.5">
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full",
+                      meta.chip
+                    )}
+                  >
+                    <Icon className="size-4" />
+                  </span>
+                  <div className="min-w-0 flex-1 pt-0.5">
+                    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span
+                          className={cn(
+                            "rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase",
+                            meta.chip
+                          )}
+                        >
+                          {meta.label}
+                        </span>
+                        {event.entityHref ? (
+                          <Link
+                            href={event.entityHref}
+                            className="min-w-0 truncate text-sm font-medium hover:underline"
+                          >
+                            {event.label}
+                          </Link>
+                        ) : (
+                          <span className="min-w-0 truncate text-sm font-medium">
+                            {event.label}
+                          </span>
+                        )}
+                      </div>
+                      <time
+                        className="text-muted-foreground shrink-0 text-xs tabular-nums"
+                        dateTime={event.date.toISOString()}
+                        title={`${formatDate(event.date)} · ${formatTime(
+                          event.date.toISOString()
+                        )}`}
+                      >
+                        {formatRelative(event.date)}
+                      </time>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
           </ol>
         )}
       </CardContent>

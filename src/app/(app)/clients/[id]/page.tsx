@@ -2,42 +2,56 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import {
-  ArrowLeft,
   Pencil,
   Plus,
   Mail,
   Phone,
   MapPin,
   Building2,
+  ChevronLeft,
   Briefcase,
-  Target,
-  FileText,
+  CalendarClock,
+  Wallet,
+  User as UserIcon,
 } from "lucide-react";
-import { PageHeader } from "@/components/app/page-header";
+import { StatCard } from "@/components/app/stat-card";
 import { StatusBadge } from "@/components/app/status-badge";
+import { ClientAvatar } from "@/components/clients/client-avatar";
 import {
-  ClientTimeline,
-  type TimelineEvent,
-} from "@/components/clients/client-timeline";
-import { ContactsManager } from "@/components/clients/contacts-manager";
+  ClientProfileTabs,
+  type DealRow,
+  type TripRow,
+} from "@/components/clients/client-profile-tabs";
+import { type TimelineEvent } from "@/components/clients/client-timeline";
+import { flagFor } from "@/components/clients/country-flag";
 import { DeleteClientButton } from "@/components/clients/delete-client-button";
 import { PortalInviteButton } from "@/components/clients/portal-invite-button";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { describeActivity } from "@/lib/activity-format";
 import { db } from "@/lib/db";
 import {
   CLIENT_STATUS_META,
   BOOKING_STATUS_META,
   OPPORTUNITY_STAGE_META,
   PRODUCT_STATUS_META,
+  LEAD_SOURCE_LABEL,
   seesAllData,
   type ClientStatus,
   type BookingStatus,
   type OpportunityStage,
   type ProductStatus,
+  type LeadSource,
 } from "@/lib/domain";
-import { describeActivity } from "@/lib/activity-format";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatDate, formatMoney, formatRelative } from "@/lib/format";
 import { requireAgencyUser } from "@/lib/permissions";
 import {
   activityLog,
@@ -182,246 +196,274 @@ export default async function ClientDetailPage({
     .slice(0, 30);
 
   const statusMeta = CLIENT_STATUS_META[c.status as ClientStatus];
+  const isCorporate = c.type === "corporate";
+  const typeLabel = isCorporate ? "Corporate" : "Individual";
+
+  // ---------------------------------------------------------------------------
+  // Derived KPIs (real data only).
+  //   - Lifetime value: Σ booking totalAmount, DZD-only (never mix currencies).
+  //   - Trips booked: total booking count.
+  //   - Last activity: most recent timeline event (relative), if any.
+  // ---------------------------------------------------------------------------
+  const lifetimeValueDzd = c.bookings
+    .filter((b) => b.currency === "DZD")
+    .reduce((sum, b) => sum + Number(b.totalAmount ?? 0), 0);
+  const tripsBooked = c.bookings.length;
+  const lastActivity = timelineEvents[0]?.date ?? null;
+
+  // Spend over time — annual booked value (DZD only), last ~5 years.
+  const spendByYear = new Map<number, number>();
+  for (const b of c.bookings) {
+    if (b.currency !== "DZD") continue;
+    const year = b.createdAt.getFullYear();
+    spendByYear.set(year, (spendByYear.get(year) ?? 0) + Number(b.totalAmount ?? 0));
+  }
+  const spend = Array.from(spendByYear.entries())
+    .sort((a, b) => a[0] - b[0])
+    .slice(-5)
+    .map(([year, value]) => ({ label: String(year), value }));
+
+  // Pre-shape serializable rows for the (client) tabs component.
+  const tripRows: TripRow[] = c.bookings.map((b) => {
+    const meta = BOOKING_STATUS_META[b.status as BookingStatus];
+    const dates =
+      b.departDate || b.returnDate
+        ? `${formatDate(b.departDate)} – ${formatDate(b.returnDate)}`
+        : "—";
+    return {
+      id: b.id,
+      reference: b.reference,
+      destination: b.destination ?? "Trip",
+      flag: flagFor(b.destination),
+      dates,
+      amount: formatMoney(b.totalAmount, b.currency),
+      statusLabel: meta?.label ?? b.status,
+      statusTone: meta?.badgeClass,
+    };
+  });
+
+  const opportunityRows: DealRow[] = opportunities.map((o) => {
+    const meta = OPPORTUNITY_STAGE_META[o.stage as OpportunityStage];
+    return {
+      id: o.id,
+      href: `/opportunities/${o.id}`,
+      title: o.title,
+      amount: formatMoney(o.value, o.currency),
+      statusLabel: meta?.label ?? o.stage,
+      statusTone: meta?.badgeClass,
+    };
+  });
+
+  const proposalRows: DealRow[] = proposals.map((pr) => {
+    const meta = PRODUCT_STATUS_META[pr.status as ProductStatus];
+    return {
+      id: pr.id,
+      href: `/proposals/${pr.id}`,
+      title: pr.title,
+      reference: pr.reference,
+      amount: formatMoney(pr.totalPrice, pr.currency),
+      statusLabel: meta?.label ?? pr.status,
+      statusTone: meta?.badgeClass,
+    };
+  });
+
+  const location = [c.city, c.country].filter(Boolean).join(", ");
+  const sourceLabel = c.source
+    ? LEAD_SOURCE_LABEL[c.source as LeadSource] ?? c.source
+    : null;
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8 sm:px-6">
-      <Button asChild variant="ghost" size="sm" className="-ml-2">
-        <Link href="/clients">
-          <ArrowLeft className="mr-1 size-4" />
-          Clients
-        </Link>
-      </Button>
+      {/* Breadcrumb */}
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href="/clients">Clients</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>{typeLabel}</BreadcrumbPage>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>{c.name}</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
 
-      <PageHeader title={c.name}>
-        <Button asChild variant="outline" size="sm">
-          <Link href={`/clients/${c.id}/edit`}>
-            <Pencil className="mr-2 size-4" />
-            Edit
-          </Link>
-        </Button>
-        <PortalInviteButton clientId={c.id} clientEmail={c.email} />
-        <DeleteClientButton id={c.id} name={c.name} />
-      </PageHeader>
+      {/* Profile header */}
+      <Card className="card-elevated">
+        <CardContent className="p-6">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex items-start gap-4">
+              <ClientAvatar name={c.name} className="size-16 text-xl" />
+              <div className="min-w-0 space-y-1.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="text-2xl font-bold tracking-tight">{c.name}</h1>
+                  <StatusBadge
+                    label={statusMeta?.label ?? c.status}
+                    tone={statusMeta?.badgeClass}
+                  />
+                </div>
+                <p className="text-muted-foreground text-sm">
+                  {isCorporate ? "Corporate" : "Individual traveller"} · Client
+                  since {c.createdAt.getFullYear()}
+                </p>
+                {location && (
+                  <p className="text-muted-foreground flex items-center gap-1.5 text-sm">
+                    <MapPin className="size-3.5" />
+                    {location}
+                  </p>
+                )}
+              </div>
+            </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <StatusBadge label={statusMeta?.label ?? c.status} tone={statusMeta?.badgeClass} />
-        <StatusBadge label={c.type === "corporate" ? "Corporate" : "Individual"} />
+            <div className="flex flex-wrap items-center gap-2">
+              <Button asChild variant="outline" size="sm">
+                <Link href={`/clients/${c.id}/edit`}>
+                  <Pencil className="mr-1.5 size-4" />
+                  Edit
+                </Link>
+              </Button>
+              <PortalInviteButton clientId={c.id} clientEmail={c.email} />
+              <Button asChild size="sm">
+                <Link href={`/bookings/new?clientId=${c.id}`}>
+                  <Plus className="mr-1.5 size-4" />
+                  New trip
+                </Link>
+              </Button>
+              <DeleteClientButton id={c.id} name={c.name} />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Stat strip — real / derived only. */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatCard
+          label="Lifetime value"
+          value={formatMoney(lifetimeValueDzd, "DZD")}
+          hint="Booked value (DZD)"
+          icon={Wallet}
+        />
+        <StatCard
+          label="Trips booked"
+          value={tripsBooked}
+          hint={tripsBooked === 1 ? "1 booking" : `${tripsBooked} bookings`}
+          icon={Briefcase}
+        />
+        <StatCard
+          label="Last activity"
+          value={lastActivity ? formatRelative(lastActivity) : "—"}
+          hint={lastActivity ? formatDate(lastActivity) : "No activity yet"}
+          icon={CalendarClock}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Main column */}
-        <div className="space-y-6 lg:col-span-2">
-          {/* Bookings */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Briefcase className="size-4" /> Bookings
-              </CardTitle>
-              <Button asChild size="sm" variant="outline">
-                <Link href={`/bookings/new?clientId=${c.id}`}>
-                  <Plus className="mr-1 size-4" />
-                  New
-                </Link>
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {c.bookings.length === 0 ? (
-                <p className="text-muted-foreground text-sm">No bookings yet.</p>
-              ) : (
-                <ul className="divide-y">
-                  {c.bookings.map((b) => {
-                    const meta = BOOKING_STATUS_META[b.status as BookingStatus];
-                    return (
-                      <li key={b.id} className="py-3">
-                        <Link
-                          href={`/bookings/${b.id}`}
-                          className="flex items-center justify-between gap-3 hover:underline"
-                        >
-                          <span className="min-w-0 truncate">
-                            <span className="text-muted-foreground mr-2 text-xs">
-                              {b.reference}
-                            </span>
-                            <span className="font-medium">
-                              {b.destination ?? "Trip"}
-                            </span>
-                          </span>
-                          <span className="flex shrink-0 items-center gap-3">
-                            <span className="text-muted-foreground text-sm">
-                              {formatMoney(b.totalAmount, b.currency)}
-                            </span>
-                            <StatusBadge
-                              label={meta?.label ?? b.status}
-                              tone={meta?.badgeClass}
-                            />
-                          </span>
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Opportunities */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Target className="size-4" /> Opportunities
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {opportunities.length === 0 ? (
-                <p className="text-muted-foreground text-sm">
-                  No opportunities yet.
-                </p>
-              ) : (
-                <ul className="divide-y">
-                  {opportunities.map((o) => {
-                    const meta =
-                      OPPORTUNITY_STAGE_META[o.stage as OpportunityStage];
-                    return (
-                      <li key={o.id} className="py-3">
-                        <Link
-                          href={`/opportunities/${o.id}`}
-                          className="flex items-center justify-between gap-3 hover:underline"
-                        >
-                          <span className="min-w-0 truncate font-medium">
-                            {o.title}
-                          </span>
-                          <span className="flex shrink-0 items-center gap-3">
-                            <span className="text-muted-foreground text-sm">
-                              {formatMoney(o.value, o.currency)}
-                            </span>
-                            <StatusBadge
-                              label={meta?.label ?? o.stage}
-                              tone={meta?.badgeClass}
-                            />
-                          </span>
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Proposals */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <FileText className="size-4" /> Proposals
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {proposals.length === 0 ? (
-                <p className="text-muted-foreground text-sm">
-                  No proposals yet.
-                </p>
-              ) : (
-                <ul className="divide-y">
-                  {proposals.map((pr) => {
-                    const meta = PRODUCT_STATUS_META[pr.status as ProductStatus];
-                    return (
-                      <li key={pr.id} className="py-3">
-                        <Link
-                          href={`/proposals/${pr.id}`}
-                          className="flex items-center justify-between gap-3 hover:underline"
-                        >
-                          <span className="min-w-0 truncate">
-                            <span className="text-muted-foreground mr-2 text-xs">
-                              {pr.reference}
-                            </span>
-                            <span className="font-medium">{pr.title}</span>
-                          </span>
-                          <span className="flex shrink-0 items-center gap-3">
-                            <span className="text-muted-foreground text-sm">
-                              {formatMoney(pr.totalPrice, pr.currency)}
-                            </span>
-                            <StatusBadge
-                              label={meta?.label ?? pr.status}
-                              tone={meta?.badgeClass}
-                            />
-                          </span>
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Contacts */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Contacts</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ContactsManager clientId={c.id} contacts={c.contacts} />
-            </CardContent>
-          </Card>
+        {/* Main column: tabs */}
+        <div className="min-w-0 lg:col-span-2">
+          <ClientProfileTabs
+            clientId={c.id}
+            trips={tripRows}
+            opportunities={opportunityRows}
+            proposals={proposalRows}
+            contacts={c.contacts}
+            notes={c.notes}
+            spend={spend}
+            timelineEvents={timelineEvents}
+          />
         </div>
 
         {/* Sidebar */}
         <div className="space-y-6">
-          <Card>
+          <Card className="card-elevated">
             <CardHeader>
               <CardTitle className="text-base">Details</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               {c.email && (
-                <p className="flex items-center gap-2">
-                  <Mail className="text-muted-foreground size-4" />
-                  <a href={`mailto:${c.email}`} className="hover:underline">
+                <p className="flex items-center gap-2.5">
+                  <Mail className="text-muted-foreground size-4 shrink-0" />
+                  <a
+                    href={`mailto:${c.email}`}
+                    className="truncate hover:underline"
+                  >
                     {c.email}
                   </a>
                 </p>
               )}
               {c.phone && (
-                <p className="flex items-center gap-2">
-                  <Phone className="text-muted-foreground size-4" />
+                <p className="flex items-center gap-2.5">
+                  <Phone className="text-muted-foreground size-4 shrink-0" />
                   {c.phone}
                 </p>
               )}
               {c.company && (
-                <p className="flex items-center gap-2">
-                  <Building2 className="text-muted-foreground size-4" />
+                <p className="flex items-center gap-2.5">
+                  <Building2 className="text-muted-foreground size-4 shrink-0" />
                   {c.company}
                 </p>
               )}
               {(c.city || c.country || c.address) && (
-                <p className="flex items-start gap-2">
-                  <MapPin className="text-muted-foreground mt-0.5 size-4" />
+                <p className="flex items-start gap-2.5">
+                  <MapPin className="text-muted-foreground mt-0.5 size-4 shrink-0" />
                   <span>
                     {[c.address, c.city, c.country].filter(Boolean).join(", ")}
                   </span>
                 </p>
               )}
-              <div className="text-muted-foreground space-y-1 border-t pt-3 text-xs">
-                <p>Owner: {c.owner?.name ?? "Unassigned"}</p>
-                {c.source && <p>Source: {c.source}</p>}
-                <p>Added: {formatDate(c.createdAt)}</p>
-              </div>
+              <dl className="text-muted-foreground space-y-2 border-t pt-3 text-xs">
+                <div className="flex items-center justify-between gap-2">
+                  <dt className="flex items-center gap-1.5">
+                    <UserIcon className="size-3.5" />
+                    Owner
+                  </dt>
+                  <dd className="text-foreground font-medium">
+                    {c.owner?.name ?? "Unassigned"}
+                  </dd>
+                </div>
+                {sourceLabel && (
+                  <div className="flex items-center justify-between gap-2">
+                    <dt>Source</dt>
+                    <dd className="text-foreground font-medium">
+                      {sourceLabel}
+                    </dd>
+                  </div>
+                )}
+                <div className="flex items-center justify-between gap-2">
+                  <dt>Added</dt>
+                  <dd className="text-foreground font-medium tabular-nums">
+                    {formatDate(c.createdAt)}
+                  </dd>
+                </div>
+              </dl>
             </CardContent>
           </Card>
 
           {c.notes && (
-            <Card>
+            <Card className="card-elevated">
               <CardHeader>
                 <CardTitle className="text-base">Notes</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm whitespace-pre-wrap">{c.notes}</p>
+                <p className="text-sm leading-6 whitespace-pre-wrap">
+                  {c.notes}
+                </p>
               </CardContent>
             </Card>
           )}
+
+          <Button asChild variant="ghost" size="sm" className="-ml-2">
+            <Link href="/clients">
+              <ChevronLeft className="mr-1 size-4" />
+              Back to clients
+            </Link>
+          </Button>
         </div>
       </div>
-
-      {/* Full-width unified activity timeline. */}
-      <ClientTimeline events={timelineEvents} />
     </div>
   );
 }

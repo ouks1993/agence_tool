@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import {
   BarChart3,
   Briefcase,
@@ -14,7 +15,6 @@ import {
   Globe,
 } from "lucide-react";
 import { getTranslations } from "next-intl/server";
-import { eq } from "drizzle-orm";
 import { StatCard } from "@/components/app/stat-card";
 import {
   BarInsight,
@@ -22,15 +22,9 @@ import {
   AreaInsight,
   HBarInsight,
 } from "@/components/charts/insight-charts";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SectionCard } from "@/components/dashboard/section-card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { db } from "@/lib/db";
-import {
-  BOOKING_STATUS_META,
-  LEAD_SOURCE_LABEL,
-  type BookingStatus,
-  type LeadSource,
-} from "@/lib/domain";
 import {
   conversionRate,
   countBy,
@@ -39,6 +33,13 @@ import {
   num,
   topN,
 } from "@/lib/analytics";
+import { db } from "@/lib/db";
+import {
+  BOOKING_STATUS_META,
+  LEAD_SOURCE_LABEL,
+  type BookingStatus,
+  type LeadSource,
+} from "@/lib/domain";
 import { formatMoney } from "@/lib/format";
 import { paymentSummary } from "@/lib/payments/summary";
 import { opportunity, client as clientTable, user as userTable } from "@/lib/schema";
@@ -223,82 +224,33 @@ export async function DashboardInsights({
       {/* Charts — only shown when there is data to display */}
       {bookings.length > 0 && (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <TrendingUp className="size-4" /> Revenue evolution
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <AreaInsight data={revenueMonthly} format="currency" />
-            </CardContent>
-          </Card>
+          <SectionCard icon={TrendingUp} title="Revenue evolution" subtitle="Last 6 months · DZD">
+            <AreaInsight data={revenueMonthly} format="currency" color="var(--chart-1)" />
+          </SectionCard>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <MapPin className="size-4" /> Top destinations by revenue
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <HBarInsight data={byDestination} format="currency" />
-            </CardContent>
-          </Card>
+          <SectionCard icon={MapPin} title="Top destinations" subtitle="By revenue · DZD">
+            <HBarInsight data={byDestination} format="currency" />
+          </SectionCard>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Users className="size-4" /> Top clients by revenue
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <HBarInsight data={topClients} format="currency" color="var(--chart-3)" />
-            </CardContent>
-          </Card>
+          <SectionCard icon={Users} title="Top clients" subtitle="By revenue · DZD">
+            <HBarInsight data={topClients} format="currency" color="var(--chart-3)" />
+          </SectionCard>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <BarChart3 className="size-4" /> Revenue per agent
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <BarInsight data={revenueByAgent} format="currency" color="var(--chart-2)" />
-            </CardContent>
-          </Card>
+          <SectionCard icon={BarChart3} title="Revenue per agent" subtitle="By revenue · DZD">
+            <BarInsight data={revenueByAgent} format="currency" color="var(--chart-2)" />
+          </SectionCard>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Briefcase className="size-4" /> Bookings by status
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <DonutInsight data={byStatus} />
-            </CardContent>
-          </Card>
+          <SectionCard icon={Briefcase} title="Bookings by status" subtitle="All bookings">
+            <DonutInsight data={byStatus} />
+          </SectionCard>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Tag className="size-4" /> Lead sources
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <DonutInsight data={leadSources} />
-            </CardContent>
-          </Card>
+          <SectionCard icon={Tag} title="Lead sources" subtitle="By client count">
+            <DonutInsight data={leadSources} />
+          </SectionCard>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Globe className="size-4" /> Top source markets
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <HBarInsight data={sourceMarkets} color="var(--chart-5)" />
-            </CardContent>
-          </Card>
+          <SectionCard icon={Globe} title="Top source markets" subtitle="Clients by country">
+            <HBarInsight data={sourceMarkets} color="var(--chart-5)" />
+          </SectionCard>
         </div>
       )}
     </section>
@@ -316,8 +268,8 @@ export function DashboardInsightsSkeleton() {
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[0, 1, 2, 3].map((i) => (
-          <Card key={i}>
-            <CardContent className="space-y-2 p-6">
+          <Card key={i} className="card-elevated">
+            <CardContent className="space-y-2 p-5">
               <Skeleton className="h-4 w-24" />
               <Skeleton className="h-8 w-20" />
             </CardContent>
@@ -326,11 +278,11 @@ export function DashboardInsightsSkeleton() {
       </div>
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {[0, 1, 2, 3].map((i) => (
-          <Card key={i}>
-            <CardHeader>
+          <Card key={i} className="card-elevated overflow-hidden">
+            <div className="border-b px-5 py-4">
               <Skeleton className="h-5 w-40" />
-            </CardHeader>
-            <CardContent>
+            </div>
+            <CardContent className="p-5">
               <Skeleton className="h-48 w-full" />
             </CardContent>
           </Card>

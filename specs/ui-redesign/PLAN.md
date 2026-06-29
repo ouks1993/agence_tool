@@ -1,7 +1,13 @@
 # UI Redesign — Phased Plan
 
 **Status:** active · **Owner decision:** Option 2 (upgrade the whole app), by phase
+**Progress:** Phase 0 ✅ · Phase 1 ✅ · Phase 2 next
 **Decision record:** [docs/decisions/0005-app-ui-redesign.md](../../docs/decisions/0005-app-ui-redesign.md)
+
+> **Delivery policy (Phases 1–5): redesign, not rewrite.** No schema changes per
+> phase. Any mockup field without a backing column is **derived from existing
+> data** or **omitted** — never fabricated. Every omission/derivation is recorded
+> (see the Phase 1 notes in [docs/roadmap.md](../../docs/roadmap.md)).
 
 Bring the **live application** (`agencetool.vercel.app`) up to the marketing-grade
 standard set by the sales deck and mockups under `marketing/`. Each phase is a
@@ -47,11 +53,19 @@ The groundwork every later phase depends on.
 - **Done when:** tokens + primitives exist, `DESIGN.md` updated, demo agency
   populated, zero regressions on existing pages.
 
-### Phase 1 — Command center (hero screens)
+### Phase 1 — Command center (hero screens) ✅
 The screens users and prospects see first.
-- **Dashboard** → target `mockups/dashboard.html`
-- **CRM** — client list + client profile → target `mockups/crm.html`
-- **Pipeline** — Kanban board → target `mockups/opportunities.html`
+- **Dashboard** → target `mockups/dashboard.html` — ✅ hero KPIs with deltas,
+  revenue trend, bookings-by-status, pipeline funnel, upcoming departures,
+  derived needs-attention list; manager insights kept + restyled.
+- **CRM** — client list + client profile → target `mockups/crm.html` — ✅ premium
+  list; profile with breadcrumb, avatar header, derived stat strip, tabbed
+  sections, spend-by-year chart, restyled timeline.
+- **Pipeline** — Kanban board → target `mockups/opportunities.html` — ✅ breadcrumb,
+  5 KPIs, client-side filter bar, rich cards (probability, close date, purpose,
+  owner); stage-move + funnel preserved.
+
+Added shared primitives: `src/components/ui/{tabs,breadcrumb,tooltip}.tsx`.
 
 ### Phase 2 — Sell & source
 The revenue-making workflow.

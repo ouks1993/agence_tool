@@ -1,11 +1,13 @@
 import Link from "next/link";
-import { getTranslations } from "next-intl/server";
 import { and, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
 import { Plus, Users, Building2, User as UserIcon } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusBadge } from "@/components/app/status-badge";
+import { ClientAvatar } from "@/components/clients/client-avatar";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import {
@@ -30,6 +32,8 @@ import { client, opportunity } from "@/lib/schema";
 export const metadata = { title: "Clients" };
 
 type SearchParams = Promise<{ q?: string; status?: string; owner?: string }>;
+
+const STATUS_ORDER: ClientStatus[] = ["active", "lead", "inactive"];
 
 export default async function ClientsPage({
   searchParams,
@@ -76,6 +80,12 @@ export default async function ClientsPage({
 
   const hasFilters = Boolean(sp.q || sp.status || sp.owner);
 
+  // Summary counts from already-loaded rows (no extra query).
+  const statusCounts = clients.reduce<Record<string, number>>((acc, c) => {
+    acc[c.status] = (acc[c.status] ?? 0) + 1;
+    return acc;
+  }, {});
+
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8 sm:px-6">
       <PageHeader title={t("title")} description={t("description")}>
@@ -86,6 +96,36 @@ export default async function ClientsPage({
           </Link>
         </Button>
       </PageHeader>
+
+      {/* Summary header — total + by-status, derived from loaded rows. */}
+      {clients.length > 0 && (
+        <Card className="card-elevated">
+          <CardContent className="flex flex-wrap items-center gap-x-8 gap-y-3 p-5">
+            <div>
+              <p className="text-2xl font-bold tracking-tight tabular-nums">
+                {clients.length}
+              </p>
+              <p className="text-muted-foreground text-sm">
+                {clients.length === 200 ? "Showing first 200" : "Total clients"}
+              </p>
+            </div>
+            <div className="bg-border hidden h-10 w-px sm:block" />
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+              {STATUS_ORDER.map((s) => {
+                const meta = CLIENT_STATUS_META[s];
+                return (
+                  <div key={s} className="flex items-center gap-2">
+                    <StatusBadge label={meta.label} tone={meta.badgeClass} />
+                    <span className="text-sm font-semibold tabular-nums">
+                      {statusCounts[s] ?? 0}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Filters */}
       <form className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -140,65 +180,79 @@ export default async function ClientsPage({
           }
         />
       ) : (
-        <div className="rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("table.name")}</TableHead>
-                <TableHead>{t("table.type")}</TableHead>
-                <TableHead>{t("table.status")}</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Owner</TableHead>
-                <TableHead className="text-right">Opps</TableHead>
-                <TableHead>Updated</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {clients.map((c) => {
-                const statusMeta = CLIENT_STATUS_META[c.status as ClientStatus];
-                return (
-                  <TableRow key={c.id} className="cursor-pointer">
-                    <TableCell>
-                      <Link
-                        href={`/clients/${c.id}`}
-                        className="flex items-center gap-2 font-medium hover:underline"
-                      >
-                        {c.type === "corporate" ? (
-                          <Building2 className="text-muted-foreground size-4" />
-                        ) : (
-                          <UserIcon className="text-muted-foreground size-4" />
-                        )}
-                        {c.name}
-                      </Link>
-                      {c.email && (
-                        <p className="text-muted-foreground text-xs">{c.email}</p>
-                      )}
-                    </TableCell>
-                    <TableCell className="capitalize">{c.type}</TableCell>
-                    <TableCell>
-                      <StatusBadge
-                        label={statusMeta?.label ?? c.status}
-                        tone={statusMeta?.badgeClass}
-                      />
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {[c.city, c.country].filter(Boolean).join(", ") || "—"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {c.owner?.name ?? "Unassigned"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {countMap.get(c.id) ?? 0}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-xs">
-                      {formatDate(c.updatedAt)}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
+        <Card className="card-elevated overflow-hidden p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>{t("table.name")}</TableHead>
+                  <TableHead>{t("table.type")}</TableHead>
+                  <TableHead>{t("table.status")}</TableHead>
+                  <TableHead>Location</TableHead>
+                  <TableHead>Owner</TableHead>
+                  <TableHead className="text-right">Opps</TableHead>
+                  <TableHead>Updated</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {clients.map((c) => {
+                  const statusMeta = CLIENT_STATUS_META[c.status as ClientStatus];
+                  const isCorporate = c.type === "corporate";
+                  const TypeIcon = isCorporate ? Building2 : UserIcon;
+                  return (
+                    <TableRow key={c.id}>
+                      <TableCell>
+                        <Link
+                          href={`/clients/${c.id}`}
+                          className="flex items-center gap-3 group"
+                        >
+                          <ClientAvatar
+                            name={c.name}
+                            className="size-9 text-xs"
+                          />
+                          <span className="min-w-0">
+                            <span className="block truncate font-medium group-hover:underline">
+                              {c.name}
+                            </span>
+                            {c.email && (
+                              <span className="text-muted-foreground block truncate text-xs">
+                                {c.email}
+                              </span>
+                            )}
+                          </span>
+                        </Link>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-muted-foreground inline-flex items-center gap-1.5 text-sm capitalize">
+                          <TypeIcon className="size-3.5" />
+                          {c.type}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge
+                          label={statusMeta?.label ?? c.status}
+                          tone={statusMeta?.badgeClass}
+                        />
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {[c.city, c.country].filter(Boolean).join(", ") || "—"}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {c.owner?.name ?? "Unassigned"}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {countMap.get(c.id) ?? 0}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-xs tabular-nums">
+                        {formatDate(c.updatedAt)}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </Card>
       )}
     </div>
   );

@@ -408,6 +408,25 @@ Radix-based with overlay (`bg-black/50`), fade + zoom animations, optional close
 
 Radix-based. Content: `rounded-md border p-1 shadow-md min-w-[8rem]`. Items support a `destructive` variant.
 
+### Tabs
+
+Radix-based (added in the UI-redesign Phase 1). `TabsList` is a `rounded-md bg-muted p-1`
+segmented control; the active `TabsTrigger` gets `bg-background` + `shadow-sm`. Used for the
+client-profile sections (Overview / Trips / Opportunities / Proposals / Contacts / Notes) and the
+pipeline scope switcher (All / My deals / Closing soon).
+
+### Breadcrumb
+
+Markup-only (added in Phase 1). `Breadcrumb` → `BreadcrumbList` → `BreadcrumbItem` with
+`BreadcrumbLink` / `BreadcrumbPage` and a `BreadcrumbSeparator` (`ChevronRight`). Used at the top
+of detail/section pages (client profile, pipeline) for location context.
+
+### Tooltip
+
+Radix-based (added in Phase 1). `TooltipProvider` + `Tooltip` / `TooltipTrigger` /
+`TooltipContent` (`bg-primary text-primary-foreground`, fade + zoom in). For terse hover hints on
+icon-only affordances.
+
 ### Spinner
 
 Sizes: `sm` (h-4 w-4), `md` (h-6 w-6), `lg` (h-8 w-8). Uses `Loader2` with `animate-spin`.
