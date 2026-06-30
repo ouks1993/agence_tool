@@ -36,10 +36,10 @@ Target mockups: `proposal-builder.html`, `flight-search.html`, `hotel-search.htm
 - [ ] Verify (preview snapshot) — blocked: dev DB has no seeded user
 
 **2.2 Flight search** (`search`, `sourcing/flights`)
-- [ ] Search workspace shell + filters restyle to mockup
+- [x] Search workspace shell — elevated search panel (sidebar-filter layout deferred)
 - [x] Result cards — airline logo tile + interactive hover + tabular pricing
-- [ ] Empty/loading/error states
-- [ ] Verify + quality gate
+- [x] Empty (EmptyState) + loading (skeleton cards) + error (toast) states
+- [ ] Verify — blocked: dev DB has no seeded user
 
 **2.3 Hotel search** (`hotels`, `hotels/[code]`)
 - [ ] Search experience shell + filters/occupancy restyle

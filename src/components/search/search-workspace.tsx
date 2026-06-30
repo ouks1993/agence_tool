@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Plane, BedDouble, Search, Loader2, Star, ArrowRight, MapPin, Building2 } from "lucide-react";
 import { toast } from "sonner";
+import { EmptyState } from "@/components/app/empty-state";
 import {
   AddToBookingDialog,
   type BookingOption,
@@ -17,6 +18,7 @@ import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { BookingItemInput } from "@/lib/actions/bookings";
 import { searchFlightsAction, searchHotelsAction } from "@/lib/actions/search";
 import { formatMoney, formatDuration, formatTime, formatDate } from "@/lib/format";
@@ -177,7 +179,7 @@ function FlightSearch({
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className="card-elevated">
         <CardContent className="p-5">
           <div className="mb-4 flex gap-2">
             <Button
@@ -258,10 +260,33 @@ function FlightSearch({
 
       {note && <p className="text-muted-foreground text-sm">{note}</p>}
 
-      {results && (
+      {loading && (
+        <div className="space-y-3">
+          {[0, 1, 2].map((i) => (
+            <Card key={i}>
+              <CardContent className="flex items-center justify-between gap-4 p-4">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="size-10 rounded-md" />
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-3 w-56" />
+                  </div>
+                </div>
+                <Skeleton className="h-9 w-24" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {!loading && results && (
         <div className="space-y-3">
           {results.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No flights found.</p>
+            <EmptyState
+              icon={Plane}
+              title="No flights found"
+              description="Try different dates, nearby airports, or another cabin class."
+            />
           ) : (
             results.map((o, idx) => (
               <Card key={o.id} className="card-interactive">
