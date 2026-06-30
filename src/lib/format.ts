@@ -19,6 +19,24 @@ export function formatMoney(
   }
 }
 
+/**
+ * Compact money for KPI tiles, e.g. 42_800_000 -> "42.8M DZD". Keeps figures
+ * dense on dashboard cards where the precise value lives in a tooltip/export.
+ * No FX — the caller is responsible for passing a single-currency total.
+ */
+export function formatMoneyCompact(
+  amount: number | string | null | undefined,
+  currency: string = DEFAULT_CURRENCY
+): string {
+  const value = typeof amount === "string" ? parseFloat(amount) : amount ?? 0;
+  const safe = Number.isFinite(value) ? (value as number) : 0;
+  const compact = new Intl.NumberFormat("en-GB", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(safe);
+  return `${compact} ${currency}`;
+}
+
 /** Short date, e.g. "12 Aug 2026". Accepts Date | string | null. */
 export function formatDate(
   date: Date | string | null | undefined
