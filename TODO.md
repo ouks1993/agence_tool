@@ -70,9 +70,14 @@ Target mockups: `proposal-builder.html`, `flight-search.html`, `hotel-search.htm
 - [x] AI assistant — brand Bot header tile, Sparkles empty state, role icons on
       messages, shadcn Input swap. Adversarially verified (regression + design pass).
 
-### Phase 5 — Polish & responsive ⬜
+### Phase 5 — Polish & responsive ⬜ (started)
 - [ ] Mobile/responsive pass → `mobile.html`
-- [ ] Empty / loading / error states across all pages
+- [~] Empty / loading / error states across all pages
+  - [x] loading.tsx skeletons for 8 list/index routes (clients, opportunities,
+        products, suppliers, commissions, operations, support, team) — via workflow,
+        gate + fidelity verified. (Errors covered by segment-level (app)/error.tsx.)
+  - [ ] Detail/form routes loading states (lower priority — load fast)
+  - [ ] Audit empty states across remaining lists
 - [ ] Micro-interactions, dark-mode parity, a11y sweep, i18n/RTL verification
 
 ---
