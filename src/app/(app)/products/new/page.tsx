@@ -1,8 +1,13 @@
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { NewProductWithAi } from "@/components/products/new-product-with-ai";
-import { Button } from "@/components/ui/button";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { requireAgencyUser } from "@/lib/permissions";
 import { listClientOptions, listOpportunityOptions } from "@/lib/queries";
 
@@ -22,12 +27,17 @@ export default async function NewProductPage({
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6 px-4 py-8 sm:px-6">
-      <Button asChild variant="ghost" size="sm" className="-ml-2">
-        <Link href="/proposals">
-          <ArrowLeft className="mr-1 size-4" />
-          Proposals
-        </Link>
-      </Button>
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/proposals">Proposals</BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>New proposal</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
       <PageHeader title="New proposal" description="Start a travel package for a client." />
       <NewProductWithAi
         clients={clients}

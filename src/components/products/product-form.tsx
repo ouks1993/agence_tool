@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
@@ -92,8 +92,11 @@ export function ProductForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-6">
-      <Card>
-        <CardContent className="grid grid-cols-1 gap-4 p-6 md:grid-cols-2">
+      <Card className="card-elevated">
+        <CardHeader>
+          <CardTitle className="text-base">Trip details</CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="space-y-2 md:col-span-2">
             <Label htmlFor="title">Title *</Label>
             <Input
