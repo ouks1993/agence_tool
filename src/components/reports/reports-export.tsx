@@ -1,22 +1,39 @@
 "use client";
 
 import { useState } from "react";
-import { Download, FileSpreadsheet, FileText } from "lucide-react";
+import {
+  Download,
+  FileSpreadsheet,
+  FileText,
+  Users,
+  Target,
+  Briefcase,
+  Package,
+  UserRound,
+  Wallet,
+  BadgePercent,
+  Building2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 // Mirrors the server DATASETS registry (kept in sync manually — small list).
-const DATASETS: { key: string; label: string; description: string }[] = [
-  { key: "clients", label: "Clients", description: "All client records with source, industry, country" },
-  { key: "opportunities", label: "Opportunities", description: "Pipeline deals, stage, value, purpose" },
-  { key: "bookings", label: "Bookings", description: "Trips with status, totals, paid & balance" },
-  { key: "booking_items", label: "Booking items", description: "Line-level services per booking" },
-  { key: "travellers", label: "Travellers", description: "Passengers, nationality, passport" },
-  { key: "payments", label: "Payments", description: "All recorded payments" },
-  { key: "commissions", label: "Commissions", description: "Supplier & agent commission ledger" },
-  { key: "suppliers", label: "Suppliers", description: "Supplier directory" },
+const DATASETS: {
+  key: string;
+  label: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+}[] = [
+  { key: "clients", label: "Clients", description: "All client records with source, industry, country", icon: Users },
+  { key: "opportunities", label: "Opportunities", description: "Pipeline deals, stage, value, purpose", icon: Target },
+  { key: "bookings", label: "Bookings", description: "Trips with status, totals, paid & balance", icon: Briefcase },
+  { key: "booking_items", label: "Booking items", description: "Line-level services per booking", icon: Package },
+  { key: "travellers", label: "Travellers", description: "Passengers, nationality, passport", icon: UserRound },
+  { key: "payments", label: "Payments", description: "All recorded payments", icon: Wallet },
+  { key: "commissions", label: "Commissions", description: "Supplier & agent commission ledger", icon: BadgePercent },
+  { key: "suppliers", label: "Suppliers", description: "Supplier directory", icon: Building2 },
 ];
 
 export function ReportsExport() {
@@ -32,7 +49,7 @@ export function ReportsExport() {
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className="card-elevated">
         <CardContent className="flex flex-wrap items-end gap-4 p-4">
           <div className="space-y-1.5">
             <Label htmlFor="from" className="text-xs">From (optional)</Label>
@@ -52,11 +69,16 @@ export function ReportsExport() {
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {DATASETS.map((d) => (
-          <Card key={d.key}>
+          <Card key={d.key} className="card-elevated">
             <CardContent className="flex items-center justify-between gap-4 p-4">
-              <div className="min-w-0">
-                <p className="font-medium">{d.label}</p>
-                <p className="text-muted-foreground truncate text-xs">{d.description}</p>
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="bg-brand/10 text-brand flex size-9 shrink-0 items-center justify-center rounded-md">
+                  <d.icon className="size-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-medium">{d.label}</p>
+                  <p className="text-muted-foreground truncate text-xs">{d.description}</p>
+                </div>
               </div>
               <div className="flex shrink-0 gap-2">
                 <Button asChild variant="outline" size="sm">

@@ -62,9 +62,9 @@ Target mockups: `proposal-builder.html`, `flight-search.html`, `hotel-search.htm
 - [x] Commissions — card-elevated table wrapper (was ad-hoc shadow-sm)
 - [ ] Optional: commissions KPI strip if useful (deferred — page already clean)
 
-### Phase 4 — Client experience & insight ⬜
+### Phase 4 — Client experience & insight ⬜ (started)
 - [ ] Customer portal → `customer-portal.html`
-- [ ] Reports & analytics → `reports.html`
+- [x] Reports & export — card-elevated + per-dataset tinted icon tiles (export hub)
 - [ ] AI assistant → `ai-assistant.html`
 
 ### Phase 5 — Polish & responsive ⬜
