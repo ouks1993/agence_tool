@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, asc, desc, eq } from "drizzle-orm";
 import {
-  ArrowLeft,
   Pencil,
   MapPin,
   Calendar,
@@ -19,6 +18,7 @@ import {
 } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/app/page-header";
+import { StatCard } from "@/components/app/stat-card";
 import { StatusBadge } from "@/components/app/status-badge";
 import { BookingItemsManager } from "@/components/bookings/booking-items-manager";
 import { BookingLifecycleStepper } from "@/components/bookings/booking-lifecycle-stepper";
@@ -31,6 +31,14 @@ import { TravellersManager } from "@/components/bookings/travellers-manager";
 import { VisaAssistant } from "@/components/bookings/visa-assistant";
 import { PortalInviteButton } from "@/components/clients/portal-invite-button";
 import { CommissionsManager } from "@/components/commissions/commissions-manager";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCommissionsByBooking } from "@/lib/actions/commissions";
@@ -109,14 +117,35 @@ export default async function BookingWorkspace({
     .map((t) => ({ t, status: passportExpiryStatus(t.passportExpiry, travelDate) }))
     .filter((x) => x.status.level === "warning" || x.status.level === "expired");
 
+  // Presentational derivations from already-loaded data (no new queries):
+  // paidPct drives the Finance progress bar + Paid KPI hint; clamped 0-100.
+  const paidPct = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0;
+  // nights drives an optional Nights KPI/Detail row — omitted when either date is absent.
+  const nights =
+    b.departDate && b.returnDate
+      ? Math.max(
+          0,
+          Math.round(
+            (b.returnDate.getTime() - b.departDate.getTime()) / 86_400_000
+          )
+        )
+      : null;
+
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8 sm:px-6">
-      <Button asChild variant="ghost" size="sm" className="-ml-2">
-        <Link href="/bookings">
-          <ArrowLeft className="mr-1 size-4" />
-          Bookings
-        </Link>
-      </Button>
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href="/bookings">Bookings</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>{b.reference}</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
 
       <PageHeader title={b.client?.name ?? b.destination ?? "Booking"} description={b.reference}>
         <BookingStatusControl
@@ -167,6 +196,26 @@ export default async function BookingWorkspace({
         )}
       </div>
 
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Total" value={formatMoney(total, b.currency)} icon={Wallet} />
+        <StatCard
+          label="Paid"
+          value={formatMoney(paid, b.currency)}
+          hint={`${paidPct}%`}
+          icon={Receipt}
+        />
+        <StatCard
+          label="Balance due"
+          value={formatMoney(balance, b.currency)}
+          icon={Wallet}
+        />
+        <StatCard
+          label={t("travellersTitle")}
+          value={String(b.travellers.length)}
+          icon={Users}
+        />
+      </div>
+
       <BookingLifecycleStepper
         bookingId={b.id}
         status={b.status}
@@ -192,7 +241,7 @@ export default async function BookingWorkspace({
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          <Card>
+          <Card className="card-elevated">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Users className="size-4" /> {t("travellersTitle")}
@@ -224,7 +273,7 @@ export default async function BookingWorkspace({
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="card-elevated">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 {t("purchasesTitle")}
@@ -275,7 +324,7 @@ export default async function BookingWorkspace({
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="card-elevated">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Wallet className="size-4" /> Payments
@@ -303,7 +352,7 @@ export default async function BookingWorkspace({
           </Card>
 
           {showCommissions && (
-            <Card>
+            <Card className="card-elevated">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
                   <BadgePercent className="size-4" /> Commissions
@@ -315,7 +364,7 @@ export default async function BookingWorkspace({
             </Card>
           )}
 
-          <Card>
+          <Card className="card-elevated">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Mail className="size-4" /> Messages
@@ -341,7 +390,7 @@ export default async function BookingWorkspace({
         </div>
 
         <div className="space-y-6">
-          <Card>
+          <Card className="card-elevated">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Wallet className="size-4" /> Finance
@@ -358,13 +407,25 @@ export default async function BookingWorkspace({
                   {formatMoney(paid, b.currency)}
                 </span>
               </div>
+              {/* Derived payment progress — purely presentational from paid/total. */}
+              <div className="space-y-1 pt-1">
+                <div className="h-2 rounded-full bg-muted">
+                  <div
+                    style={{ width: `${paidPct}%` }}
+                    className="h-2 rounded-full bg-primary"
+                  />
+                </div>
+                <p className="text-muted-foreground text-right text-xs">
+                  {paidPct}%
+                </p>
+              </div>
               <div className="flex items-center justify-between border-t pt-2">
                 <span className="font-semibold">Balance due</span>
                 <span
                   className={
                     balance > 0
-                      ? "text-lg font-bold text-amber-600 dark:text-amber-400"
-                      : "text-lg font-bold text-green-600 dark:text-green-400"
+                      ? "text-2xl font-bold text-amber-600 dark:text-amber-400"
+                      : "text-2xl font-bold text-green-600 dark:text-green-400"
                   }
                 >
                   {formatMoney(balance, b.currency)}
@@ -373,7 +434,7 @@ export default async function BookingWorkspace({
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="card-elevated">
             <CardHeader>
               <CardTitle className="text-base">Trip details</CardTitle>
             </CardHeader>
@@ -388,6 +449,9 @@ export default async function BookingWorkspace({
                     : "—"
                 }
               />
+              {nights !== null && (
+                <Detail icon={Calendar} label="Nights" value={String(nights)} />
+              )}
               <Detail icon={Users} label="Travellers" value={String(b.travellers.length)} />
             </CardContent>
           </Card>
@@ -395,7 +459,7 @@ export default async function BookingWorkspace({
           <VisaAssistant bookingId={b.id} />
 
           {b.notes && (
-            <Card>
+            <Card className="card-elevated">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
                   <StickyNote className="size-4" /> Notes

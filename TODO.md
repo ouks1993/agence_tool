@@ -51,7 +51,10 @@ Target mockups: `proposal-builder.html`, `flight-search.html`, `hotel-search.htm
 **Bookings** (`bookings`, `bookings/[id]`)
 - [x] List — derived KPI strip (total · upcoming · awaiting payment · completed; counts only, no FX summing)
 - [ ] List — loading/error states; DataTable polish
-- [ ] Booking details → `booking-details.html` (header, lifecycle, items, payments)
+- [x] Booking details — breadcrumb, derived KPI strip, card-elevated, finance hero
+      (progress bar + bigger balance), Nights row. Done via multi-agent workflow
+      (map → plan → implement → adversarial verify, all 3 lenses passed). i18n of
+      new labels deferred to open-item #2 (matches file's existing hardcoded labels).
 **Finance / Payments / Commissions**
 - [ ] Apply card/table/KPI system
 
