@@ -48,46 +48,49 @@
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.141 0.005 285.823);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.141 0.005 285.823);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.141 0.005 285.823);
-  --primary: oklch(0.21 0.034 270);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.967 0.001 286.375);
-  --secondary-foreground: oklch(0.21 0.006 285.885);
-  --muted: oklch(0.967 0.001 286.375);
-  --muted-foreground: oklch(0.552 0.016 285.938);
-  --accent: oklch(0.96 0.012 270);
-  --accent-foreground: oklch(0.21 0.006 285.885);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.92 0.004 286.32);
-  --input: oklch(0.92 0.004 286.32);
-  --ring: oklch(0.705 0.06 270);
-  /* Brand accent — premium indigo used for primary marketing-grade accents. */
-  --brand: oklch(0.52 0.16 264);
-  --brand-foreground: oklch(0.985 0 0);
-  /* Chart palette (indigo · teal · amber · violet · rose · sky). */
-  --chart-1: oklch(0.52 0.16 264);
-  --chart-2: oklch(0.7 0.13 184);
-  --chart-3: oklch(0.72 0.15 67);
-  --chart-4: oklch(0.6 0.18 295);
-  --chart-5: oklch(0.65 0.19 9);
-  --chart-6: oklch(0.7 0.13 240);
-  /* Soft elevations for premium cards. */
-  --shadow-card: 0 1px 2px oklch(0.2 0.04 264 / 6%), 0 8px 24px oklch(0.2 0.04 264 / 7%);
-  --shadow-card-hover: 0 2px 4px oklch(0.2 0.04 264 / 8%), 0 16px 40px oklch(0.2 0.04 264 / 12%);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.141 0.005 285.823);
-  --sidebar-primary: oklch(0.21 0.006 285.885);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.967 0.001 286.375);
-  --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
-  --sidebar-border: oklch(0.92 0.004 286.32);
-  --sidebar-ring: oklch(0.705 0.015 286.067);
+  /* Deck radius: cards/panels = 14px (rounded-lg). md→12, sm→10 derive from it. */
+  --radius: 0.875rem;
+  /* Atlas marketing-deck identity — cool-paper canvas, white cards, Atlas Blue accent. */
+  --background: #F6F8FB;
+  --foreground: #1B2333;
+  --card: #FFFFFF;
+  --card-foreground: #1B2333;
+  --popover: #FFFFFF;
+  --popover-foreground: #1B2333;
+  --primary: #2B59C3;
+  --primary-foreground: #FFFFFF;
+  --secondary: #EEF1F6;
+  --secondary-foreground: #1B2333;
+  --muted: #EEF1F6;
+  --muted-foreground: #6B7385;
+  --accent: #EAF0FC;
+  --accent-foreground: #2249A6;
+  --destructive: #D14343;
+  --border: #E6EAF1;
+  --input: #E1E6EF;
+  --ring: #2B59C3;
+  /* Brand accent — Atlas Blue, drives marketing-grade highlights. */
+  --brand: #2B59C3;
+  --brand-foreground: #FFFFFF;
+  /* Chart palette (deck): blue · green · amber · violet · cyan · red. */
+  --chart-1: #2B59C3;
+  --chart-2: #1E9E6A;
+  --chart-3: #B45313;
+  --chart-4: #7C5CE6;
+  --chart-5: #1FA2C7;
+  --chart-6: #D14343;
+  /* Deck elevations — shadow-sm (resting) / shadow-md (hover). */
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 1px rgba(16, 24, 40, 0.04);
+  --shadow-card-hover: 0 4px 12px rgba(16, 24, 40, 0.08), 0 2px 4px rgba(16, 24, 40, 0.04);
+  /* Sidebar — dark ink rail (deck identity). */
+  --sidebar: #0E1525;
+  --sidebar-foreground: #C7CEDC;
+  --sidebar-primary: #2B59C3;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: rgba(255, 255, 255, 0.07);
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-ring: #2B59C3;
 }
 
 .dark {
@@ -97,20 +100,21 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.21 0.006 285.885);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.92 0.02 270);
-  --primary-foreground: oklch(0.21 0.006 285.885);
+  /* Accent family adopts the deck Atlas Blue, tuned to pop on dark surfaces. */
+  --primary: #4F7BD9;
+  --primary-foreground: #FFFFFF;
   --secondary: oklch(0.274 0.006 286.033);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.274 0.006 286.033);
   --muted-foreground: oklch(0.705 0.015 286.067);
-  --accent: oklch(0.28 0.018 270);
-  --accent-foreground: oklch(0.985 0 0);
+  --accent: oklch(0.30 0.04 264);
+  --accent-foreground: #DCE6FA;
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.552 0.05 270);
-  --brand: oklch(0.7 0.14 264);
-  --brand-foreground: oklch(0.21 0.006 285.885);
+  --ring: #4F7BD9;
+  --brand: #5B85DE;
+  --brand-foreground: #0E1525;
   /* Chart palette — brighter for dark surfaces. */
   --chart-1: oklch(0.7 0.14 264);
   --chart-2: oklch(0.78 0.14 184);
@@ -120,14 +124,15 @@
   --chart-6: oklch(0.78 0.13 240);
   --shadow-card: 0 1px 2px oklch(0 0 0 / 30%), 0 8px 24px oklch(0 0 0 / 35%);
   --shadow-card-hover: 0 2px 4px oklch(0 0 0 / 35%), 0 16px 40px oklch(0 0 0 / 45%);
-  --sidebar: oklch(0.21 0.006 285.885);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.274 0.006 286.033);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.552 0.016 285.938);
+  /* Sidebar — same dark ink rail as light mode (deck identity). */
+  --sidebar: #0E1525;
+  --sidebar-foreground: #C7CEDC;
+  --sidebar-primary: #4F7BD9;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: rgba(255, 255, 255, 0.07);
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-ring: #4F7BD9;
 }
 
 @keyframes fade-in {

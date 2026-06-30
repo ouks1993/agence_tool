@@ -18,64 +18,78 @@ This document defines the visual design system for the project. All new componen
 
 ## Colors
 
-All values use the **oklch** color space. Colors are defined as CSS custom properties in `globals.css` and bridged to Tailwind via `@theme inline`.
+The app adopts the **Atlas marketing-deck identity** (`marketing/assets/atlas-ui.css`):
+an Atlas Blue (`#2B59C3`) primary accent, a cool-paper canvas (`#F6F8FB`), white cards,
+and a dark ink (`#0E1525`) sidebar rail — while keeping the Geist font.
+
+Light-theme tokens are authored as exact deck **hex** values (hex is valid in CSS custom
+properties; the deck values are matched verbatim rather than approximated in oklch). The
+dark theme keeps a coherent neutral-oklch scaffold (Linear-like surfaces) and only swaps
+the **accent family + sidebar** to the deck identity. All colors are defined as CSS custom
+properties in `globals.css` and bridged to Tailwind via `@theme inline`.
 
 ### Semantic Tokens
 
 | Token | Light | Dark | Usage |
 |---|---|---|---|
-| `background` | `oklch(1 0 0)` | `oklch(0.141 0.005 285.823)` | Page background |
-| `foreground` | `oklch(0.141 0.005 285.823)` | `oklch(0.985 0 0)` | Primary text |
-| `primary` | `oklch(0.21 0.034 270)` | `oklch(0.92 0.02 270)` | Buttons, links, accents |
-| `primary-foreground` | `oklch(0.985 0 0)` | `oklch(0.21 0.006 285.885)` | Text on primary |
-| `secondary` | `oklch(0.967 0.001 286.375)` | `oklch(0.274 0.006 286.033)` | Secondary buttons, subtle bg |
-| `secondary-foreground` | `oklch(0.21 0.006 285.885)` | `oklch(0.985 0 0)` | Text on secondary |
-| `muted` | `oklch(0.967 0.001 286.375)` | `oklch(0.274 0.006 286.033)` | Subdued backgrounds |
-| `muted-foreground` | `oklch(0.552 0.016 285.938)` | `oklch(0.705 0.015 286.067)` | Subdued text, placeholders |
-| `accent` | `oklch(0.96 0.012 270)` | `oklch(0.28 0.018 270)` | Hover backgrounds, highlights |
-| `accent-foreground` | `oklch(0.21 0.006 285.885)` | `oklch(0.985 0 0)` | Text on accent |
-| `destructive` | `oklch(0.577 0.245 27.325)` | `oklch(0.704 0.191 22.216)` | Error states, delete actions |
-| `card` | `oklch(1 0 0)` | `oklch(0.21 0.006 285.885)` | Card backgrounds |
-| `card-foreground` | `oklch(0.141 0.005 285.823)` | `oklch(0.985 0 0)` | Card text |
-| `popover` | `oklch(1 0 0)` | `oklch(0.21 0.006 285.885)` | Popover/dropdown bg |
-| `popover-foreground` | `oklch(0.141 0.005 285.823)` | `oklch(0.985 0 0)` | Popover/dropdown text |
-| `border` | `oklch(0.92 0.004 286.32)` | `oklch(1 0 0 / 10%)` | Borders, dividers |
-| `input` | `oklch(0.92 0.004 286.32)` | `oklch(1 0 0 / 15%)` | Input borders |
-| `ring` | `oklch(0.705 0.06 270)` | `oklch(0.552 0.05 270)` | Focus rings |
+| `background` | `#F6F8FB` | `oklch(0.141 0.005 285.823)` | Page background (deck canvas) |
+| `foreground` | `#1B2333` | `oklch(0.985 0 0)` | Primary text |
+| `primary` | `#2B59C3` | `#4F7BD9` | Buttons, links, accents (Atlas Blue) |
+| `primary-foreground` | `#FFFFFF` | `#FFFFFF` | Text on primary |
+| `secondary` | `#EEF1F6` | `oklch(0.274 0.006 286.033)` | Secondary buttons, subtle bg |
+| `secondary-foreground` | `#1B2333` | `oklch(0.985 0 0)` | Text on secondary |
+| `muted` | `#EEF1F6` | `oklch(0.274 0.006 286.033)` | Subdued backgrounds |
+| `muted-foreground` | `#6B7385` | `oklch(0.705 0.015 286.067)` | Subdued text, placeholders |
+| `accent` | `#EAF0FC` | `oklch(0.30 0.04 264)` | Hover backgrounds, highlights (brand tint) |
+| `accent-foreground` | `#2249A6` | `#DCE6FA` | Text on accent |
+| `destructive` | `#D14343` | `oklch(0.704 0.191 22.216)` | Error states, delete actions |
+| `card` | `#FFFFFF` | `oklch(0.21 0.006 285.885)` | Card backgrounds |
+| `card-foreground` | `#1B2333` | `oklch(0.985 0 0)` | Card text |
+| `popover` | `#FFFFFF` | `oklch(0.21 0.006 285.885)` | Popover/dropdown bg |
+| `popover-foreground` | `#1B2333` | `oklch(0.985 0 0)` | Popover/dropdown text |
+| `border` | `#E6EAF1` | `oklch(1 0 0 / 10%)` | Borders, dividers |
+| `input` | `#E1E6EF` | `oklch(1 0 0 / 15%)` | Input borders |
+| `ring` | `#2B59C3` | `#4F7BD9` | Focus rings |
 
 ### Brand Accent
 
 | Token | Light | Dark | Usage |
 |---|---|---|---|
-| `brand` | `oklch(0.52 0.16 264)` | `oklch(0.7 0.14 264)` | Premium indigo accent for marketing-grade highlights (charts, KPI emphasis). Exposed to Tailwind as `*-brand`. |
-| `brand-foreground` | `oklch(0.985 0 0)` | `oklch(0.21 0.006 285.885)` | Text on `brand`. |
+| `brand` | `#2B59C3` | `#5B85DE` | Atlas Blue accent for marketing-grade highlights (charts, KPI emphasis). Exposed to Tailwind as `*-brand`. |
+| `brand-foreground` | `#FFFFFF` | `#0E1525` | Text on `brand`. |
 
 ### Chart Colors
 
-Refined in the UI-redesign Phase 0 to a cohesive premium palette
-(indigo · teal · amber · violet · rose · sky). Consumed by `src/components/charts/insight-charts.tsx`.
+Aligned to the marketing-deck palette (blue · green · amber · violet · cyan · red).
+Consumed by `src/components/charts/insight-charts.tsx`. The dark theme keeps the brighter
+Phase-0 oklch values for legibility on dark surfaces.
 
 | Token | Light | Dark |
 |---|---|---|
-| `chart-1` (indigo) | `oklch(0.52 0.16 264)` | `oklch(0.7 0.14 264)` |
-| `chart-2` (teal) | `oklch(0.7 0.13 184)` | `oklch(0.78 0.14 184)` |
-| `chart-3` (amber) | `oklch(0.72 0.15 67)` | `oklch(0.8 0.15 70)` |
-| `chart-4` (violet) | `oklch(0.6 0.18 295)` | `oklch(0.72 0.17 295)` |
-| `chart-5` (rose) | `oklch(0.65 0.19 9)` | `oklch(0.74 0.18 9)` |
-| `chart-6` (sky) | `oklch(0.7 0.13 240)` | `oklch(0.78 0.13 240)` |
+| `chart-1` (blue) | `#2B59C3` | `oklch(0.7 0.14 264)` |
+| `chart-2` (green) | `#1E9E6A` | `oklch(0.78 0.14 184)` |
+| `chart-3` (amber) | `#B45313` | `oklch(0.8 0.15 70)` |
+| `chart-4` (violet) | `#7C5CE6` | `oklch(0.72 0.17 295)` |
+| `chart-5` (cyan) | `#1FA2C7` | `oklch(0.74 0.18 9)` |
+| `chart-6` (red) | `#D14343` | `oklch(0.78 0.13 240)` |
 
 ### Sidebar Colors
 
+The sidebar is a **dark ink rail in both light and dark themes** (deck identity). Every
+element inside the rail must use sidebar-scoped tokens (`text-sidebar-foreground`,
+`bg-sidebar-accent`, `bg-sidebar-primary`, `border-sidebar-border`, …) for legibility on
+the dark surface.
+
 | Token | Light | Dark |
 |---|---|---|
-| `sidebar` | `oklch(0.985 0 0)` | `oklch(0.21 0.006 285.885)` |
-| `sidebar-foreground` | `oklch(0.141 0.005 285.823)` | `oklch(0.985 0 0)` |
-| `sidebar-primary` | `oklch(0.21 0.006 285.885)` | `oklch(0.488 0.243 264.376)` |
-| `sidebar-primary-foreground` | `oklch(0.985 0 0)` | `oklch(0.985 0 0)` |
-| `sidebar-accent` | `oklch(0.967 0.001 286.375)` | `oklch(0.274 0.006 286.033)` |
-| `sidebar-accent-foreground` | `oklch(0.21 0.006 285.885)` | `oklch(0.985 0 0)` |
-| `sidebar-border` | `oklch(0.92 0.004 286.32)` | `oklch(1 0 0 / 10%)` |
-| `sidebar-ring` | `oklch(0.705 0.015 286.067)` | `oklch(0.552 0.016 285.938)` |
+| `sidebar` | `#0E1525` | `#0E1525` |
+| `sidebar-foreground` | `#C7CEDC` | `#C7CEDC` |
+| `sidebar-primary` | `#2B59C3` | `#4F7BD9` |
+| `sidebar-primary-foreground` | `#FFFFFF` | `#FFFFFF` |
+| `sidebar-accent` | `rgba(255,255,255,0.07)` | `rgba(255,255,255,0.07)` |
+| `sidebar-accent-foreground` | `#FFFFFF` | `#FFFFFF` |
+| `sidebar-border` | `rgba(255,255,255,0.08)` | `rgba(255,255,255,0.08)` |
+| `sidebar-ring` | `#2B59C3` | `#4F7BD9` |
 
 ### Ad-hoc Status Colors
 
@@ -192,13 +206,16 @@ Responsive overrides where needed:
 
 ## Border Radius
 
+Deck radius scale: cards/panels are **14px** (`--r-lg`), buttons/inputs 10px, chips 6px.
+The base `--radius` is set to `0.875rem` (14px) so `rounded-lg` cards match the deck.
+
 | Token | Value | Class |
 |---|---|---|
-| `--radius` | `0.625rem` (10px) | Base |
-| `--radius-sm` | `calc(--radius - 4px)` = 6px | `rounded-sm` |
-| `--radius-md` | `calc(--radius - 2px)` = 8px | `rounded-md` |
-| `--radius-lg` | `var(--radius)` = 10px | `rounded-lg` |
-| `--radius-xl` | `calc(--radius + 4px)` = 14px | `rounded-xl` |
+| `--radius` | `0.875rem` (14px) | Base |
+| `--radius-sm` | `calc(--radius - 4px)` = 10px | `rounded-sm` |
+| `--radius-md` | `calc(--radius - 2px)` = 12px | `rounded-md` |
+| `--radius-lg` | `var(--radius)` = 14px | `rounded-lg` |
+| `--radius-xl` | `calc(--radius + 4px)` = 18px | `rounded-xl` |
 | — | 9999px | `rounded-full` |
 
 **Usage:**
@@ -218,13 +235,13 @@ Responsive overrides where needed:
 | `shadow-md` | Card hover, dropdown content |
 | `shadow-lg` | Dialogs, dropdown sub-content |
 
-**Custom elevation tokens (UI-redesign Phase 0):** soft, layered shadows for
-premium dashboard / KPI cards.
+**Custom elevation tokens:** layered shadows for premium dashboard / KPI cards,
+aligned to the marketing-deck `--shadow-sm` (resting) / `--shadow-md` (hover) values.
 
-| Token | Usage |
-|---|---|
-| `--shadow-card` | Resting elevation for KPI / dashboard cards (via `.card-elevated`) |
-| `--shadow-card-hover` | Hover elevation for interactive cards (via `.card-interactive:hover`) |
+| Token | Value | Usage |
+|---|---|---|
+| `--shadow-card` | `0 1px 2px rgba(16,24,40,.05), 0 1px 1px rgba(16,24,40,.04)` | Resting elevation for KPI / dashboard cards (via `.card-elevated`) |
+| `--shadow-card-hover` | `0 4px 12px rgba(16,24,40,.08), 0 2px 4px rgba(16,24,40,.04)` | Hover elevation for interactive cards (via `.card-interactive:hover`) |
 
 ---
 

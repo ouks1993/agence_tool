@@ -179,8 +179,8 @@ export function AppShell({
         className={cn(
           "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
           active
-            ? "bg-primary text-primary-foreground"
-            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            ? "bg-sidebar-primary text-sidebar-primary-foreground"
+            : "text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
         )}
       >
         <Icon className="size-4 shrink-0" />
@@ -192,13 +192,13 @@ export function AppShell({
   const SidebarContent = (
     <div className="flex h-full flex-col">
       {/* Brand */}
-      <div className="flex h-16 items-center gap-2 border-b px-5">
-        <div className="bg-primary/10 flex size-9 items-center justify-center rounded-lg">
-          <Compass className="text-primary size-5" />
+      <div className="border-sidebar-border flex h-16 items-center gap-2 border-b px-5">
+        <div className="bg-sidebar-accent flex size-9 items-center justify-center rounded-lg">
+          <Compass className="text-sidebar-foreground size-5" />
         </div>
         <div className="leading-tight">
-          <p className="text-base font-bold">{APP_NAME}</p>
-          <p className="text-muted-foreground text-xs">{APP_TAGLINE}</p>
+          <p className="text-sidebar-foreground text-base font-bold">{APP_NAME}</p>
+          <p className="text-sidebar-foreground/60 text-xs">{APP_TAGLINE}</p>
         </div>
       </div>
 
@@ -217,7 +217,7 @@ export function AppShell({
           return (
             <div key={section.labelKey ?? "_top"}>
               {section.labelKey && (
-                <p className="text-muted-foreground mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest">
+                <p className="text-sidebar-foreground/60 mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest">
                   {tNav(section.labelKey)}
                 </p>
               )}
@@ -230,8 +230,8 @@ export function AppShell({
 
         {/* Locked items — dimmed, role-gated */}
         {lockedItems.length > 0 && (
-          <div className="border-t pt-3">
-            <p className="text-muted-foreground mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest">
+          <div className="border-sidebar-border border-t pt-3">
+            <p className="text-sidebar-foreground/60 mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest">
               {tNav("sectionAdmin")}
             </p>
             <div className="space-y-0.5">
@@ -241,7 +241,7 @@ export function AppShell({
                   <div
                     key={item.href}
                     title="Not available for your role"
-                    className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium opacity-35 cursor-not-allowed select-none"
+                    className="text-sidebar-foreground/35 flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium cursor-not-allowed select-none"
                   >
                     <Icon className="size-4 shrink-0" />
                     {tNav(item.labelKey)}
@@ -254,7 +254,7 @@ export function AppShell({
       </nav>
 
       {/* Settings + User footer */}
-      <div className="border-t p-3 space-y-1">
+      <div className="border-sidebar-border border-t p-3 space-y-1">
         {renderNavItem({ href: "/settings", labelKey: "settings", icon: Settings })}
         <div className="flex items-center gap-3 rounded-md px-2 py-2">
           <Avatar className="size-8">
@@ -262,8 +262,8 @@ export function AppShell({
             <AvatarFallback>{initials(user.name)}</AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1 leading-tight">
-            <p className="truncate text-sm font-medium">{user.name}</p>
-            <p className="text-muted-foreground truncate text-xs capitalize">
+            <p className="text-sidebar-foreground truncate text-sm font-medium">{user.name}</p>
+            <p className="text-sidebar-foreground/60 truncate text-xs capitalize">
               {user.role}
             </p>
           </div>
@@ -273,19 +273,20 @@ export function AppShell({
             asChild
             variant="ghost"
             size="sm"
-            className="flex-1 justify-start"
+            className="text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex-1 justify-start"
           >
             <Link href="/profile" onClick={() => setMobileOpen(false)}>
               <UserIcon className="mr-2 size-4" />
               Profile
             </Link>
           </Button>
-          <ModeToggle />
+          <ModeToggle className="text-sidebar-foreground/75 border-sidebar-border bg-transparent hover:bg-sidebar-accent hover:text-sidebar-accent-foreground dark:bg-transparent dark:border-sidebar-border dark:hover:bg-sidebar-accent" />
           <Button
             variant="ghost"
             size="icon"
             onClick={handleSignOut}
             aria-label={tCommon("signOut")}
+            className="text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
           >
             <LogOut className="size-4" />
           </Button>
@@ -297,7 +298,7 @@ export function AppShell({
   return (
     <div className="flex min-h-screen">
       {/* Desktop sidebar */}
-      <aside className="bg-sidebar hidden w-64 shrink-0 border-r md:block">
+      <aside className="bg-sidebar border-sidebar-border hidden w-64 shrink-0 border-r md:block">
         <div className="sticky top-0 h-screen">{SidebarContent}</div>
       </aside>
 
@@ -309,10 +310,10 @@ export function AppShell({
             onClick={() => setMobileOpen(false)}
             aria-hidden="true"
           />
-          <div className="bg-sidebar animate-in slide-in-from-left-2 rtl:slide-in-from-right-2 absolute top-0 left-0 h-full w-64 border-r rtl:right-0 rtl:left-auto rtl:border-r-0 rtl:border-l">
+          <div className="bg-sidebar border-sidebar-border animate-in slide-in-from-left-2 rtl:slide-in-from-right-2 absolute top-0 left-0 h-full w-64 border-r rtl:right-0 rtl:left-auto rtl:border-r-0 rtl:border-l">
             <button
               onClick={() => setMobileOpen(false)}
-              className="hover:bg-accent absolute top-4 right-3 rounded-md p-1"
+              className="text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground absolute top-4 right-3 rounded-md p-1"
               aria-label="Close menu"
             >
               <X className="size-5" />
