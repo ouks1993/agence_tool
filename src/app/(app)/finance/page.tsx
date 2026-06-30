@@ -337,7 +337,7 @@ export default async function FinancePage() {
 
       {/* Charts */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card>
+        <Card className="card-elevated">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <TrendingUp className="size-4" /> Collected over time
@@ -351,7 +351,7 @@ export default async function FinancePage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="card-elevated">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <CircleDollarSign className="size-4" /> Payments by method
@@ -365,7 +365,7 @@ export default async function FinancePage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="card-elevated">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Wallet className="size-4" /> Outstanding vs collected
@@ -379,7 +379,7 @@ export default async function FinancePage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="card-elevated">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Layers className="size-4" /> Accounts receivable aging
@@ -390,7 +390,7 @@ export default async function FinancePage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="card-elevated">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Building2 className="size-4" /> Commission earned by supplier
@@ -403,7 +403,7 @@ export default async function FinancePage() {
       </div>
 
       {/* Accounts receivable */}
-      <Card>
+      <Card className="card-elevated">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Wallet className="size-4" /> Accounts receivable
@@ -411,9 +411,11 @@ export default async function FinancePage() {
         </CardHeader>
         <CardContent>
           {arRows.length === 0 ? (
-            <p className="text-muted-foreground text-sm">
-              No outstanding balances. Every booking is fully paid.
-            </p>
+            <EmptyState
+              icon={CheckCircle2}
+              title="All paid up"
+              description="No outstanding balances. Every booking is fully paid."
+            />
           ) : (
             <div className="rounded-lg border">
               <Table>
@@ -432,7 +434,10 @@ export default async function FinancePage() {
                   {arRows.map((r) => {
                     const b = r.booking;
                     return (
-                      <TableRow key={b.id}>
+                      <TableRow
+                        key={b.id}
+                        className="hover:bg-muted/50 transition-colors"
+                      >
                         <TableCell className="text-muted-foreground font-mono text-xs">
                           <Link
                             href={`/bookings/${b.id}`}

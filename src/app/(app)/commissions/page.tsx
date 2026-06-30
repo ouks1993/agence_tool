@@ -202,7 +202,7 @@ export default async function CommissionsPage({
           }
         />
       ) : (
-        <div className="rounded-lg border bg-card shadow-sm">
+        <div className="card-elevated rounded-lg border bg-card">
           <Table>
             <TableHeader>
               <TableRow>

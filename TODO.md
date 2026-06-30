@@ -50,13 +50,17 @@ Target mockups: `proposal-builder.html`, `flight-search.html`, `hotel-search.htm
 ### Phase 3 — Operate ⬜ (started)
 **Bookings** (`bookings`, `bookings/[id]`)
 - [x] List — derived KPI strip (total · upcoming · awaiting payment · completed; counts only, no FX summing)
-- [ ] List — loading/error states; DataTable polish
+- [x] List — loading.tsx (skeleton) + error.tsx (recoverable boundary)
+- [ ] List — DataTable polish (sort/filter/pagination — shared component, larger)
 - [x] Booking details — breadcrumb, derived KPI strip, card-elevated, finance hero
       (progress bar + bigger balance), Nights row. Done via multi-agent workflow
       (map → plan → implement → adversarial verify, all 3 lenses passed). i18n of
       new labels deferred to open-item #2 (matches file's existing hardcoded labels).
 **Finance / Payments / Commissions**
-- [ ] Apply card/table/KPI system
+- [x] Finance — card-elevated on chart/AR cards, EmptyState, AR table row hover
+      (KPIs + charts already present from earlier analytics work)
+- [x] Commissions — card-elevated table wrapper (was ad-hoc shadow-sm)
+- [ ] Optional: commissions KPI strip if useful (deferred — page already clean)
 
 ### Phase 4 — Client experience & insight ⬜
 - [ ] Customer portal → `customer-portal.html`
