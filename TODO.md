@@ -29,10 +29,10 @@ Target mockups: `proposal-builder.html`, `flight-search.html`, `hotel-search.htm
 **2.1 Proposal builder** (`products/new`, `products/[id]/edit`)
 - [x] Page shell — breadcrumb + command-center layout/spacing + elevated cards
 - [x] Form sectioning ("Trip details" grouped card)
-- [ ] Line-items manager restyle (categorized rows, supplier/cost/sell/markup columns)
-- [ ] Totals/summary panel matching mockup
+- [x] Line-items manager restyle (per-category colour tiles + per-line margin)
+- [x] Totals/summary panel (total cost · margin % · total sell)
 - [ ] Live proposal preview pane (derive from real data; omit if not feasible)
-- [ ] Verify (preview snapshot) + quality gate
+- [ ] Verify (preview snapshot) + quality gate — blocked: dev DB has no seeded user
 
 **2.2 Flight search** (`search`, `sourcing/flights`)
 - [ ] Search workspace shell + filters restyle to mockup
