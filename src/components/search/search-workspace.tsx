@@ -264,9 +264,13 @@ function FlightSearch({
             <p className="text-muted-foreground text-sm">No flights found.</p>
           ) : (
             results.map((o, idx) => (
-              <Card key={o.id}>
+              <Card key={o.id} className="card-interactive">
                 <CardContent className="flex flex-wrap items-center justify-between gap-4 p-4">
-                  <div className="min-w-0 space-y-1">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-brand/10 text-xs font-bold text-brand">
+                      {o.airlineName.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div className="min-w-0 space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-semibold">{o.airlineName}</span>
                       <span className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 font-mono text-xs">
@@ -297,10 +301,11 @@ function FlightSearch({
                               .join(", ")}`}
                       </span>
                     </div>
+                    </div>
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="text-right">
-                      <p className="text-lg font-bold">
+                      <p className="text-lg font-bold tabular-nums">
                         {formatMoney(o.priceTotal, o.currency)}
                       </p>
                       <p className="text-muted-foreground text-xs">total</p>

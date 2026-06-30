@@ -31,12 +31,13 @@ Target mockups: `proposal-builder.html`, `flight-search.html`, `hotel-search.htm
 - [x] Form sectioning ("Trip details" grouped card)
 - [x] Line-items manager restyle (per-category colour tiles + per-line margin)
 - [x] Totals/summary panel (total cost · margin % · total sell)
-- [ ] Live proposal preview pane (derive from real data; omit if not feasible)
-- [ ] Verify (preview snapshot) + quality gate — blocked: dev DB has no seeded user
+- [~] Live proposal preview pane — **omitted** (derive-or-omit policy: net-new
+      renderer, not a redesign; public `/p/[token]` view + PDF already exist)
+- [ ] Verify (preview snapshot) — blocked: dev DB has no seeded user
 
 **2.2 Flight search** (`search`, `sourcing/flights`)
 - [ ] Search workspace shell + filters restyle to mockup
-- [ ] Result cards (airline, segments, price) to mockup standard
+- [x] Result cards — airline logo tile + interactive hover + tabular pricing
 - [ ] Empty/loading/error states
 - [ ] Verify + quality gate
 
