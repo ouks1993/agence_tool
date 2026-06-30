@@ -62,12 +62,13 @@ Target mockups: `proposal-builder.html`, `flight-search.html`, `hotel-search.htm
 - [x] Commissions — card-elevated table wrapper (was ad-hoc shadow-sm)
 - [ ] Optional: commissions KPI strip if useful (deferred — page already clean)
 
-### Phase 4 — Client experience & insight ⬜ (started)
+### Phase 4 — Client experience & insight ✅
 - [x] Customer portal — card-elevated + interactive list cards, EmptyStates, balance
       hero; via workflow (4 pages parallel). Verify caught a balance-row regression
       (negative balance could leak to client) — fixed: restored owed-only gate.
 - [x] Reports & export — card-elevated + per-dataset tinted icon tiles (export hub)
-- [ ] AI assistant → `ai-assistant.html`
+- [x] AI assistant — brand Bot header tile, Sparkles empty state, role icons on
+      messages, shadcn Input swap. Adversarially verified (regression + design pass).
 
 ### Phase 5 — Polish & responsive ⬜
 - [ ] Mobile/responsive pass → `mobile.html`

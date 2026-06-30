@@ -2,10 +2,11 @@
 
 import { useState, useEffect, type ReactNode } from "react";
 import { useChat } from "@ai-sdk/react";
-import { Copy, Check, Loader2 } from "lucide-react";
+import { Copy, Check, Loader2, Bot, User, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useSession } from "@/lib/auth-client";
 import type { Components } from "react-markdown";
 
@@ -254,11 +255,16 @@ export default function ChatPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-4xl mx-auto">
         <div className="mb-6 flex items-center justify-between border-b pb-4">
-          <div>
-            <h1 className="text-2xl font-bold">AI Assistant</h1>
-            <p className="text-muted-foreground text-sm">
-              Search, plan itineraries and draft proposals.
-            </p>
+          <div className="flex items-center gap-3">
+            <div className="bg-brand/10 text-brand flex size-10 shrink-0 items-center justify-center rounded-lg">
+              <Bot className="size-5" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">AI Assistant</h1>
+              <p className="text-muted-foreground text-sm">
+                Search, plan itineraries and draft proposals.
+              </p>
+            </div>
           </div>
           {messages.length > 0 && (
             <Button variant="ghost" size="sm" onClick={clearMessages}>
@@ -278,6 +284,9 @@ export default function ChatPage() {
         <div className="min-h-[50vh] overflow-y-auto space-y-4 mb-4">
           {messages.length === 0 && (
             <div className="py-8 text-center">
+              <div className="bg-brand/10 text-brand mx-auto mb-4 flex size-12 items-center justify-center rounded-xl">
+                <Sparkles className="size-6" />
+              </div>
               <p className="text-muted-foreground mb-4 text-sm">
                 Ask me to find flights or hotels, build an itinerary, or draft a
                 proposal. Try one of these:
@@ -313,7 +322,12 @@ export default function ChatPage() {
               >
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">
+                    <span className="flex items-center gap-1.5 text-sm font-medium">
+                      {message.role === "user" ? (
+                        <User className="size-3.5" />
+                      ) : (
+                        <Bot className="size-3.5" />
+                      )}
                       {message.role === "user" ? "You" : "AI"}
                     </span>
                     {timestamp && (
@@ -345,11 +359,11 @@ export default function ChatPage() {
           }}
           className="flex gap-2"
         >
-          <input
+          <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask about flights, hotels, itineraries, clients…"
-            className="flex-1 p-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+            className="flex-1"
             disabled={isStreaming}
           />
           <Button type="submit" disabled={!input.trim() || isStreaming}>
