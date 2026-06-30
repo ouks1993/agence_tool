@@ -61,10 +61,10 @@ by phase, **preserving all functionality**. See the plan at
 |---|---|---|
 | 0 | Design foundation (tokens + primitives) + seed full demo data | ✅ done |
 | 1 | Dashboard · CRM (list + profile) · Pipeline | ✅ done |
-| 2 | Proposal builder · Flight search · Hotel search | ⬜ next |
-| 3 | Bookings & Booking details · Finance | ⬜ |
-| 4 | Customer portal · Reports · AI assistant | ⬜ |
-| 5 | Responsive, empty/loading/error states, polish | ⬜ |
+| 2 | Proposal builder · Flight search · Hotel search | ✅ done |
+| 3 | Bookings & Booking details · Finance · Commissions | ✅ done |
+| 4 | Customer portal · Reports · AI assistant | ✅ done |
+| 5 | Responsive, empty/loading/error states, polish | ⬜ next |
 
 Marketing assets (deck + 11 mockups + demo dataset + design guide) live under
 `marketing/` and are the visual target.
@@ -80,6 +80,32 @@ fabricated. Notable omissions (no backing data): client tags/loyalty/grade/
 travel-preferences/Documents/Passport/Family tabs; opportunity reference ids and
 per-stage micro-labels; the dashboard "Atlas suggests" AI card and free-text
 tasks. This same derive-or-omit policy governs Phases 2–5.
+
+**Phases 2–4 delivery (sell · operate · client experience).** Applied the command-
+center system across the revenue, fulfilment, and client-facing surfaces, all
+redesign-not-rewrite (no schema/logic changes; presentational + new-scaffold only):
+- **Phase 2** — proposal builder (breadcrumb + sectioned card; line items got
+  per-category colour tiles, per-line margin, a totals panel); flight search
+  (airline logo tiles, elevated panel, loading skeleton, EmptyState); hotel search
+  (same treatment). *Omitted:* the mockup's live proposal preview pane (net-new
+  renderer — public `/p/[token]` view + server PDF already exist) and the flight
+  sidebar-filter layout.
+- **Phase 3** — bookings list KPI strip (counts only, no FX summing) + `loading.tsx`/
+  `error.tsx`; booking-details (breadcrumb, derived KPI strip, card-elevated, finance
+  hero with payment progress bar) via a map→plan→implement→verify workflow; finance
+  (card-elevated charts/AR, EmptyState, row hover) + commissions (elevated table).
+- **Phase 4** — customer portal (elevated/interactive cards, EmptyStates, balance
+  hero) via a 4-page parallel workflow; reports export hub (per-dataset icon tiles);
+  AI assistant (brand Bot tile, role icons, shadcn Input).
+- **Verification:** build-gated (lint + tsc) on every commit; the heavier screens
+  ran adversarial multi-agent review (regression + design + policy lenses) — which
+  caught and fixed a real client-facing regression in the portal (a negative balance
+  could be shown to a client). Visual/browser QA is still pending (local dev DB has
+  no seeded user; signup is invite-only).
+- **Docs:** DESIGN.md gained the amber "warning / amount-due" status colour (was
+  undocumented despite wide use). i18n of new English labels on deeper pages is
+  tracked under open-item #2 (translate deeper pages), consistent with those pages'
+  pre-existing hardcoded strings.
 
 ## Open items
 
@@ -174,7 +200,18 @@ Status: ✅ done · 🟡 partial · 🔴 not started
 
 | Commit | Summary |
 |---|---|
-| _(this)_ | UI redesign **Phase 1**: Dashboard, CRM list + profile, Pipeline rebuilt to mockup standard; +Tabs/Breadcrumb/Tooltip primitives; derive-or-omit policy (no schema changes) |
+| `9b151f3` | UI redesign **Phase 4 complete**: AI assistant polish (brand Bot tile, role icons, shadcn Input) |
+| `522c742` | UI redesign **Phase 4**: customer portal (4 pages, parallel workflow) — elevated cards, EmptyStates, balance hero; +DESIGN.md amber status colour |
+| `9b3f392` | UI redesign **Phase 4**: reports export hub — elevated cards + per-dataset icon tiles |
+| `853e195` | UI redesign **Phase 3**: finance/commissions polish + bookings-list `loading.tsx`/`error.tsx` (workflow) |
+| `ebaba97` | UI redesign **Phase 3**: booking-details — breadcrumb, KPI strip, finance hero (map→plan→implement→verify workflow) |
+| `7c9b378` | UI redesign **Phase 3**: bookings-list derived KPI strip (counts, no FX summing) |
+| `70d52a5` | UI redesign **Phase 2**: hotel search — elevated panel, loading skeleton, EmptyState |
+| `b754e77` | UI redesign **Phase 2**: flight search — elevated panel, loading skeleton, EmptyState |
+| `8b25e19` | UI redesign **Phase 2**: flight result cards — airline logo tiles + interactive hover |
+| `7f21420` | UI redesign **Phase 2**: proposal line items — category tiles, per-line margin, totals panel |
+| `403781e` | UI redesign **Phase 2**: proposal-builder shell — breadcrumb + sectioned card |
+| `b48c626` | UI redesign **Phase 1**: Dashboard, CRM list + profile, Pipeline rebuilt to mockup standard; +Tabs/Breadcrumb/Tooltip primitives; derive-or-omit policy (no schema changes) |
 | `84aab5e` | UI redesign **Phase 0**: design foundation — refined chart palette, brand accent, elevation tokens, StatCard deltas |
 | _(docs)_ | UI redesign initiative: decision (ADR 0005) + phased plan (`specs/ui-redesign/`) |
 | `e842828` | Marketing: full demo dataset (150 clients), design guide + mockup consistency fixes |

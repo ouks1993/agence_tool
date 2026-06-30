@@ -1,7 +1,7 @@
 # UI Redesign — Phased Plan
 
 **Status:** active · **Owner decision:** Option 2 (upgrade the whole app), by phase
-**Progress:** Phase 0 ✅ · Phase 1 ✅ · Phase 2 next
+**Progress:** Phases 0–4 ✅ · Phase 5 (polish & responsive) next
 **Decision record:** [docs/decisions/0005-app-ui-redesign.md](../../docs/decisions/0005-app-ui-redesign.md)
 
 > **Delivery policy (Phases 1–5): redesign, not rewrite.** No schema changes per
