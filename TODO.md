@@ -42,10 +42,10 @@ Target mockups: `proposal-builder.html`, `flight-search.html`, `hotel-search.htm
 - [ ] Verify — blocked: dev DB has no seeded user
 
 **2.3 Hotel search** (`hotels`, `hotels/[code]`)
-- [ ] Search experience shell + filters/occupancy restyle
-- [ ] Result cards + details view to mockup standard
-- [ ] Empty/loading/error states
-- [ ] Verify + quality gate
+- [x] Search experience shell — elevated panel (occupancy-picker unchanged)
+- [x] Result cards — interactive hover (details view `hotels/[code]` deferred)
+- [x] Empty (EmptyState) + loading (skeleton cards) + error (toast) states
+- [ ] Verify — blocked: dev DB has no seeded user
 
 ### Phase 3 — Operate ⬜
 - [ ] Bookings list + booking details → `booking-details.html`

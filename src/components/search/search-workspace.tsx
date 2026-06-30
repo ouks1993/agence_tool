@@ -448,7 +448,7 @@ function HotelSearch({
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className="card-elevated">
         <CardContent className="p-5">
           <form onSubmit={run} className="grid grid-cols-2 gap-3 md:grid-cols-6">
             <Field label="Destination" className="col-span-2">
@@ -494,7 +494,25 @@ function HotelSearch({
 
       {note && <p className="text-muted-foreground text-sm">{note}</p>}
 
-      {results && (
+      {loading && (
+        <div className="space-y-3">
+          {[0, 1, 2].map((i) => (
+            <Card key={i}>
+              <CardContent className="flex gap-4 p-3">
+                <Skeleton className="h-28 w-28 shrink-0 rounded-md sm:h-32 sm:w-44" />
+                <div className="flex-1 space-y-2 py-1">
+                  <Skeleton className="h-4 w-48" />
+                  <Skeleton className="h-3 w-64" />
+                  <Skeleton className="h-3 w-40" />
+                </div>
+                <Skeleton className="h-9 w-24 self-center" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {!loading && results && (
         <div className="space-y-3">
           {results.length > 0 && (
             <div className="flex flex-wrap items-center gap-2">
@@ -532,14 +550,18 @@ function HotelSearch({
             </div>
           )}
           {!filtered || filtered.length === 0 ? (
-            <p className="text-muted-foreground text-sm">
-              {results.length === 0
-                ? "No hotels found."
-                : "No hotels match these filters."}
-            </p>
+            <EmptyState
+              icon={BedDouble}
+              title={results.length === 0 ? "No hotels found" : "No hotels match these filters"}
+              description={
+                results.length === 0
+                  ? "Try different dates, a nearby city, or fewer guests."
+                  : "Clear or relax the filters above to see more results."
+              }
+            />
           ) : (
             filtered.map((o, idx) => (
-              <Card key={o.id} className="overflow-hidden">
+              <Card key={o.id} className="card-interactive overflow-hidden">
                 <CardContent className="flex gap-4 p-3">
                   {/* Photo */}
                   <div className="bg-muted h-28 w-28 shrink-0 overflow-hidden rounded-md sm:h-32 sm:w-44">
