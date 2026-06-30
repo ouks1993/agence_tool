@@ -1,5 +1,5 @@
-import { getTranslations } from "next-intl/server";
 import { Info } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/app/page-header";
 import { SearchWorkspace } from "@/components/search/search-workspace";
 import { requireAgencyUser } from "@/lib/permissions";

@@ -6,8 +6,6 @@ import { PageHeader } from "@/components/app/page-header";
 import { StatCard } from "@/components/app/stat-card";
 import { FunnelInsight } from "@/components/charts/insight-charts";
 import { PipelineBoard, type BoardItem, type OwnerOption } from "@/components/opportunities/pipeline-board";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -16,6 +14,9 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { conversionRate, num } from "@/lib/analytics";
 import { db } from "@/lib/db";
 import {
   OPEN_STAGES,
@@ -25,7 +26,6 @@ import {
   type OpportunityStage,
 } from "@/lib/domain";
 import { formatMoney } from "@/lib/format";
-import { conversionRate, num } from "@/lib/analytics";
 import { requireAgencyUser } from "@/lib/permissions";
 import { opportunity } from "@/lib/schema";
 

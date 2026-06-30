@@ -13,6 +13,7 @@ import {
   User,
 } from "lucide-react";
 import { toast } from "sonner";
+import { CountryCombobox } from "@/components/reference/country-combobox";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -24,7 +25,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
-import { CountryCombobox } from "@/components/reference/country-combobox";
 import {
   addTraveller,
   updateTraveller,

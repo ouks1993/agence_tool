@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
-import { getTranslations } from "next-intl/server";
 import { eq } from "drizzle-orm";
 import { CreditCard } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusBadge } from "@/components/app/status-badge";
 import { BillingActions } from "@/components/billing/billing-actions";

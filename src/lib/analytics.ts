@@ -11,8 +11,8 @@
  *   Server Components can compute the data and pass it straight to the (client)
  *   chart primitives without serialization issues.
  */
-import { DEFAULT_CURRENCY } from "@/lib/domain";
 import type { Point } from "@/components/charts/insight-charts";
+import { DEFAULT_CURRENCY } from "@/lib/domain";
 
 export const num = (v: string | number | null | undefined): number => {
   const n = typeof v === "string" ? parseFloat(v) : (v ?? 0);

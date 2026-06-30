@@ -10,8 +10,8 @@ import {
   listOpenBookings,
 } from "@/lib/queries";
 import { mockHotelContent, type HotelDetails } from "@/lib/suppliers";
-import { isHotelProviderConfigured } from "@/lib/travel-platform";
 import { getHotelContentCached } from "@/lib/suppliers/content-cache";
+import { isHotelProviderConfigured } from "@/lib/travel-platform";
 
 export const metadata = { title: "Hotel details" };
 

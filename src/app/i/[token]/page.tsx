@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
-import { getTranslations } from "next-intl/server";
 import { asc, eq } from "drizzle-orm";
 import { Compass, MapPin, CalendarDays } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { APP_NAME, APP_TAGLINE } from "@/lib/config";
 import { db } from "@/lib/db";
 import { BOOKING_ITEM_TYPE_META, type BookingItemType } from "@/lib/domain";

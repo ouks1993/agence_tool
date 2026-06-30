@@ -15,6 +15,9 @@
  */
 
 import {
+  listHotelOffersCached,
+} from "@/lib/suppliers/content-cache";
+import {
   canAutocomplete,
   canProvideContent,
   canSearchFlights,
@@ -22,9 +25,7 @@ import {
   providerRegistry,
 } from "@/lib/suppliers/providers";
 import type { ProviderContext } from "@/lib/suppliers/providers";
-import {
-  listHotelOffersCached,
-} from "@/lib/suppliers/content-cache";
+import type { PlaceSuggestion } from "@/lib/suppliers/providers/types";
 import type {
   AirportSuggestion,
   FlightOffer,
@@ -32,7 +33,6 @@ import type {
   HotelOffer,
   HotelSearchParams,
 } from "@/lib/suppliers/types";
-import type { PlaceSuggestion } from "@/lib/suppliers/providers/types";
 
 export type { ProviderContext, PlaceSuggestion, AirportSuggestion };
 export type { FlightOffer, HotelOffer, FlightSearchParams, HotelSearchParams };

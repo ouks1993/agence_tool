@@ -4,6 +4,7 @@ const config = [
   {
     ignores: [
       ".next/**",
+      ".claude/**",
       "node_modules/**",
       ".cache/**",
       "dist/**",

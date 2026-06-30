@@ -34,6 +34,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getCommissionSummary } from "@/lib/actions/commissions";
+import { agingBuckets, num, topN } from "@/lib/analytics";
 import { db } from "@/lib/db";
 import {
   canViewFinance,
@@ -42,7 +43,6 @@ import {
   type PaymentKind,
 } from "@/lib/domain";
 import { formatDate, formatMoney } from "@/lib/format";
-import { agingBuckets, num, topN } from "@/lib/analytics";
 import { paymentSummary } from "@/lib/payments/summary";
 import { requireAgencyUser } from "@/lib/permissions";
 import { booking, commission, opportunity, payment, product, supplier } from "@/lib/schema";

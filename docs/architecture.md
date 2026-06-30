@@ -87,10 +87,10 @@ architecture (single Neon Postgres + Vercel serverless).
 `dashboard`, `finance`, `commissions` (canViewFinance), `support`,
 `bookings` (+ `new`, `[id]`, `[id]/edit`, `[id]/itinerary`),
 `clients` (+ `new`, `[id]`, `[id]/edit`),
-`opportunities` (+ `new`, `[id]`, `[id]/edit`),
+`opportunities` (sales **Pipeline** board) (+ `new`, `[id]`, `[id]/edit`),
 `products` (+ `new`, `[id]`, `[id]/edit`),
 `suppliers` (+ `new`, `[id]`, `[id]/edit`) (canManageTeam),
-`operations` (Pipeline board),
+`operations` (bookings-by-status board),
 `reports` (canViewFinance — BI export hub),
 `search`, `hotels` (+ `[code]` details), `assistant`,
 `team` (canManageTeam), `billing` (admin-only), `settings`, `profile`.

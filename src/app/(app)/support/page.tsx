@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getTranslations } from "next-intl/server";
 import { desc, eq, sql } from "drizzle-orm";
 import {
   Briefcase,
@@ -13,6 +12,7 @@ import {
   ListChecks,
   CalendarClock,
 } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
 import { StatCard } from "@/components/app/stat-card";

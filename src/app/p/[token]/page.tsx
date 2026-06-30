@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getTranslations } from "next-intl/server";
 import { asc, eq } from "drizzle-orm";
 import { CheckCircle2, Compass, Download, XCircle } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { ProposalSignForm } from "@/components/products/proposal-sign-form";
 import { Button } from "@/components/ui/button";
 import { APP_NAME, APP_TAGLINE } from "@/lib/config";
