@@ -90,7 +90,7 @@ export default async function PortalBookingPage({
       )}
 
       {/* Itinerary items */}
-      <Card>
+      <Card className="card-elevated">
         <CardHeader>
           <CardTitle>Itinerary</CardTitle>
         </CardHeader>
@@ -135,27 +135,27 @@ export default async function PortalBookingPage({
       </Card>
 
       {/* Payment summary */}
-      <Card>
+      <Card className="card-elevated">
         <CardHeader>
           <CardTitle>Payments</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex justify-between text-sm">
-            <span>Total</span>
+            <span className="text-muted-foreground">Total</span>
             <span className="font-semibold">
               {formatMoney(total, b.currency)}
             </span>
           </div>
           <div className="flex justify-between text-sm">
-            <span>Paid</span>
+            <span className="text-muted-foreground">Paid</span>
             <span className="text-green-600 dark:text-green-400 font-semibold">
               {formatMoney(totalPaid, b.currency)}
             </span>
           </div>
           {balance > 0 && (
-            <div className="flex justify-between text-sm border-t pt-3">
-              <span>Balance due</span>
-              <span className="font-semibold">
+            <div className="flex items-center justify-between border-t pt-3">
+              <span className="font-semibold">Balance due</span>
+              <span className="text-2xl font-bold text-amber-600 dark:text-amber-400">
                 {formatMoney(balance, b.currency)}
               </span>
             </div>

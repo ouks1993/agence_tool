@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { and, desc, eq } from "drizzle-orm";
+import { Luggage } from "lucide-react";
+import { EmptyState } from "@/components/app/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/lib/db";
@@ -35,25 +37,25 @@ export default async function PortalPage() {
   if (bookings.length === 0) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold">My Trips</h1>
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold tracking-tight">My Trips</h1>
           <p className="text-muted-foreground">
             Welcome back, {session.client.name}
           </p>
         </div>
-        <div className="py-16 text-center">
-          <p className="text-muted-foreground">
-            No trips found for your account yet.
-          </p>
-        </div>
+        <EmptyState
+          icon={Luggage}
+          title="No trips yet"
+          description="No trips found for your account yet. Your agent will add your bookings here."
+        />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">My Trips</h1>
+      <div className="space-y-1">
+        <h1 className="text-2xl font-bold tracking-tight">My Trips</h1>
         <p className="text-muted-foreground">
           Welcome back, {session.client.name}
         </p>
@@ -62,8 +64,8 @@ export default async function PortalPage() {
         {bookings.map((b) => {
           const meta = BOOKING_STATUS_META[b.status as BookingStatus];
           return (
-            <Link key={b.id} href={`/portal/bookings/${b.id}`}>
-              <Card className="card-interactive cursor-pointer">
+            <Link key={b.id} href={`/portal/bookings/${b.id}`} className="block">
+              <Card className="card-elevated card-interactive h-full cursor-pointer">
                 <CardHeader>
                   <div className="flex items-center justify-between gap-2">
                     <CardTitle className="text-base">

@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, eq } from "drizzle-orm";
-import { CheckCircle2, XCircle } from "lucide-react";
+import { CheckCircle2, PackageOpen, XCircle } from "lucide-react";
+import { EmptyState } from "@/components/app/empty-state";
 import { ProposalSignForm } from "@/components/portal/proposal-sign-form";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -101,51 +102,61 @@ export default async function PortalProposalPage({
       )}
 
       {/* Line items */}
-      <Card>
+      <Card className="card-elevated">
         <CardHeader>
           <CardTitle>What&apos;s included</CardTitle>
         </CardHeader>
-        <CardContent className="divide-y">
-          {p.items.map((item) => {
-            const typeMeta =
-              PRODUCT_ITEM_TYPE_META[item.type as ProductItemType];
-            const meta: string[] = [typeMeta?.label ?? item.type];
-            if (item.supplier) meta.push(item.supplier);
-            return (
-              <div key={item.id} className="py-3 flex items-start gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium">{item.title}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {meta.join(" · ")}
-                    {item.quantity > 1 ? ` · ×${item.quantity}` : ""}
-                  </p>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="font-semibold">
-                    {formatMoney(
-                      parseFloat(item.unitPrice || "0") * item.quantity,
-                      item.currency
-                    )}
-                  </p>
-                </div>
+        <CardContent>
+          {p.items.length === 0 ? (
+            <EmptyState
+              icon={PackageOpen}
+              title="No items yet"
+              description="This proposal doesn't include any line items at the moment."
+            />
+          ) : (
+            <>
+              <div className="divide-y">
+                {p.items.map((item) => {
+                  const typeMeta =
+                    PRODUCT_ITEM_TYPE_META[item.type as ProductItemType];
+                  const meta: string[] = [typeMeta?.label ?? item.type];
+                  if (item.supplier) meta.push(item.supplier);
+                  return (
+                    <div
+                      key={item.id}
+                      className="flex items-start justify-between gap-4 py-4 first:pt-0"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium">{item.title}</p>
+                        <p className="text-muted-foreground mt-0.5 text-xs">
+                          {meta.join(" · ")}
+                          {item.quantity > 1 ? ` · ×${item.quantity}` : ""}
+                        </p>
+                      </div>
+                      <p className="shrink-0 text-right font-semibold tabular-nums">
+                        {formatMoney(
+                          parseFloat(item.unitPrice || "0") * item.quantity,
+                          item.currency
+                        )}
+                      </p>
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
-          {p.items.length === 0 && (
-            <p className="text-sm text-muted-foreground py-3">No items yet.</p>
+              <div className="mt-4 flex items-center justify-between border-t pt-4">
+                <span className="text-lg font-semibold">Total</span>
+                <span className="text-xl font-bold tabular-nums">
+                  {formatMoney(totalPrice, p.currency)}
+                </span>
+              </div>
+            </>
           )}
-          <div className="flex items-center justify-between pt-4">
-            <span className="text-lg font-semibold">Total</span>
-            <span className="text-xl font-bold">
-              {formatMoney(totalPrice, p.currency)}
-            </span>
-          </div>
         </CardContent>
       </Card>
 
       {/* Accept & sign */}
       {canSign && (
-        <Card>
+        <Card className="card-elevated">
           <CardContent className="pt-6">
             <ProposalSignForm productId={p.id} />
           </CardContent>

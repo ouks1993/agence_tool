@@ -63,7 +63,9 @@ Target mockups: `proposal-builder.html`, `flight-search.html`, `hotel-search.htm
 - [ ] Optional: commissions KPI strip if useful (deferred — page already clean)
 
 ### Phase 4 — Client experience & insight ⬜ (started)
-- [ ] Customer portal → `customer-portal.html`
+- [x] Customer portal — card-elevated + interactive list cards, EmptyStates, balance
+      hero; via workflow (4 pages parallel). Verify caught a balance-row regression
+      (negative balance could leak to client) — fixed: restored owed-only gate.
 - [x] Reports & export — card-elevated + per-dataset tinted icon tiles (export hub)
 - [ ] AI assistant → `ai-assistant.html`
 

@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { and, desc, eq } from "drizzle-orm";
+import { FileText } from "lucide-react";
+import { EmptyState } from "@/components/app/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/lib/db";
@@ -39,16 +41,18 @@ export default async function PortalProposalsPage() {
       </div>
 
       {proposals.length === 0 ? (
-        <div className="py-16 text-center">
-          <p className="text-muted-foreground">No proposals yet.</p>
-        </div>
+        <EmptyState
+          icon={FileText}
+          title="No proposals yet"
+          description="When your travel agency sends you a proposal, it will appear here for you to review, accept, and pay."
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {proposals.map((p) => {
             const meta = PRODUCT_STATUS_META[p.status as ProductStatus];
             return (
               <Link key={p.id} href={`/portal/proposals/${p.id}`}>
-                <Card className="card-interactive cursor-pointer">
+                <Card className="card-interactive card-elevated h-full cursor-pointer">
                   <CardHeader>
                     <div className="flex items-center justify-between gap-2">
                       <CardTitle className="text-base">{p.title}</CardTitle>
