@@ -47,9 +47,13 @@ Target mockups: `proposal-builder.html`, `flight-search.html`, `hotel-search.htm
 - [x] Empty (EmptyState) + loading (skeleton cards) + error (toast) states
 - [ ] Verify — blocked: dev DB has no seeded user
 
-### Phase 3 — Operate ⬜
-- [ ] Bookings list + booking details → `booking-details.html`
-- [ ] Finance / Payments / Commissions — apply card/table/KPI system
+### Phase 3 — Operate ⬜ (started)
+**Bookings** (`bookings`, `bookings/[id]`)
+- [x] List — derived KPI strip (total · upcoming · awaiting payment · completed; counts only, no FX summing)
+- [ ] List — loading/error states; DataTable polish
+- [ ] Booking details → `booking-details.html` (header, lifecycle, items, payments)
+**Finance / Payments / Commissions**
+- [ ] Apply card/table/KPI system
 
 ### Phase 4 — Client experience & insight ⬜
 - [ ] Customer portal → `customer-portal.html`

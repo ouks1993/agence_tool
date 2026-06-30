@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
-import { Plus, Briefcase, Users } from "lucide-react";
+import { Plus, Briefcase, Users, CalendarClock, Wallet, CheckCircle2 } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
+import { StatCard } from "@/components/app/stat-card";
 import { StatusBadge } from "@/components/app/status-badge";
 import { BookingsBoard } from "@/components/bookings/bookings-board";
 import { BookingsViewToggle } from "@/components/bookings/view-toggle";
@@ -64,6 +65,16 @@ export default async function BookingsPage({
       : [];
   const countMap = new Map(counts.map((c) => [c.bookingId, c.count]));
 
+  // Derived KPIs — counts only (never sum across currencies, per the no-FX rule).
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const kpi = {
+    total: bookings.length,
+    upcoming: bookings.filter((b) => b.departDate && new Date(b.departDate) >= today).length,
+    awaiting: bookings.filter((b) => b.status === "awaiting_payment").length,
+    completed: bookings.filter((b) => b.status === "completed").length,
+  };
+
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8 sm:px-6">
       <PageHeader title={t("title")} description={t("description")}>
@@ -75,6 +86,15 @@ export default async function BookingsPage({
           </Link>
         </Button>
       </PageHeader>
+
+      {bookings.length > 0 && (
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <StatCard label="Total bookings" value={kpi.total} icon={Briefcase} />
+          <StatCard label="Upcoming departures" value={kpi.upcoming} icon={CalendarClock} />
+          <StatCard label="Awaiting payment" value={kpi.awaiting} icon={Wallet} />
+          <StatCard label="Completed" value={kpi.completed} icon={CheckCircle2} />
+        </div>
+      )}
 
       {bookings.length === 0 ? (
         <EmptyState
