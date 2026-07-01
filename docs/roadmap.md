@@ -200,7 +200,12 @@ Status: ✅ done · 🟡 partial · 🔴 not started
 
 | Commit | Summary |
 |---|---|
-| `9b151f3` | UI redesign **Phase 4 complete**: AI assistant polish (brand Bot tile, role icons, shadcn Input) |
+| `5d9ab6d` | UI redesign **deck-fidelity rebuild**: flight search, booking details, customer portal & AI assistant rebuilt to their mockups (audit found phases 2–4 were token-skinned only, fidelity 1–2/5 → now 4–5/5, zero functional regressions) |
+| `eadc1b8` | UI redesign: **Reports → analytics dashboard** (deck slide 12) — 6-KPI row, revenue trend, weighted-pipeline forecast card, "period at a glance"; CSV/Excel export preserved |
+| `ffa3dd4` | UI redesign: **deck identity adopted app-wide** — Atlas Blue primary, cool-paper canvas, white cards, dark ink sidebar, 14px cards, deck shadows/charts (globals.css + app-shell); Geist kept. See [decision 0006](decisions/0006-deck-identity-adoption.md) |
+| `b48c626` | UI redesign **Phase 1**: Dashboard, CRM list + profile, Pipeline (command center) — StatCard deltas, +Tabs/Breadcrumb/Tooltip primitives |
+| `84aab5e` | UI redesign **Phase 0**: design foundation — chart palette, brand accent, elevation tokens, StatCard deltas |
+| `9b151f3` | UI redesign **Phase 4 (skin)**: AI assistant polish (brand Bot tile, role icons, shadcn Input) — later fully rebuilt in `5d9ab6d` |
 | `522c742` | UI redesign **Phase 4**: customer portal (4 pages, parallel workflow) — elevated cards, EmptyStates, balance hero; +DESIGN.md amber status colour |
 | `9b3f392` | UI redesign **Phase 4**: reports export hub — elevated cards + per-dataset icon tiles |
 | `853e195` | UI redesign **Phase 3**: finance/commissions polish + bookings-list `loading.tsx`/`error.tsx` (workflow) |
