@@ -20,7 +20,6 @@ import { booking, bookingDay } from "@/lib/schema";
 const GEMINI_FALLBACK_CHAIN = [
   "gemini-2.5-flash",
   "gemini-2.5-flash-lite",
-  "gemini-2.0-flash",
 ];
 
 /**

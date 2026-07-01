@@ -27,8 +27,8 @@ when *both* are missing. The two surfaces differ in *how* they fall back:
 The runtime fallback exists chiefly for **Gemini's free tier**, which has real
 rate/quota limits. Because each free-tier Gemini model has its **own** quota
 bucket, `aiModels()` builds the candidate list as `GEMINI_MODEL` → the
-`GEMINI_FALLBACK_CHAIN` (`gemini-2.5-flash` → `gemini-2.5-flash-lite` →
-`gemini-2.0-flash`, deduped) → OpenRouter (only if `OPENROUTER_API_KEY` is set).
+`GEMINI_FALLBACK_CHAIN` (`gemini-2.5-flash` → `gemini-2.5-flash-lite`, deduped) →
+OpenRouter (only if `OPENROUTER_API_KEY` is set).
 `withAiFallback()` iterates it, so a throttled model rolls over to the next one —
 staying on Gemini if possible, crossing to OpenRouter only as a last resort. If no
 provider key is set at all, both surfaces error clearly ("No AI provider configured…").
