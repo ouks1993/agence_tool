@@ -42,7 +42,7 @@ function aiModels(): LanguageModel[] {
   const openrouterKey = process.env.OPENROUTER_API_KEY;
   if (openrouterKey) {
     const openrouter = createOpenRouter({ apiKey: openrouterKey });
-    models.push(openrouter(process.env.OPENROUTER_MODEL ?? "openai/gpt-4.1-mini"));
+    models.push(openrouter(process.env.OPENROUTER_MODEL ?? "openai/gpt-5-mini"));
   }
 
   if (models.length === 0) {
@@ -163,7 +163,7 @@ Only generate days that have activity. Keep notes professional and engaging.`,
     return { ok: true, data: { dayCount: object.days.length } };
   } catch (err) {
     console.error("generateItinerary failed", err);
-    return { ok: false, error: "AI generation failed. Check that OPENROUTER_API_KEY is set." };
+    return { ok: false, error: "AI generation failed. Check that GEMINI_API_KEY (primary) or OPENROUTER_API_KEY (fallback) is set." };
   }
 }
 
@@ -228,7 +228,7 @@ Use reasonable market estimates. Keep item titles concise and professional.`,
     return { ok: true, data: object };
   } catch (err) {
     console.error("buildQuote failed", err);
-    return { ok: false, error: "AI generation failed. Check that OPENROUTER_API_KEY is set." };
+    return { ok: false, error: "AI generation failed. Check that GEMINI_API_KEY (primary) or OPENROUTER_API_KEY (fallback) is set." };
   }
 }
 
@@ -309,7 +309,7 @@ Keep it professional, warm, and concise (under 200 words). Use the client's firs
     return { ok: true, data: { subject, body } };
   } catch (err) {
     console.error("draftEmail failed", err);
-    return { ok: false, error: "AI generation failed. Check that OPENROUTER_API_KEY is set." };
+    return { ok: false, error: "AI generation failed. Check that GEMINI_API_KEY (primary) or OPENROUTER_API_KEY (fallback) is set." };
   }
 }
 
@@ -387,6 +387,6 @@ Be accurate based on your training data. Use the country name from the destinati
     return { ok: true, data: object };
   } catch (err) {
     console.error("checkVisa failed", err);
-    return { ok: false, error: "AI generation failed. Check that OPENROUTER_API_KEY is set." };
+    return { ok: false, error: "AI generation failed. Check that GEMINI_API_KEY (primary) or OPENROUTER_API_KEY (fallback) is set." };
   }
 }

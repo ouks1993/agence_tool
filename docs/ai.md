@@ -22,7 +22,7 @@ when *both* are missing. The two surfaces differ in *how* they fall back:
 | Surface | Where | Primary → fallback | Model env (default) |
 |---|---|---|---|
 | Assistant chat (streaming) | `src/app/api/chat/route.ts` | **Static** — Gemini if `GEMINI_API_KEY` set, else OpenRouter (streams can't fall back mid-response) | `GEMINI_MODEL` (`gemini-2.5-flash`) / `OPENROUTER_MODEL` (`openai/gpt-5-mini`) |
-| Inline actions | `src/lib/actions/ai.ts` | **Runtime chain** — every call runs through `withAiFallback()` over an ordered candidate list: primary Gemini → lighter Gemini models → OpenRouter. On *any* error it rolls to the next candidate | `GEMINI_MODEL` (`gemini-2.5-flash`) / `OPENROUTER_MODEL` (`openai/gpt-4.1-mini`) |
+| Inline actions | `src/lib/actions/ai.ts` | **Runtime chain** — every call runs through `withAiFallback()` over an ordered candidate list: primary Gemini → lighter Gemini models → OpenRouter. On *any* error it rolls to the next candidate | `GEMINI_MODEL` (`gemini-2.5-flash`) / `OPENROUTER_MODEL` (`openai/gpt-5-mini`) |
 
 The runtime fallback exists chiefly for **Gemini's free tier**, which has real
 rate/quota limits. Because each free-tier Gemini model has its **own** quota
@@ -143,7 +143,7 @@ Embedded where the work happens, not in a separate AI section. All four are serv
 actions in `src/lib/actions/ai.ts`, each guarded by `requireAgencyUser()` (from
 `src/lib/permissions`) and scoped to `user.agencyId`. On failure they return
 `{ ok: false, error }` with the message
-"AI generation failed. Check that OPENROUTER_API_KEY is set."
+"AI generation failed. Check that GEMINI_API_KEY (primary) or OPENROUTER_API_KEY (fallback) is set."
 
 | Feature | Action | SDK call | Trigger UI | Consumed at |
 |---|---|---|---|---|
@@ -215,7 +215,8 @@ model's training data**, not a live visa database, and are read-only.
 - Itinerary rendering helpers: `src/lib/itinerary.ts`.
 - Supplier search used by the assistant: `src/lib/suppliers` (`safeSearch`,
   `getFlightSupplier`, `getHotelSupplier`).
-- Env schema: `src/lib/env.ts` (`OPENROUTER_API_KEY`, `OPENROUTER_MODEL`).
+- Env schema: `src/lib/env.ts` (`GEMINI_API_KEY`, `GEMINI_MODEL`,
+  `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`).
 - The assistant's tool definitions and every inline action are agency-scoped
   (session `agencyId` / `requireAgencyUser`), so AI cannot bypass
   [security.md](security.md) tenant isolation.

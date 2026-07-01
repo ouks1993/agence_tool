@@ -2,13 +2,14 @@
 # Acknowledge dependencies whose build scripts we intentionally don't run,
 # so the pre-run deps check stops failing with ERR_PNPM_IGNORED_BUILDS
 # (keeps `npm run check` = pnpm lint && typecheck working).
-ignoredBuiltDependencies:
-  - "@parcel/watcher"
-  - "@swc/core"
-  - esbuild
-  - msw
-  - sharp
-  - unrs-resolver
+# pnpm 11.9 renamed ignoredBuiltDependencies to allowBuilds (false = don't run).
+allowBuilds:
+  '@parcel/watcher': false
+  '@swc/core': false
+  esbuild: false
+  msw: false
+  sharp: false
+  unrs-resolver: false
 
 # Migrated from the package.json "pnpm.overrides" field (no longer read by pnpm v11).
 overrides:
