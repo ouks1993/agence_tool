@@ -2,10 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { desc, eq, sql } from "drizzle-orm";
 import {
-  Briefcase,
-  Plane,
-  Wallet,
-  ShieldAlert,
   Map as MapIcon,
   FileText,
   Users,
@@ -15,7 +11,7 @@ import {
 import { getTranslations } from "next-intl/server";
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
-import { StatCard } from "@/components/app/stat-card";
+import { StatStrip } from "@/components/app/stat-strip";
 import { StatusBadge } from "@/components/app/status-badge";
 import { NeedsTag } from "@/components/support/needs-tag";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -192,32 +188,14 @@ export default async function SupportPage() {
       </PageHeader>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label="Active bookings"
-          value={active.length}
-          hint="Not cancelled"
-          icon={Briefcase}
-        />
-        <StatCard
-          label={t("upcomingTrips")}
-          value={upcoming.length}
-          hint={`Departing in ${UPCOMING_WINDOW_DAYS} days`}
-          icon={Plane}
-        />
-        <StatCard
-          label="Awaiting payment"
-          value={awaitingPayment.length}
-          hint={awaitingPayment.length ? "Balance outstanding" : "All settled"}
-          icon={Wallet}
-        />
-        <StatCard
-          label={t("passportAlerts")}
-          value={passportAlertCount}
-          hint={passportAlertCount ? "Need attention" : "All clear"}
-          icon={ShieldAlert}
-        />
-      </div>
+      <StatStrip
+        items={[
+          { label: "Active bookings", value: active.length },
+          { label: t("upcomingTrips"), value: upcoming.length },
+          { label: "Awaiting payment", value: awaitingPayment.length },
+          { label: t("passportAlerts"), value: passportAlertCount },
+        ]}
+      />
 
       {/* Action queue */}
       <Card>

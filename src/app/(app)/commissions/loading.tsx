@@ -1,4 +1,4 @@
-import { Card, CardContent } from "@/components/ui/card";
+import { StatStripSkeleton } from "@/components/app/stat-strip";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // Route-level skeleton: the Commissions page awaits commission rows and a
@@ -16,17 +16,8 @@ export default function CommissionsLoading() {
         <Skeleton className="h-9 w-40 shrink-0" />
       </div>
 
-      {/* Summary strip — one row of three StatCard placeholders */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        {[0, 1, 2].map((i) => (
-          <Card key={i} className="card-elevated">
-            <CardContent className="space-y-2 p-5">
-              <Skeleton className="h-4 w-28" />
-              <Skeleton className="h-8 w-24" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {/* Summary strip — a single 3-cell KPI band placeholder */}
+      <StatStripSkeleton cells={3} />
 
       {/* Filters — type / status / from / to / submit */}
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">

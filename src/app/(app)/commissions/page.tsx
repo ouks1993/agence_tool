@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BadgePercent, Wallet, CircleDollarSign, CheckCircle2 } from "lucide-react";
+import { BadgePercent } from "lucide-react";
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
-import { StatCard } from "@/components/app/stat-card";
+import { StatStrip } from "@/components/app/stat-strip";
 import { StatusPill } from "@/components/app/status-badge";
 import { RecordCommissionDialog } from "@/components/commissions/record-commission-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -29,7 +29,7 @@ import {
   type CommissionStatus,
   type CommissionType,
 } from "@/lib/domain";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatDate, formatMoney, formatMoneyCompact } from "@/lib/format";
 import { requireAgencyUser } from "@/lib/permissions";
 
 export const metadata = { title: "Commissions" };
@@ -102,26 +102,23 @@ export default async function CommissionsPage({
                   <span className="bg-border h-px flex-1" />
                 </h2>
               )}
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <StatCard
-                  label={`Pending (${currency})`}
-                  value={formatMoney(totals.pending, currency)}
-                  hint="Not yet earned"
-                  icon={Wallet}
-                />
-                <StatCard
-                  label={`Earned (${currency})`}
-                  value={formatMoney(totals.earned, currency)}
-                  hint="Earned, awaiting payout"
-                  icon={CircleDollarSign}
-                />
-                <StatCard
-                  label={`Paid (${currency})`}
-                  value={formatMoney(totals.paid, currency)}
-                  hint="Settled commissions"
-                  icon={CheckCircle2}
-                />
-              </div>
+              <StatStrip
+                items={[
+                  {
+                    label: "Pending",
+                    value: formatMoneyCompact(totals.pending, currency),
+                  },
+                  {
+                    label: "Earned",
+                    value: formatMoneyCompact(totals.earned, currency),
+                  },
+                  {
+                    label: "Paid",
+                    value: formatMoneyCompact(totals.paid, currency),
+                    tone: "text-success",
+                  },
+                ]}
+              />
             </div>
           ))}
         </div>

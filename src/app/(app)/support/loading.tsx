@@ -1,3 +1,4 @@
+import { StatStripSkeleton } from "@/components/app/stat-strip";
 import {
   Card,
   CardContent,
@@ -24,18 +25,8 @@ export default function SupportLoading() {
         </div>
       </div>
 
-      {/* KPI strip — 4 StatCard placeholders */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {[0, 1, 2, 3].map((i) => (
-          <Card key={i} className="card-elevated">
-            <CardContent className="space-y-2 p-5">
-              <Skeleton className="h-4 w-28" />
-              <Skeleton className="h-8 w-16" />
-              <Skeleton className="h-3 w-24" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {/* KPI strip — 4 cells */}
+      <StatStripSkeleton cells={4} />
 
       {/* Action queue — header bar + ~6 rows */}
       <Card>

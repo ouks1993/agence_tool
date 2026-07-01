@@ -4,9 +4,7 @@ import { redirect } from "next/navigation";
 import { and, desc, eq } from "drizzle-orm";
 import {
   Briefcase,
-  Wallet,
   GitBranch,
-  Percent,
   Plane,
   ListChecks,
   Plus,
@@ -17,7 +15,7 @@ import {
 import { getTranslations } from "next-intl/server";
 import { GettingStartedCard } from "@/components/app/getting-started-card";
 import { PageHeader } from "@/components/app/page-header";
-import { StatCard } from "@/components/app/stat-card";
+import { StatStrip } from "@/components/app/stat-strip";
 import { FunnelInsight } from "@/components/charts/insight-charts";
 import { ActivityTimeline } from "@/components/dashboard/activity-timeline";
 import { AtlasSuggests, type Suggestion } from "@/components/dashboard/atlas-suggests";
@@ -557,34 +555,28 @@ export default async function DashboardPage() {
       )}
 
       {/* Hero KPI row — revenue, confirmed bookings, pipeline, conversion */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label="Revenue this month"
-          value={formatMoney(revenueThisMonth)}
-          icon={Wallet}
-          hint="Confirmed & paid"
-          {...(revenueDelta ? { delta: revenueDelta } : {})}
-        />
-        <StatCard
-          label="Confirmed bookings"
-          value={confirmedThisMonth}
-          icon={Briefcase}
-          hint={`${confirmedBookings.length} confirmed all-time`}
-          {...(confirmedDelta ? { delta: confirmedDelta } : {})}
-        />
-        <StatCard
-          label="Pipeline value"
-          value={formatMoney(pipelineValue)}
-          icon={GitBranch}
-          hint={`${openDealCount} open deal${openDealCount === 1 ? "" : "s"}`}
-        />
-        <StatCard
-          label="Conversion"
-          value={`${convRate}%`}
-          icon={Percent}
-          hint="Won ÷ closed deals"
-        />
-      </div>
+      <StatStrip
+        items={[
+          {
+            label: "Revenue this month",
+            value: formatMoneyCompact(revenueThisMonth),
+            ...(revenueDelta ? { delta: revenueDelta } : {}),
+          },
+          {
+            label: "Confirmed bookings",
+            value: confirmedThisMonth,
+            ...(confirmedDelta ? { delta: confirmedDelta } : {}),
+          },
+          {
+            label: "Pipeline value",
+            value: formatMoneyCompact(pipelineValue),
+          },
+          {
+            label: "Conversion",
+            value: `${convRate}%`,
+          },
+        ]}
+      />
 
       {/* Row 1 — Revenue evolution (2fr) + Bookings by status (1fr) */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">

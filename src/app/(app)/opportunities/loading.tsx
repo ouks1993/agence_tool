@@ -1,3 +1,4 @@
+import { StatStripSkeleton } from "@/components/app/stat-strip";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -20,17 +21,8 @@ export default function OpportunitiesLoading() {
         <Skeleton className="h-9 w-40 shrink-0" />
       </div>
 
-      {/* KPI strip — 5 StatCard placeholders */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        {[0, 1, 2, 3, 4].map((i) => (
-          <Card key={i} className="card-elevated">
-            <CardContent className="space-y-2 p-5">
-              <Skeleton className="h-4 w-28" />
-              <Skeleton className="h-8 w-20" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {/* KPI strip — 5-cell StatStrip placeholder (matches page.tsx) */}
+      <StatStripSkeleton cells={5} />
 
       {/* Conversion funnel card */}
       <Card className="card-elevated">

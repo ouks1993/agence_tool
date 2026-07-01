@@ -1,4 +1,4 @@
-import { Card, CardContent } from "@/components/ui/card";
+import { StatStripSkeleton } from "@/components/app/stat-strip";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function BookingsLoading() {
@@ -16,17 +16,8 @@ export default function BookingsLoading() {
         </div>
       </div>
 
-      {/* KPI strip — 4 StatCard placeholders */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {[0, 1, 2, 3].map((i) => (
-          <Card key={i} className="card-elevated">
-            <CardContent className="space-y-2 p-5">
-              <Skeleton className="h-4 w-28" />
-              <Skeleton className="h-8 w-20" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {/* KPI strip — 4-cell placeholder matching the real StatStrip */}
+      <StatStripSkeleton cells={4} />
 
       {/* Bookings table — 7-column header + ~7 rows matching the real grid */}
       <div className="overflow-hidden rounded-lg border">

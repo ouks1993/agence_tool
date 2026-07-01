@@ -1,15 +1,9 @@
 import Link from "next/link";
 import { desc, sql } from "drizzle-orm";
-import {
-  Building2,
-  CheckCircle2,
-  CreditCard,
-  Plus,
-  Ticket,
-} from "lucide-react";
+import { Building2, Plus } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/app/page-header";
-import { StatCard } from "@/components/app/stat-card";
+import { StatStrip } from "@/components/app/stat-strip";
 import {
   AgenciesTable,
   type AgencyRow,
@@ -51,7 +45,6 @@ export default async function PlatformDashboardPage() {
   // Platform-wide KPIs — all counts (no cross-currency summation).
   const totalAgencies = agencies.length;
   const activeAgencies = agencies.filter((a) => a.status === "active").length;
-  const suspendedAgencies = totalAgencies - activeAgencies;
   const activeSubs = agencies.filter(
     (a) => a.subscriptionStatus && ACTIVE_SUB_STATUSES.has(a.subscriptionStatus)
   ).length;
@@ -106,37 +99,15 @@ export default async function PlatformDashboardPage() {
         </Card>
       ) : (
         <>
-          {/* KPI grid — platform-wide counts (currency-safe). */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard
-              label={t("kpi.totalAgencies")}
-              value={totalAgencies}
-              hint={t("kpi.totalAgenciesHint")}
-              icon={Building2}
-            />
-            <StatCard
-              label={t("kpi.active")}
-              value={activeAgencies}
-              hint={
-                suspendedAgencies > 0
-                  ? `${suspendedAgencies} ${t("kpi.suspended").toLowerCase()}`
-                  : t("kpi.activeHint")
-              }
-              icon={CheckCircle2}
-            />
-            <StatCard
-              label={t("kpi.activeSubs")}
-              value={activeSubs}
-              hint={t("kpi.activeSubsHint")}
-              icon={CreditCard}
-            />
-            <StatCard
-              label={t("kpi.bookings")}
-              value={totalBookings}
-              hint={t("kpi.bookingsHint")}
-              icon={Ticket}
-            />
-          </div>
+          {/* KPI strip — platform-wide counts (currency-safe). */}
+          <StatStrip
+            items={[
+              { label: t("kpi.totalAgencies"), value: totalAgencies },
+              { label: t("kpi.active"), value: activeAgencies },
+              { label: t("kpi.activeSubs"), value: activeSubs },
+              { label: t("kpi.bookings"), value: totalBookings },
+            ]}
+          />
 
           <AgenciesTable agencies={rows} />
         </>

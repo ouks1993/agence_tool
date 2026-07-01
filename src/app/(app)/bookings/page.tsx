@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
-import { Plus, Briefcase, CalendarClock, Wallet, CheckCircle2 } from "lucide-react";
+import { Plus, Briefcase } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
-import { StatCard } from "@/components/app/stat-card";
+import { StatStrip } from "@/components/app/stat-strip";
 import { BookingsBoard } from "@/components/bookings/bookings-board";
 import { BookingsTable } from "@/components/bookings/bookings-table";
 import { BookingsViewToggle } from "@/components/bookings/view-toggle";
@@ -75,12 +75,14 @@ export default async function BookingsPage({
       </PageHeader>
 
       {bookings.length > 0 && (
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <StatCard label="Total bookings" value={kpi.total} icon={Briefcase} />
-          <StatCard label="Upcoming departures" value={kpi.upcoming} icon={CalendarClock} />
-          <StatCard label="Awaiting payment" value={kpi.awaiting} icon={Wallet} />
-          <StatCard label="Completed" value={kpi.completed} icon={CheckCircle2} />
-        </div>
+        <StatStrip
+          items={[
+            { label: "Total bookings", value: kpi.total },
+            { label: "Upcoming departures", value: kpi.upcoming },
+            { label: "Awaiting payment", value: kpi.awaiting },
+            { label: "Completed", value: kpi.completed },
+          ]}
+        />
       )}
 
       {bookings.length === 0 ? (

@@ -1,16 +1,8 @@
 import { and, asc, desc, eq, sql } from "drizzle-orm";
-import {
-  ShieldCheck,
-  Activity,
-  Info,
-  MailPlus,
-  Users,
-  Target,
-  Trophy,
-} from "lucide-react";
+import { ShieldCheck, Activity, Info, MailPlus } from "lucide-react";
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
-import { StatCard } from "@/components/app/stat-card";
+import { StatStrip } from "@/components/app/stat-strip";
 import { StatusBadge } from "@/components/app/status-badge";
 import { PendingInviteRow, TeamInviteForm } from "@/components/team/invite-form";
 import { MemberControls } from "@/components/team/member-controls";
@@ -33,7 +25,12 @@ import {
   USER_ROLE_META,
 } from "@/lib/domain";
 import type { UserRole } from "@/lib/domain";
-import { formatMoney, formatRelative, initials } from "@/lib/format";
+import {
+  formatMoney,
+  formatMoneyCompact,
+  formatRelative,
+  initials,
+} from "@/lib/format";
 import { requireAgencyUser, requireManager } from "@/lib/permissions";
 import {
   agencyInvite,
@@ -146,36 +143,18 @@ export default async function TeamPage() {
       />
 
       {/* KPI band — agency-level team snapshot */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label="Team members"
-          value={members.length}
-          hint={`${activeMembers} active`}
-          icon={Users}
-        />
-        <StatCard
-          label="Active seats"
-          value={activeMembers}
-          hint={
-            members.length - activeMembers > 0
-              ? `${members.length - activeMembers} inactive`
-              : "All active"
-          }
-          icon={ShieldCheck}
-        />
-        <StatCard
-          label="Open opportunities"
-          value={totalOpenOpps}
-          hint="Across the team"
-          icon={Target}
-        />
-        <StatCard
-          label="Won revenue"
-          value={formatMoney(totalWon)}
-          hint={`${DEFAULT_CURRENCY} deals only`}
-          icon={Trophy}
-        />
-      </div>
+      <StatStrip
+        items={[
+          { label: "Team members", value: members.length },
+          { label: "Active seats", value: activeMembers },
+          { label: "Open opportunities", value: totalOpenOpps },
+          {
+            label: "Won revenue",
+            value: formatMoneyCompact(totalWon, DEFAULT_CURRENCY),
+            tone: "text-success",
+          },
+        ]}
+      />
 
       <div className="bg-muted/50 text-muted-foreground flex items-start gap-2 rounded-lg border p-3 text-sm">
         <Info className="mt-0.5 size-4 shrink-0" />

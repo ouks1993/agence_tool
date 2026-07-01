@@ -1,3 +1,4 @@
+import { StatStripSkeleton } from "@/components/app/stat-strip";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -14,6 +15,9 @@ export default function TeamLoading() {
         <Skeleton className="h-8 w-24" />
         <Skeleton className="h-4 w-80" />
       </div>
+
+      {/* KPI band — agency-level team snapshot */}
+      <StatStripSkeleton cells={4} />
 
       {/* Invitation-based onboarding info banner */}
       <div className="rounded-lg border p-3">

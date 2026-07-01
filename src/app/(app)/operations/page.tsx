@@ -1,16 +1,16 @@
 import Link from "next/link";
 import { and, desc, eq } from "drizzle-orm";
-import { ClipboardList, Layers, Plane, CircleDollarSign } from "lucide-react";
+import { ClipboardList } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
-import { StatCard } from "@/components/app/stat-card";
+import { StatStrip } from "@/components/app/stat-strip";
 import { OperationsBoard } from "@/components/operations/operations-board";
 import { Button } from "@/components/ui/button";
 import { headlineTotal, num, sumByCurrency } from "@/lib/analytics";
 import { db } from "@/lib/db";
 import { DEFAULT_CURRENCY, seesAllData } from "@/lib/domain";
-import { formatMoney } from "@/lib/format";
+import { formatMoneyCompact } from "@/lib/format";
 import { requireAgencyUser } from "@/lib/permissions";
 import { booking } from "@/lib/schema";
 
@@ -86,32 +86,17 @@ export default async function OperationsPage() {
         />
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard
-              label="Active bookings"
-              value={active.length}
-              hint="Not cancelled"
-              icon={Layers}
-            />
-            <StatCard
-              label="Total in workflow"
-              value={bookings.length}
-              hint="All statuses"
-              icon={ClipboardList}
-            />
-            <StatCard
-              label="Departing soon"
-              value={upcoming.length}
-              hint={`Next ${UPCOMING_WINDOW_DAYS} days`}
-              icon={Plane}
-            />
-            <StatCard
-              label="Pipeline value"
-              value={formatMoney(pipelineValue)}
-              hint={`${DEFAULT_CURRENCY} bookings only`}
-              icon={CircleDollarSign}
-            />
-          </div>
+          <StatStrip
+            items={[
+              { label: "Active bookings", value: active.length },
+              { label: "Total in workflow", value: bookings.length },
+              { label: "Departing soon", value: upcoming.length },
+              {
+                label: "Pipeline value",
+                value: formatMoneyCompact(pipelineValue, DEFAULT_CURRENCY),
+              },
+            ]}
+          />
 
           <OperationsBoard bookings={rows} />
         </>

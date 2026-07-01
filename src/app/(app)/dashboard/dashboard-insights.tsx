@@ -2,20 +2,14 @@ import { eq } from "drizzle-orm";
 import {
   BarChart3,
   Briefcase,
-  Wallet,
-  Banknote,
-  Coins,
-  Trophy,
-  Percent,
   TrendingUp,
-  Gauge,
   Users,
   Tag,
   MapPin,
   Globe,
 } from "lucide-react";
 import { getTranslations } from "next-intl/server";
-import { StatCard } from "@/components/app/stat-card";
+import { StatStrip, StatStripSkeleton } from "@/components/app/stat-strip";
 import {
   BarInsight,
   DonutInsight,
@@ -36,11 +30,12 @@ import {
 import { db } from "@/lib/db";
 import {
   BOOKING_STATUS_META,
+  DEFAULT_CURRENCY,
   LEAD_SOURCE_LABEL,
   type BookingStatus,
   type LeadSource,
 } from "@/lib/domain";
-import { formatMoney } from "@/lib/format";
+import { formatMoneyCompact } from "@/lib/format";
 import { paymentSummary } from "@/lib/payments/summary";
 import { opportunity, client as clientTable, user as userTable } from "@/lib/schema";
 
@@ -168,58 +163,46 @@ export async function DashboardInsights({
       </div>
 
       {/* Finance KPIs */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label="Total revenue"
-          value={formatMoney(totalRevenue)}
-          hint="Confirmed bookings"
-          icon={Wallet}
-        />
-        <StatCard
-          label="Collected"
-          value={formatMoney(collected)}
-          hint="Completed payments, net of refunds"
-          icon={Banknote}
-        />
-        <StatCard
-          label="Outstanding"
-          value={formatMoney(outstanding)}
-          hint="Balances still due"
-          icon={Coins}
-        />
-        <StatCard
-          label="Won pipeline"
-          value={formatMoney(wonPipeline)}
-          hint="Opportunities marked won"
-          icon={Trophy}
-        />
-      </div>
+      <StatStrip
+        items={[
+          {
+            label: "Total revenue",
+            value: formatMoneyCompact(totalRevenue, DEFAULT_CURRENCY),
+          },
+          {
+            label: "Collected",
+            value: formatMoneyCompact(collected, DEFAULT_CURRENCY),
+            tone: "text-success",
+          },
+          {
+            label: "Outstanding",
+            value: formatMoneyCompact(outstanding, DEFAULT_CURRENCY),
+          },
+          {
+            label: "Won pipeline",
+            value: formatMoneyCompact(wonPipeline, DEFAULT_CURRENCY),
+            tone: "text-success",
+          },
+        ]}
+      />
 
       {/* Performance KPIs */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard
-          label="Conversion rate"
-          value={`${convRate}%`}
-          hint="Won ÷ closed deals"
-          icon={Percent}
-        />
-        <StatCard
-          label="Avg booking value"
-          value={formatMoney(avgBookingValue)}
-          hint="Across active bookings"
-          icon={Gauge}
-        />
-        <StatCard
-          label="Revenue growth"
-          value={
-            revenueGrowth === null
-              ? "—"
-              : `${revenueGrowth > 0 ? "+" : ""}${revenueGrowth}%`
-          }
-          hint="Month over month"
-          icon={TrendingUp}
-        />
-      </div>
+      <StatStrip
+        items={[
+          { label: "Conversion rate", value: `${convRate}%` },
+          {
+            label: "Avg booking value",
+            value: formatMoneyCompact(avgBookingValue, DEFAULT_CURRENCY),
+          },
+          {
+            label: "Revenue growth",
+            value:
+              revenueGrowth === null
+                ? "—"
+                : `${revenueGrowth > 0 ? "+" : ""}${revenueGrowth}%`,
+          },
+        ]}
+      />
 
       {/* Charts — only shown when there is data to display */}
       {bookings.length > 0 && (
@@ -257,7 +240,7 @@ export async function DashboardInsights({
   );
 }
 
-// Skeleton shown while the insights queries resolve. Mirrors the KPI grids +
+// Skeleton shown while the insights queries resolve. Mirrors the KPI strips +
 // 2-col chart grid above so the layout doesn't jump when it streams in.
 export function DashboardInsightsSkeleton() {
   return (
@@ -266,16 +249,8 @@ export function DashboardInsightsSkeleton() {
         <BarChart3 className="text-muted-foreground size-5" />
         <Skeleton className="h-7 w-32" />
       </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {[0, 1, 2, 3].map((i) => (
-          <Card key={i} className="card-elevated">
-            <CardContent className="space-y-2 p-5">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-8 w-20" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <StatStripSkeleton cells={4} />
+      <StatStripSkeleton cells={3} />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {[0, 1, 2, 3].map((i) => (
           <Card key={i} className="card-elevated overflow-hidden">

@@ -1,11 +1,6 @@
 import { eq, inArray } from "drizzle-orm";
 import {
-  Wallet,
-  Coins,
-  Briefcase,
-  Percent,
   TrendingUp,
-  Repeat,
   BarChart3,
   MapPin,
   Users,
@@ -13,7 +8,8 @@ import {
   PieChart,
   CheckCircle2,
 } from "lucide-react";
-import { StatCard, type StatDelta } from "@/components/app/stat-card";
+import { type StatDelta } from "@/components/app/stat-card";
+import { StatStrip, StatStripSkeleton } from "@/components/app/stat-strip";
 import {
   AreaInsight,
   DonutInsight,
@@ -228,24 +224,6 @@ export async function ReportsAnalytics({
     "returning clients"
   );
 
-  // --- KPI sparklines: trailing-6-month micro-trends -----------------------
-  // Each spark is a real monthly series ending in the current month; the tiles
-  // whose figures aren't monthly-bucketable (conversion / repeat rate) get a
-  // monthly recomputation so the trend reflects the same definition.
-  const spark = (rows: typeof revenueBookings, valueFn: (r: (typeof revenueBookings)[number]) => number) =>
-    monthlyBuckets(rows, (r) => r.createdAt, valueFn, 6, w.to).map((p) => p.value);
-  const revenueSpark = spark(revenueBookings, (b) => num(b.totalAmount));
-  const grossProfitSpark = monthlyBuckets(
-    dzdProposals,
-    (p) => p.createdAt,
-    (p) => num(p.totalPrice) - num(p.totalCost),
-    6,
-    w.to
-  ).map((p) => p.value);
-  const bookingsSpark = monthlyBuckets(bookings, (b) => b.createdAt, () => 1, 6, w.to).map(
-    (p) => p.value
-  );
-
   // --- Revenue trend (trailing 12 months, DZD confirmed/paid) --------------
   const revenueMonthly = monthlyBuckets(
     revenueBookings,
@@ -442,71 +420,44 @@ export async function ReportsAnalytics({
   return (
     <div className="space-y-6">
       {/* ============================ KPI ROW ============================ */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
-        <StatCard
-          label="Revenue"
-          value={formatMoneyCompact(revenueNow)}
-          icon={Wallet}
-          hint="Confirmed & paid · DZD"
-          spark={revenueSpark}
-          {...d(revenueDelta)}
-        />
-        {hasCostBasis ? (
-          <StatCard
-            label="Gross profit"
-            value={formatMoneyCompact(grossProfitNow)}
-            icon={Coins}
-            hint="Accepted proposals"
-            spark={grossProfitSpark}
-            {...d(grossProfitDelta)}
-          />
-        ) : (
-          <StatCard
-            label="Gross profit"
-            value="—"
-            icon={Coins}
-            hint="No accepted-proposal cost basis"
-          />
-        )}
-        <StatCard
-          label="Bookings"
-          value={bookingsNow.toLocaleString()}
-          icon={Briefcase}
-          hint={`Created · ${periodPhrase}`}
-          spark={bookingsSpark}
-          {...d(bookingsDelta)}
-        />
-        <StatCard
-          label="Conversion"
-          value={`${convNow}%`}
-          icon={Percent}
-          hint="Won ÷ closed deals"
-          {...d(convDelta)}
-        />
-        {hasCostBasis ? (
-          <StatCard
-            label="Avg margin"
-            value={`${(Math.round(marginNow * 10) / 10).toLocaleString()}%`}
-            icon={TrendingUp}
-            hint="Profit ÷ proposal value"
-            {...d(marginDelta)}
-          />
-        ) : (
-          <StatCard
-            label="Avg margin"
-            value="—"
-            icon={TrendingUp}
-            hint="No accepted-proposal cost basis"
-          />
-        )}
-        <StatCard
-          label="Repeat rate"
-          value={repeatNow === null ? "—" : `${repeatNow}%`}
-          icon={Repeat}
-          hint="Clients with ≥2 bookings"
-          {...d(repeatDelta)}
-        />
-      </div>
+      <StatStrip
+        items={[
+          {
+            label: "Revenue",
+            value: formatMoneyCompact(revenueNow),
+            ...d(revenueDelta),
+          },
+          hasCostBasis
+            ? {
+                label: "Gross profit",
+                value: formatMoneyCompact(grossProfitNow),
+                ...d(grossProfitDelta),
+              }
+            : { label: "Gross profit", value: "—" },
+          {
+            label: "Bookings",
+            value: bookingsNow.toLocaleString(),
+            ...d(bookingsDelta),
+          },
+          {
+            label: "Conversion",
+            value: `${convNow}%`,
+            ...d(convDelta),
+          },
+          hasCostBasis
+            ? {
+                label: "Avg margin",
+                value: `${(Math.round(marginNow * 10) / 10).toLocaleString()}%`,
+                ...d(marginDelta),
+              }
+            : { label: "Avg margin", value: "—" },
+          {
+            label: "Repeat rate",
+            value: repeatNow === null ? "—" : `${repeatNow}%`,
+            ...d(repeatDelta),
+          },
+        ]}
+      />
 
       {/* ================= ROW 1: Revenue trend + side stack ================= */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -938,11 +889,7 @@ function initialsOf(name: string): string {
 export function ReportsAnalyticsSkeleton() {
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="card-elevated h-[104px] animate-pulse rounded-lg border bg-card" />
-        ))}
-      </div>
+      <StatStripSkeleton cells={6} />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="card-elevated h-80 animate-pulse rounded-lg border bg-card lg:col-span-2" />
         <div className="card-elevated h-80 animate-pulse rounded-lg border bg-card" />
