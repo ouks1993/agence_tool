@@ -514,6 +514,42 @@ the label. It defaults to `bg-current`, inheriting the variant's solid text colo
 Atlas-green dot on a `success` badge). Override with `dotClassName` for a fixed hue. The
 dot is `aria-hidden`. Example: `<Badge variant="success" dot>Confirmed</Badge>`.
 
+### StatusBadge / StatusPill
+
+App-level status pill (`src/components/app/status-badge.tsx`) used for domain statuses
+(booking / payment / proposal / opportunity / supplier / commission / …). It is the
+status-coloured counterpart to the shadcn `Badge` and shares its soft-tint-+-solid-text look.
+
+**Colour it semantically.** Prefer the `variant` prop — one of the five **semantic tones**
+backed by the Wave-1 functional tokens:
+
+| `variant` | Background | Text | Meaning |
+|---|---|---|---|
+| `neutral` | `bg-secondary` | `text-secondary-foreground` | Draft / inactive / not-yet-started |
+| `success` | `bg-success-soft` | `text-success` | Settled / active / won |
+| `warning` | `bg-warning-soft` | `text-warning` | Needs attention / pending / part-paid |
+| `info` | `bg-info-soft` | `text-info` | In-flight / acknowledged / mid-lifecycle |
+| `danger` | `bg-danger-soft` | `text-danger` | Failed / cancelled / lost / overdue |
+
+Never re-introduce a raw Tailwind colour string at the call site. Derive the tone from the
+status via the shared helper `statusTone(domain, status)` in `src/lib/status-tone.ts`, which
+maps every real status vocabulary (see `domain.ts`) to a tone. Domains:
+`opportunity · client · product · booking · bookingItem · paymentRecord · paymentSummary ·
+supplier · contract · commission · subscription · generic`. Unknown codes fall back to
+`generic` then `neutral` (never crash).
+
+- **`<StatusBadge variant={statusTone("booking", status)} label={meta.label} dot />`** —
+  explicit tone.
+- **`<StatusPill domain="booking" status={booking.status} label={meta.label} dot />`** —
+  convenience wrapper that runs `statusTone` for you (`label` defaults to the raw code).
+
+`dot` / `dotClassName` behave exactly as on `Badge`.
+
+**Legacy `tone` escape hatch.** The original `tone?: string` prop (a raw Tailwind colour
+string like `"bg-green-100 text-green-700"`) still works for backward compatibility with
+existing callers; it overrides `variant` when both are set. Do not use it in new code —
+existing callers are being migrated to `variant` / `StatusPill`.
+
 ### Dialog
 
 Radix-based with overlay (`bg-black/50`), fade + zoom animations, optional close button.

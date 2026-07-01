@@ -2,6 +2,8 @@
 
 import { useEffect } from "react";
 import { MessageSquareWarning, RefreshCw } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { EmptyState } from "@/components/app/empty-state";
 import { Button } from "@/components/ui/button";
 
 export default function ChatError({
@@ -11,36 +13,35 @@ export default function ChatError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const t = useTranslations("errors");
+
   useEffect(() => {
     console.error("Chat error:", error);
   }, [error]);
 
   return (
-    <div className="container mx-auto px-4 py-16">
-      <div className="max-w-md mx-auto text-center">
-        <div className="flex justify-center mb-6">
-          <MessageSquareWarning className="h-16 w-16 text-destructive" />
-        </div>
-        <h1 className="text-2xl font-bold mb-4">Chat Error</h1>
-        <p className="text-muted-foreground mb-6">
-          There was a problem with the chat service. This could be due to a
-          connection issue or the AI service being temporarily unavailable.
+    <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8 sm:px-6">
+      <EmptyState
+        icon={MessageSquareWarning}
+        title={t("chatTitle")}
+        description={t("chatDescription")}
+        action={
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <Button onClick={reset}>
+              <RefreshCw className="mr-2 size-4" />
+              {t("tryAgain")}
+            </Button>
+            <Button variant="outline" onClick={() => (window.location.href = "/dashboard")}>
+              {t("goDashboard")}
+            </Button>
+          </div>
+        }
+      />
+      {error.digest && (
+        <p className="text-muted-foreground text-center text-xs">
+          {t("errorId")}: {error.digest}
         </p>
-        {error.message && (
-          <p className="text-sm text-muted-foreground mb-4 p-2 bg-muted rounded">
-            {error.message}
-          </p>
-        )}
-        <div className="flex gap-4 justify-center">
-          <Button onClick={reset}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Try again
-          </Button>
-          <Button variant="outline" onClick={() => (window.location.href = "/")}>
-            Go home
-          </Button>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

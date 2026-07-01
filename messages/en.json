@@ -6,7 +6,9 @@
     "search": "Search",
     "signOut": "Sign out",
     "exitToPlatform": "Exit to platform",
-    "viewAll": "View all"
+    "viewAll": "View all",
+    "profile": "Profile",
+    "skipToContent": "Skip to content"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -286,7 +288,13 @@
       "premium_economy": "Premium economy",
       "business": "Business",
       "first": "First"
-    }
+    },
+    "commandTitle": "Command palette",
+    "commandDescription": "Search clients, bookings and proposals, or jump to any page.",
+    "commandPlaceholder": "Search clients, bookings, proposals…",
+    "commandEmpty": "No results found.",
+    "commandNav": "Go to",
+    "commandSearchEverything": "Search flights & hotels →"
   },
   "public": {
     "itinerary": {
@@ -323,6 +331,20 @@
     "notFoundDesc": "The page you're looking for doesn't exist.",
     "backHome": "Go back home",
     "somethingWrong": "Something went wrong",
-    "tryAgain": "Try again"
+    "tryAgain": "Try again",
+    "title": "Something went wrong",
+    "description": "An unexpected error occurred. Please try again, or contact support if the problem persists.",
+    "appDescription": "We couldn't load this page. This is usually temporary — please try again.",
+    "platformDescription": "An unexpected error occurred in the platform console. Please try again, or contact support if the problem persists.",
+    "portalDescription": "An unexpected error occurred. Please try again, or contact your agency if the problem persists.",
+    "authDescription": "We couldn't complete that request. Please try again in a moment.",
+    "chatTitle": "Chat error",
+    "chatDescription": "There was a problem with the assistant. This can happen when the connection drops or the AI service is briefly unavailable.",
+    "errorId": "Error ID",
+    "goHome": "Go home",
+    "goDashboard": "Go to dashboard",
+    "backToConsole": "Back to console",
+    "backToSignIn": "Back to sign in",
+    "dashboard": "Dashboard"
   }
 }

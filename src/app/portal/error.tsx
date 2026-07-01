@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
-import { AlertCircle } from "lucide-react";
+import { AlertTriangle, RefreshCw } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { EmptyState } from "@/components/app/empty-state";
 import { Button } from "@/components/ui/button";
 
 export default function PortalError({
@@ -11,36 +13,35 @@ export default function PortalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const t = useTranslations("errors");
+
   useEffect(() => {
     console.error(error);
   }, [error]);
 
   return (
-    <div className="container mx-auto px-4 py-16">
-      <div className="max-w-md mx-auto text-center">
-        <div className="flex justify-center mb-6">
-          <AlertCircle className="h-16 w-16 text-destructive" />
-        </div>
-        <h1 className="text-2xl font-bold mb-4">Something went wrong</h1>
-        <p className="text-muted-foreground mb-6">
-          An unexpected error occurred. Please try again or contact your agency
-          if the problem persists.
+    <div className="space-y-6">
+      <EmptyState
+        icon={AlertTriangle}
+        title={t("title")}
+        description={t("portalDescription")}
+        action={
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <Button onClick={reset}>
+              <RefreshCw className="mr-2 size-4" />
+              {t("tryAgain")}
+            </Button>
+            <Button variant="outline" onClick={() => (window.location.href = "/portal/login")}>
+              {t("backToSignIn")}
+            </Button>
+          </div>
+        }
+      />
+      {error.digest && (
+        <p className="text-muted-foreground text-center text-xs">
+          {t("errorId")}: {error.digest}
         </p>
-        {error.digest && (
-          <p className="text-xs text-muted-foreground mb-4">
-            Error ID: {error.digest}
-          </p>
-        )}
-        <div className="flex gap-4 justify-center">
-          <Button onClick={reset}>Try again</Button>
-          <Button
-            variant="outline"
-            onClick={() => (window.location.href = "/portal/login")}
-          >
-            Back to sign in
-          </Button>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

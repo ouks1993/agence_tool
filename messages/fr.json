@@ -6,7 +6,9 @@
     "search": "Rechercher",
     "signOut": "Se déconnecter",
     "exitToPlatform": "Retour à la plateforme",
-    "viewAll": "Voir tout"
+    "viewAll": "Voir tout",
+    "profile": "Profil",
+    "skipToContent": "Aller au contenu"
   },
   "nav": {
     "dashboard": "Tableau de bord",
@@ -286,7 +288,13 @@
       "premium_economy": "Économique premium",
       "business": "Affaires",
       "first": "Première"
-    }
+    },
+    "commandTitle": "Palette de commandes",
+    "commandDescription": "Recherchez clients, réservations et propositions, ou accédez à une page.",
+    "commandPlaceholder": "Rechercher clients, réservations, propositions…",
+    "commandEmpty": "Aucun résultat.",
+    "commandNav": "Aller à",
+    "commandSearchEverything": "Rechercher vols et hôtels →"
   },
   "public": {
     "itinerary": {
@@ -323,6 +331,20 @@
     "notFoundDesc": "La page que vous recherchez n'existe pas.",
     "backHome": "Retour à l'accueil",
     "somethingWrong": "Une erreur s'est produite",
-    "tryAgain": "Réessayer"
+    "tryAgain": "Réessayer",
+    "title": "Une erreur s'est produite",
+    "description": "Une erreur inattendue est survenue. Veuillez réessayer ou contacter le support si le problème persiste.",
+    "appDescription": "Impossible de charger cette page. C'est généralement temporaire — veuillez réessayer.",
+    "platformDescription": "Une erreur inattendue est survenue dans la console de la plateforme. Veuillez réessayer ou contacter le support si le problème persiste.",
+    "portalDescription": "Une erreur inattendue est survenue. Veuillez réessayer ou contacter votre agence si le problème persiste.",
+    "authDescription": "Impossible de traiter cette demande. Veuillez réessayer dans un instant.",
+    "chatTitle": "Erreur de l'assistant",
+    "chatDescription": "Un problème est survenu avec l'assistant. Cela peut arriver lorsque la connexion est interrompue ou que le service d'IA est momentanément indisponible.",
+    "errorId": "Identifiant de l'erreur",
+    "goHome": "Aller à l'accueil",
+    "goDashboard": "Aller au tableau de bord",
+    "backToConsole": "Retour à la console",
+    "backToSignIn": "Retour à la connexion",
+    "dashboard": "Tableau de bord"
   }
 }

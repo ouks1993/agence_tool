@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { EmptyState } from "@/components/app/empty-state";
 import { Button } from "@/components/ui/button";
 
-export default function AppError({
+export default function PortalProposalsError({
   error,
   reset,
 }: {
@@ -16,25 +16,20 @@ export default function AppError({
   const t = useTranslations("errors");
 
   useEffect(() => {
-    console.error(error);
+    console.error("Portal proposals error:", error);
   }, [error]);
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8 sm:px-6">
+    <div className="space-y-6">
       <EmptyState
         icon={AlertTriangle}
         title={t("title")}
-        description={t("appDescription")}
+        description={t("portalDescription")}
         action={
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            <Button onClick={reset}>
-              <RefreshCw className="mr-2 size-4" />
-              {t("tryAgain")}
-            </Button>
-            <Button variant="outline" onClick={() => (window.location.href = "/dashboard")}>
-              {t("goDashboard")}
-            </Button>
-          </div>
+          <Button onClick={reset}>
+            <RefreshCw className="mr-2 size-4" />
+            {t("tryAgain")}
+          </Button>
         }
       />
       {error.digest && (

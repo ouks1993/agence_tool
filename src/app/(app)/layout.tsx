@@ -5,6 +5,12 @@ import { exitAgencyView } from "@/lib/actions/platform";
 import { db } from "@/lib/db";
 import { USER_ROLE_META } from "@/lib/domain";
 import { isImpersonating, requireAgencyUser } from "@/lib/permissions";
+import {
+  getShellNavCounts,
+  listClientOptions,
+  listOpenBookings,
+  listProposalOptions,
+} from "@/lib/queries";
 import { agency } from "@/lib/schema";
 
 export default async function AppLayout({
@@ -23,6 +29,15 @@ export default async function AppLayout({
         columns: { name: true },
       })
     : null;
+
+  // Shell chrome data (real data only): nav count badges + command-palette
+  // jump targets. All scoped to the current agency via requireAgencyUser.
+  const [counts, clients, bookings, proposals] = await Promise.all([
+    getShellNavCounts(user.agencyId),
+    listClientOptions(user.agencyId),
+    listOpenBookings(user.agencyId),
+    listProposalOptions(user.agencyId),
+  ]);
 
   return (
     <>
@@ -63,6 +78,8 @@ export default async function AppLayout({
           image: user.image,
           role: user.role,
         }}
+        counts={counts}
+        paletteEntities={{ clients, bookings, proposals }}
       >
         {children}
       </AppShell>

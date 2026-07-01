@@ -3,123 +3,29 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  LayoutDashboard,
-  Wallet,
-  LifeBuoy,
-  Briefcase,
-  Target,
-  FileText,
-  Users,
-  Plane,
-  BedDouble,
-  Sparkles,
-  ShieldCheck,
-  CreditCard,
-  Compass,
-  Truck,
-  BadgePercent,
-  FileBarChart,
-  Menu,
-  X,
-  LogOut,
-  Settings,
-  User as UserIcon,
-} from "lucide-react";
+import { Menu, Settings as SettingsIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  CommandPalette,
+  type PaletteEntities,
+} from "@/components/app/command-palette";
+import { MobileTabBar } from "@/components/app/mobile-tab-bar";
+import {
+  visibleSections,
+  type NavCounts,
+  type NavItem,
+} from "@/components/app/nav-config";
+import { Topbar } from "@/components/app/topbar";
 import { Button } from "@/components/ui/button";
-import { ModeToggle } from "@/components/ui/mode-toggle";
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { signOut } from "@/lib/auth-client";
 import { APP_NAME, APP_TAGLINE } from "@/lib/config";
-import {
-  canManageTeam,
-  canViewFinance,
-  canViewSupport,
-  roleHome,
-  type UserRole,
-} from "@/lib/domain";
-import { initials } from "@/lib/format";
+import { type UserRole } from "@/lib/domain";
 import { cn } from "@/lib/utils";
-
-type NavItem = {
-  href: string;
-  labelKey: string;
-  icon: React.ComponentType<{ className?: string }>;
-  show?: (role: UserRole) => boolean;
-};
-
-type NavSection = {
-  /** Translation key for the section label, or null for unlabeled top section. */
-  labelKey: string | null;
-  items: NavItem[];
-  /** Hide the whole section if predicate returns false. */
-  show?: (role: UserRole) => boolean;
-};
-
-// Navigation follows the golden workflow order:
-//   WORK: the daily client/sales/booking flow
-//   SOURCING: find and price inventory (flights, hotels, ...)
-//   FINANCE: money and reporting (finance-role gated)
-//   TOOLS: AI assistant
-//   ADMIN: team management, billing (manager/admin gated)
-const NAV_SECTIONS: NavSection[] = [
-  {
-    labelKey: null,
-    items: [
-      {
-        href: "/dashboard",
-        labelKey: "dashboard",
-        icon: LayoutDashboard,
-        show: (r) => roleHome(r) === "/dashboard",
-      },
-      { href: "/support", labelKey: "support", icon: LifeBuoy, show: canViewSupport },
-    ],
-  },
-  {
-    labelKey: "sectionWork",
-    items: [
-      { href: "/clients",    labelKey: "clients",   icon: Users },
-      { href: "/opportunities", labelKey: "pipeline",  icon: Target },
-      { href: "/proposals",  labelKey: "proposals", icon: FileText },
-      { href: "/bookings",   labelKey: "bookings",  icon: Briefcase },
-    ],
-  },
-  {
-    labelKey: "sectionSourcing",
-    items: [
-      { href: "/sourcing/flights", labelKey: "flights", icon: Plane },
-      { href: "/sourcing/hotels",  labelKey: "hotels",  icon: BedDouble },
-    ],
-  },
-  {
-    labelKey: "sectionFinance",
-    show: canViewFinance,
-    items: [
-      { href: "/finance",     labelKey: "finance",     icon: Wallet },
-      { href: "/commissions", labelKey: "commissions", icon: BadgePercent },
-      { href: "/reports",     labelKey: "reports",     icon: FileBarChart },
-    ],
-  },
-  {
-    labelKey: "sectionTools",
-    items: [
-      { href: "/assistant", labelKey: "assistant", icon: Sparkles },
-    ],
-  },
-  {
-    labelKey: "sectionAdmin",
-    show: canManageTeam,
-    items: [
-      { href: "/suppliers", labelKey: "suppliers", icon: Truck,       show: canManageTeam },
-      { href: "/team",      labelKey: "team",      icon: ShieldCheck, show: canManageTeam },
-      { href: "/billing",   labelKey: "billing",   icon: CreditCard,  show: (r) => r === "admin" },
-    ],
-  },
-];
-
-// Flat list of all items — used for "locked" items logic.
-const ALL_ITEMS: NavItem[] = NAV_SECTIONS.flatMap((s) => s.items);
 
 export type ShellUser = {
   id: string;
@@ -131,9 +37,15 @@ export type ShellUser = {
 
 export function AppShell({
   user,
+  counts,
+  paletteEntities,
   children,
 }: {
   user: ShellUser;
+  /** Live nav count badges (real data only — omit keys that aren't cheaply available). */
+  counts?: NavCounts;
+  /** Entities the command palette can jump to (real data from queries). */
+  paletteEntities?: PaletteEntities;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -162,14 +74,14 @@ export function AppShell({
     router.refresh();
   };
 
-  // Items the current role cannot access — shown dimmed at the bottom.
-  const lockedItems = ALL_ITEMS.filter(
-    (i) => i.show && !i.show(user.role)
-  );
+  // Sections/items the current role cannot access are hidden entirely
+  // (no dimmed "teaser" list — see audit findings).
+  const sections = visibleSections(user.role);
 
   const renderNavItem = (item: NavItem) => {
     const Icon = item.icon;
     const active = isActive(item.href);
+    const count = item.badge ? counts?.[item.badge] : undefined;
     return (
       <Link
         key={item.href}
@@ -177,24 +89,29 @@ export function AppShell({
         onClick={() => setMobileOpen(false)}
         aria-current={active ? "page" : undefined}
         className={cn(
-          "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+          "relative flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium transition-colors",
           active
-            ? "bg-sidebar-primary text-sidebar-primary-foreground"
+            ? "bg-sidebar-accent text-sidebar-accent-foreground before:bg-sidebar-primary before:absolute before:top-1/2 before:left-0 before:h-[18px] before:w-[3px] before:-translate-x-3.5 before:-translate-y-1/2 before:rounded-r-full before:content-[''] rtl:before:right-0 rtl:before:left-auto rtl:before:translate-x-3.5 rtl:before:rounded-l-full rtl:before:rounded-r-none"
             : "text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
         )}
       >
-        <Icon className="size-4 shrink-0" />
-        {tNav(item.labelKey)}
+        <Icon className="size-[17px] shrink-0" />
+        <span className="min-w-0 flex-1 truncate">{tNav(item.labelKey)}</span>
+        {count !== undefined && count > 0 && (
+          <span className="bg-sidebar-accent text-sidebar-foreground ml-auto rounded-full px-1.5 py-px text-[10.5px] font-semibold tabular-nums">
+            {count}
+          </span>
+        )}
       </Link>
     );
   };
 
   const SidebarContent = (
     <div className="flex h-full flex-col">
-      {/* Brand */}
-      <div className="border-sidebar-border flex h-16 items-center gap-2 border-b px-5">
-        <div className="bg-sidebar-accent flex size-9 items-center justify-center rounded-lg">
-          <Compass className="text-sidebar-foreground size-5" />
+      {/* Brand — gradient logo mark per deck */}
+      <div className="border-sidebar-border flex h-[60px] items-center gap-2.5 border-b px-4">
+        <div className="from-primary to-[#3E72E0] flex size-8 items-center justify-center rounded-lg bg-gradient-to-br text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]">
+          <span className="text-[15px] font-extrabold leading-none">A</span>
         </div>
         <div className="leading-tight">
           <p className="text-sidebar-foreground text-base font-bold">{APP_NAME}</p>
@@ -203,148 +120,85 @@ export function AppShell({
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto p-3 space-y-4" aria-label="Primary">
-        {NAV_SECTIONS.map((section) => {
-          // Hide whole section if role predicate fails.
-          if (section.show && !section.show(user.role)) return null;
-
-          // Filter items the role can't see.
-          const visible = section.items.filter(
-            (i) => !i.show || i.show(user.role)
-          );
-          if (visible.length === 0) return null;
-
-          return (
-            <div key={section.labelKey ?? "_top"}>
-              {section.labelKey && (
-                <p className="text-sidebar-foreground/60 mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest">
-                  {tNav(section.labelKey)}
-                </p>
-              )}
-              <div className="space-y-0.5">
-                {visible.map((item) => renderNavItem(item))}
-              </div>
-            </div>
-          );
-        })}
-
-        {/* Locked items — dimmed, role-gated */}
-        {lockedItems.length > 0 && (
-          <div className="border-sidebar-border border-t pt-3">
-            <p className="text-sidebar-foreground/60 mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest">
-              {tNav("sectionAdmin")}
-            </p>
+      <nav className="flex-1 overflow-y-auto px-3.5 py-4 space-y-4" aria-label="Primary">
+        {sections.map((section) => (
+          <div key={section.labelKey ?? "_top"}>
+            {section.labelKey && (
+              <p className="text-sidebar-foreground/60 mb-1.5 px-2.5 text-[10.5px] font-semibold uppercase tracking-[0.08em]">
+                {tNav(section.labelKey)}
+              </p>
+            )}
             <div className="space-y-0.5">
-              {lockedItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <div
-                    key={item.href}
-                    title="Not available for your role"
-                    className="text-sidebar-foreground/35 flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium cursor-not-allowed select-none"
-                  >
-                    <Icon className="size-4 shrink-0" />
-                    {tNav(item.labelKey)}
-                  </div>
-                );
-              })}
+              {section.items.map((item) => renderNavItem(item))}
             </div>
           </div>
-        )}
+        ))}
       </nav>
 
-      {/* Settings + User footer */}
-      <div className="border-sidebar-border border-t p-3 space-y-1">
-        {renderNavItem({ href: "/settings", labelKey: "settings", icon: Settings })}
-        <div className="flex items-center gap-3 rounded-md px-2 py-2">
-          <Avatar className="size-8">
-            <AvatarImage src={user.image || ""} alt={user.name} />
-            <AvatarFallback>{initials(user.name)}</AvatarFallback>
-          </Avatar>
-          <div className="min-w-0 flex-1 leading-tight">
-            <p className="text-sidebar-foreground truncate text-sm font-medium">{user.name}</p>
-            <p className="text-sidebar-foreground/60 truncate text-xs capitalize">
-              {user.role}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-1">
-          <Button
-            asChild
-            variant="ghost"
-            size="sm"
-            className="text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex-1 justify-start"
-          >
-            <Link href="/profile" onClick={() => setMobileOpen(false)}>
-              <UserIcon className="mr-2 size-4" />
-              Profile
-            </Link>
-          </Button>
-          <ModeToggle className="text-sidebar-foreground/75 border-sidebar-border bg-transparent hover:bg-sidebar-accent hover:text-sidebar-accent-foreground dark:bg-transparent dark:border-sidebar-border dark:hover:bg-sidebar-accent" />
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleSignOut}
-            aria-label={tCommon("signOut")}
-            className="text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-          >
-            <LogOut className="size-4" />
-          </Button>
-        </div>
+      {/* Settings footer */}
+      <div className="border-sidebar-border border-t px-3.5 py-3">
+        {renderNavItem({ href: "/settings", labelKey: "settings", icon: SettingsIcon })}
       </div>
     </div>
   );
 
   return (
     <div className="flex min-h-screen">
+      {/* Skip to content — first focusable element */}
+      <a href="#main-content" className="skip-link">
+        {tCommon("skipToContent")}
+      </a>
+
       {/* Desktop sidebar */}
-      <aside className="bg-sidebar border-sidebar-border hidden w-64 shrink-0 border-r md:block">
+      <aside className="bg-sidebar border-sidebar-border hidden w-60 shrink-0 border-r md:block rtl:border-r-0 rtl:border-l">
         <div className="sticky top-0 h-screen">{SidebarContent}</div>
       </aside>
 
-      {/* Mobile drawer */}
-      {mobileOpen && (
-        <div className="fixed inset-0 z-50 md:hidden">
-          <div
-            className="bg-black/50 absolute inset-0"
-            onClick={() => setMobileOpen(false)}
-            aria-hidden="true"
-          />
-          <div className="bg-sidebar border-sidebar-border animate-in slide-in-from-left-2 rtl:slide-in-from-right-2 absolute top-0 left-0 h-full w-64 border-r rtl:right-0 rtl:left-auto rtl:border-r-0 rtl:border-l">
-            <button
-              onClick={() => setMobileOpen(false)}
-              className="text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground absolute top-4 right-3 rounded-md p-1"
-              aria-label="Close menu"
-            >
-              <X className="size-5" />
-            </button>
-            {SidebarContent}
-          </div>
-        </div>
-      )}
+      {/* Mobile drawer — Sheet (focus trap, Esc, scroll-lock) */}
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+        <SheetContent
+          side="left"
+          className="bg-sidebar border-sidebar-border w-64 gap-0 p-0 [&>button]:text-sidebar-foreground/75 [&>button:hover]:text-sidebar-foreground"
+        >
+          <SheetTitle className="sr-only">{APP_NAME}</SheetTitle>
+          {SidebarContent}
+        </SheetContent>
+      </Sheet>
 
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Mobile top bar */}
-        <header className="flex h-14 items-center gap-3 border-b px-4 md:hidden">
+        {/* Desktop topbar */}
+        <Topbar user={user} onSignOut={handleSignOut} />
+
+        {/* Mobile top bar — dark brand strip */}
+        <header className="bg-sidebar border-sidebar-border sticky top-0 z-20 flex h-14 items-center gap-3 border-b px-3 md:hidden">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setMobileOpen(true)}
             aria-label="Open menu"
+            className="text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground size-11"
           >
             <Menu className="size-5" />
           </Button>
-          <div className="flex items-center gap-2">
-            <Compass className="text-primary size-5" />
-            <span className="font-bold">{APP_NAME}</span>
-          </div>
+          <Link href="/dashboard" className="flex items-center gap-2">
+            <span className="from-primary to-[#3E72E0] flex size-7 items-center justify-center rounded-md bg-gradient-to-br text-[13px] font-extrabold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]">
+              A
+            </span>
+            <span className="text-sidebar-foreground font-bold">{APP_NAME}</span>
+          </Link>
         </header>
 
-        <main id="main-content" className="flex-1">
+        <main id="main-content" className="flex-1 pb-16 md:pb-0">
           {children}
         </main>
       </div>
+
+      {/* Mobile bottom tab bar */}
+      <MobileTabBar role={user.role} isActive={isActive} />
+
+      {/* Command palette (⌘K) */}
+      <CommandPalette role={user.role} entities={paletteEntities} />
     </div>
   );
 }

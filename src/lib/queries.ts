@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, ne } from "drizzle-orm";
+import { and, asc, count, desc, eq, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { booking, client, opportunity, product, user } from "@/lib/schema";
 
@@ -98,6 +98,45 @@ export async function listDraftProposals(
     })
     .from(product)
     .where(and(eq(product.agencyId, agencyId), eq(product.status, "draft")))
+    .orderBy(desc(product.createdAt))
+    .limit(50);
+  return rows.map((r) => ({ id: r.id, label: `${r.reference} · ${r.title}` }));
+}
+
+/** Live nav count badges for the app shell — cheap COUNT(*) queries only. */
+export async function getShellNavCounts(
+  agencyId: string
+): Promise<{ proposals: number; bookings: number }> {
+  const [proposals, bookings] = await Promise.all([
+    db
+      .select({ n: count() })
+      .from(product)
+      .where(and(eq(product.agencyId, agencyId), eq(product.status, "draft"))),
+    db
+      .select({ n: count() })
+      .from(booking)
+      .where(
+        and(eq(booking.agencyId, agencyId), ne(booking.status, "cancelled"))
+      ),
+  ]);
+  return {
+    proposals: proposals[0]?.n ?? 0,
+    bookings: bookings[0]?.n ?? 0,
+  };
+}
+
+/** Recent proposals (any status) for the command-palette jump list. */
+export async function listProposalOptions(
+  agencyId: string
+): Promise<{ id: string; label: string }[]> {
+  const rows = await db
+    .select({
+      id: product.id,
+      reference: product.reference,
+      title: product.title,
+    })
+    .from(product)
+    .where(eq(product.agencyId, agencyId))
     .orderBy(desc(product.createdAt))
     .limit(50);
   return rows.map((r) => ({ id: r.id, label: `${r.reference} · ${r.title}` }));
