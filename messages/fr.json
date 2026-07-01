@@ -323,7 +323,19 @@
       "drawSignature": "Dessinez votre signature",
       "submitSignature": "Envoyer la signature",
       "signedBy": "Signée par {name}",
-      "termsNote": "Les prix correspondent au forfait et sont soumis à disponibilité au moment de la réservation."
+      "termsNote": "Les prix correspondent au forfait et sont soumis à disponibilité au moment de la réservation.",
+      "document": {
+        "eyebrow": "Proposition de voyage privée",
+        "travellers": "{count, plural, one {# voyageur} other {# voyageurs}}",
+        "greeting": "Cher/Chère {name}, ce serait un plaisir d'organiser ce voyage pour vous. Voici tout ce que votre séjour comprend.",
+        "dayByDay": "Jour par jour",
+        "whatsIncluded": "Ce qui est inclus",
+        "fullItinerary": "Itinéraire complet détaillé ci-dessus",
+        "totalPackage": "Forfait total",
+        "taxesAndDeposit": "Toutes taxes et frais inclus · acompte {deposit}",
+        "validUntil": "Cette proposition est valable jusqu'au {date}.",
+        "preparedBy": "Préparé par {appName} · {tagline}. Les prix correspondent au forfait et sont soumis à disponibilité au moment de la réservation."
+      }
     }
   },
   "errors": {

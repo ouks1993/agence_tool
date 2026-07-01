@@ -25,8 +25,11 @@ import { SUPPORTED_CURRENCIES } from "@/lib/domain";
  */
 export function AiQuoteBuilder({
   onQuote,
+  trigger,
 }: {
   onQuote: (result: QuoteResult) => void;
+  /** Optional custom trigger; defaults to a "Build with AI" outline button. */
+  trigger?: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -94,10 +97,12 @@ export function AiQuoteBuilder({
       }}
     >
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          <Sparkles className="mr-2 size-4" />
-          Build with AI
-        </Button>
+        {trigger ?? (
+          <Button variant="outline" size="sm">
+            <Sparkles className="mr-2 size-4" />
+            Build with AI
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="max-w-2xl">
         <DialogHeader>

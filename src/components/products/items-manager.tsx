@@ -11,8 +11,10 @@ import {
   Package,
   Trash2,
   Plus,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
+import { AiQuoteBuilder } from "@/components/products/ai-quote-builder";
 import { SupplierPicker, type SupplierOption } from "@/components/suppliers/supplier-picker";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,18 +23,18 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
+import type { QuoteResult } from "@/lib/actions/ai";
 import { addProductItem, removeProductItem } from "@/lib/actions/products";
 import {
   PRODUCT_ITEM_TYPES,
   PRODUCT_ITEM_TYPE_META,
   type ProductItemType,
 } from "@/lib/domain";
-import { formatMoney } from "@/lib/format";
+import { formatDate, formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const ICONS: Record<ProductItemType, React.ComponentType<{ className?: string }>> = {
@@ -44,15 +46,14 @@ const ICONS: Record<ProductItemType, React.ComponentType<{ className?: string }>
   other: Package,
 };
 
-// Per-category tile colours, drawn from the design-system chart palette so the
-// proposal line items match the marketing mockup (flights · hotels · activities
-// · transfers · insurance).
+// Per-category tile colours, drawn from the design-system tokens so the proposal
+// line items match the marketing mockup (flights · hotels · activities · … ).
 const TILE: Record<ProductItemType, string> = {
   flight: "bg-brand/10 text-brand",
-  hotel: "bg-green-500/10 text-green-600 dark:text-green-400",
+  hotel: "bg-success-soft text-success",
   activity: "bg-chart-4/10 text-chart-4",
-  transfer: "bg-chart-6/10 text-chart-6",
-  insurance: "bg-chart-3/10 text-chart-3",
+  transfer: "bg-info-soft text-info",
+  insurance: "bg-warning-soft text-warning",
   other: "bg-muted text-muted-foreground",
 };
 
@@ -66,7 +67,30 @@ export type ProductItemRow = {
   unitCost: string;
   unitPrice: string;
   currency: string;
+  startDate: Date | string | null;
 };
+
+type AddForm = {
+  type: ProductItemType;
+  title: string;
+  supplier: string;
+  supplierId: string | null;
+  quantity: string;
+  unitCost: string;
+  description: string;
+  startDate: string;
+};
+
+const emptyForm = (type: ProductItemType = "activity"): AddForm => ({
+  type,
+  title: "",
+  supplier: "",
+  supplierId: null,
+  quantity: "1",
+  unitCost: "",
+  description: "",
+  startDate: "",
+});
 
 export function ItemsManager({
   productId,
@@ -82,15 +106,8 @@ export function ItemsManager({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({
-    type: "activity",
-    title: "",
-    supplier: "",
-    supplierId: null as string | null,
-    quantity: "1",
-    unitCost: "",
-    description: "",
-  });
+  const [form, setForm] = useState<AddForm>(emptyForm());
+  const [titleError, setTitleError] = useState(false);
 
   const remove = (id: string) => {
     startTransition(async () => {
@@ -104,25 +121,60 @@ export function ItemsManager({
     });
   };
 
+  const openAdd = (type: ProductItemType) => {
+    setForm(emptyForm(type));
+    setTitleError(false);
+    setOpen(true);
+  };
+
   const add = () => {
+    if (!form.title.trim()) {
+      setTitleError(true);
+      return;
+    }
     startTransition(async () => {
       const res = await addProductItem(productId, {
-        type: form.type as ProductItemType,
-        title: form.title,
+        type: form.type,
+        title: form.title.trim(),
         supplier: form.supplier || undefined,
         supplierId: form.supplierId ?? undefined,
         quantity: form.quantity === "" ? 1 : Number(form.quantity),
         unitCost: form.unitCost === "" ? 0 : Number(form.unitCost),
         currency,
-        description: form.description,
+        description: form.description || undefined,
+        startDate: form.startDate || undefined,
       });
       if (res.ok) {
         toast.success("Item added");
-        setForm({ type: "activity", title: "", supplier: "", supplierId: null, quantity: "1", unitCost: "", description: "" });
+        setForm(emptyForm(form.type));
         setOpen(false);
         router.refresh();
       } else {
         toast.error(res.error);
+      }
+    });
+  };
+
+  // Bulk-add AI-generated line items into the proposal in place.
+  const applyQuote = (quote: QuoteResult) => {
+    startTransition(async () => {
+      let added = 0;
+      for (const it of quote.items) {
+        const res = await addProductItem(productId, {
+          type: it.type,
+          title: it.title,
+          supplier: it.supplier || undefined,
+          quantity: it.quantity,
+          unitCost: it.unitCost,
+          currency,
+        });
+        if (res.ok) added += 1;
+      }
+      if (added > 0) {
+        toast.success(`${added} item${added === 1 ? "" : "s"} added from AI`);
+        router.refresh();
+      } else {
+        toast.error("Could not add the generated items.");
       }
     });
   };
@@ -140,84 +192,153 @@ export function ItemsManager({
   const marginPct = totals.cost > 0 ? (margin / totals.cost) * 100 : 0;
 
   return (
-    <div className="space-y-3">
-      {items.length === 0 ? (
+    <div className="space-y-4">
+      {/* Header: AI generate chip */}
+      <div className="flex items-center justify-between gap-3">
         <p className="text-muted-foreground text-sm">
-          No items yet. Add flights and hotels from{" "}
-          <span className="font-medium">Search</span>, or add a line item below.
+          Build the itinerary line by line, or generate it with AI.
         </p>
+        <AiQuoteBuilder
+          onQuote={applyQuote}
+          trigger={
+            <Button
+              type="button"
+              size="sm"
+              className="from-chart-4 to-primary bg-gradient-to-br text-white shadow-sm hover:opacity-95"
+            >
+              <Sparkles className="mr-2 size-4" />
+              Generate with AI
+            </Button>
+          }
+        />
+      </div>
+
+      {items.length === 0 ? (
+        <button
+          type="button"
+          onClick={() => openAdd("flight")}
+          className="border-border hover:border-primary hover:bg-accent text-muted-foreground hover:text-accent-foreground flex w-full flex-col items-center justify-center gap-1 rounded-lg border border-dashed p-8 text-sm transition-colors"
+        >
+          <Plus className="size-5" />
+          <span className="font-medium">Add your first line item</span>
+          <span className="text-xs">Flights, hotels, transfers, activities…</span>
+        </button>
       ) : (
         <>
-          <ul className="divide-y">
-            {items.map((item) => {
-              const Icon = ICONS[(item.type as ProductItemType)] ?? Package;
-              const lineCost = parseFloat(item.unitCost || "0") * item.quantity;
-              const linePrice = parseFloat(item.unitPrice || "0") * item.quantity;
-              const lineMargin = linePrice - lineCost;
+          <div className="space-y-4">
+            {PRODUCT_ITEM_TYPES.map((type) => {
+              const rows = items.filter((i) => i.type === type);
+              if (rows.length === 0) return null;
+              const Icon = ICONS[type];
               return (
-                <li key={item.id} className="flex items-start gap-3 py-3">
-                  <div
-                    className={cn(
-                      "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md",
-                      TILE[item.type as ProductItemType] ??
-                        "bg-muted text-muted-foreground"
-                    )}
-                  >
-                    <Icon className="size-4" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium">{item.title}</p>
-                    <p className="text-muted-foreground text-xs">
-                      {PRODUCT_ITEM_TYPE_META[item.type as ProductItemType]?.label ??
-                        item.type}
-                      {item.supplier ? ` · ${item.supplier}` : ""}
-                      {item.quantity > 1 ? ` · ×${item.quantity}` : ""}
-                    </p>
-                    {item.description && (
-                      <p className="text-muted-foreground mt-0.5 text-xs">
-                        {item.description}
-                      </p>
-                    )}
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <p className="font-semibold tabular-nums">
-                      {formatMoney(linePrice, item.currency)}
-                    </p>
-                    <p className="text-muted-foreground text-xs tabular-nums">
-                      cost {formatMoney(lineCost, item.currency)}
-                      {lineMargin > 0 && (
-                        <span className="text-green-600 dark:text-green-400">
-                          {" · +"}
-                          {formatMoney(lineMargin, item.currency)}
-                        </span>
+                <section key={type} className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={cn(
+                        "flex size-6 items-center justify-center rounded-md",
+                        TILE[type]
                       )}
-                    </p>
+                    >
+                      <Icon className="size-3.5" />
+                    </span>
+                    <h3 className="text-sm font-semibold">
+                      {PRODUCT_ITEM_TYPE_META[type].label}
+                    </h3>
+                    <span className="text-muted-foreground text-xs">
+                      · {rows.length}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="ml-auto h-7"
+                      onClick={() => openAdd(type)}
+                    >
+                      <Plus className="mr-1 size-3.5" />
+                      Add {PRODUCT_ITEM_TYPE_META[type].label.toLowerCase()}
+                    </Button>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => remove(item.id)}
-                    disabled={pending}
-                    aria-label="Remove item"
-                  >
-                    <Trash2 className="size-4" />
-                  </Button>
-                </li>
+                  <ul className="divide-y rounded-lg border">
+                    {rows.map((item) => {
+                      const lineCost =
+                        parseFloat(item.unitCost || "0") * item.quantity;
+                      const linePrice =
+                        parseFloat(item.unitPrice || "0") * item.quantity;
+                      const lineMargin = linePrice - lineCost;
+                      return (
+                        <li
+                          key={item.id}
+                          className="flex items-start gap-3 px-3 py-2.5"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium">{item.title}</p>
+                            <p className="text-muted-foreground text-xs">
+                              {item.supplier ? `${item.supplier}` : ""}
+                              {item.supplier && item.quantity > 1 ? " · " : ""}
+                              {item.quantity > 1 ? `×${item.quantity}` : ""}
+                              {item.startDate
+                                ? `${item.supplier || item.quantity > 1 ? " · " : ""}${formatDate(item.startDate)}`
+                                : ""}
+                            </p>
+                            {item.description && (
+                              <p className="text-muted-foreground mt-0.5 text-xs">
+                                {item.description}
+                              </p>
+                            )}
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <p className="text-sm font-semibold tabular-nums">
+                              {formatMoney(linePrice, item.currency)}
+                            </p>
+                            <p className="text-muted-foreground text-xs tabular-nums">
+                              cost {formatMoney(lineCost, item.currency)}
+                              {lineMargin > 0 && (
+                                <span className="text-success">
+                                  {" · +"}
+                                  {formatMoney(lineMargin, item.currency)}
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="size-7"
+                            onClick={() => remove(item.id)}
+                            disabled={pending}
+                            aria-label="Remove item"
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
               );
             })}
-          </ul>
+          </div>
 
-          <div className="space-y-1.5 rounded-lg border bg-muted/30 p-4 text-sm">
+          {/* Quote summary */}
+          <div className="border-strong bg-surface-2 space-y-1.5 rounded-lg border p-4 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Total cost</span>
-              <span className="tabular-nums">{formatMoney(totals.cost, currency)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">
-                Margin{marginPct > 0 ? ` · ${marginPct.toFixed(0)}%` : ""}
+              <span className="tabular-nums">
+                {formatMoney(totals.cost, currency)}
               </span>
-              <span className="tabular-nums text-green-600 dark:text-green-400">
-                {formatMoney(margin, currency)}
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Margin</span>
+              <span className="inline-flex items-center gap-2">
+                {marginPct > 0 && (
+                  <span className="bg-success-soft text-success rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums">
+                    {marginPct.toFixed(0)}%
+                  </span>
+                )}
+                <span className="text-success tabular-nums">
+                  {formatMoney(margin, currency)}
+                </span>
               </span>
             </div>
             <div className="flex justify-between border-t pt-1.5 font-semibold">
@@ -227,16 +348,15 @@ export function ItemsManager({
               </span>
             </div>
           </div>
+
+          <Button type="button" variant="outline" size="sm" onClick={() => openAdd("activity")}>
+            <Plus className="mr-2 size-4" />
+            Add line item
+          </Button>
         </>
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogTrigger asChild>
-          <Button variant="outline" size="sm">
-            <Plus className="mr-2 size-4" />
-            Add line item
-          </Button>
-        </DialogTrigger>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add line item</DialogTitle>
@@ -247,7 +367,9 @@ export function ItemsManager({
               <Select
                 id="i-type"
                 value={form.type}
-                onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, type: e.target.value as ProductItemType }))
+                }
               >
                 {PRODUCT_ITEM_TYPES.map((t) => (
                   <option key={t} value={t}>
@@ -267,13 +389,22 @@ export function ItemsManager({
               />
             </div>
             <div className="col-span-2 space-y-2">
-              <Label htmlFor="i-title">Title</Label>
+              <Label htmlFor="i-title">
+                Title <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="i-title"
                 value={form.title}
-                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                onChange={(e) => {
+                  setForm((f) => ({ ...f, title: e.target.value }));
+                  if (titleError) setTitleError(false);
+                }}
+                aria-invalid={titleError || undefined}
                 placeholder="e.g. Airport transfer, City tour…"
               />
+              {titleError && (
+                <p className="text-destructive text-xs">A title is required.</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="i-supplier">Supplier</Label>
@@ -298,6 +429,18 @@ export function ItemsManager({
                 onChange={(e) => setForm((f) => ({ ...f, unitCost: e.target.value }))}
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="i-date">Date</Label>
+              <Input
+                id="i-date"
+                type="date"
+                value={form.startDate}
+                onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
+              />
+              <p className="text-muted-foreground text-xs">
+                Dated items form the day-by-day itinerary.
+              </p>
+            </div>
             <div className="col-span-2 space-y-2">
               <Label htmlFor="i-desc">Description</Label>
               <Input
@@ -311,7 +454,7 @@ export function ItemsManager({
             <Button variant="ghost" onClick={() => setOpen(false)} disabled={pending}>
               Cancel
             </Button>
-            <Button onClick={add} disabled={pending || !form.title}>
+            <Button onClick={add} disabled={pending}>
               {pending ? "Adding…" : "Add item"}
             </Button>
           </DialogFooter>

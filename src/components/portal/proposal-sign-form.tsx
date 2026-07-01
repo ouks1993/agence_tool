@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, PenLine } from "lucide-react";
+import { PenLine } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,21 +11,32 @@ import {
   acceptProposalFromPortal,
   declineProposalFromPortal,
 } from "@/lib/actions/portal-proposals";
+import { cn } from "@/lib/utils";
 
 /**
  * Portal-side accept/decline form for a proposal. Typing the full name is the
  * signature; the signer's identity comes from the portal session server-side.
+ * Presented as the designed "sign here" card matching the marketing mockup.
  */
-export function ProposalSignForm({ productId }: { productId: string }) {
+export function ProposalSignForm({
+  productId,
+  depositLabel,
+}: {
+  productId: string;
+  depositLabel?: string;
+}) {
   const router = useRouter();
   const [signature, setSignature] = useState("");
+  const [touched, setTouched] = useState(false);
   const [pending, startTransition] = useTransition();
 
   // Name must be at least 2 chars before acceptance is allowed.
   const canAccept = signature.trim().length >= 2;
+  const showError = touched && !canAccept;
 
   const handleAccept = (e: React.FormEvent) => {
     e.preventDefault();
+    setTouched(true);
     if (!canAccept) {
       toast.error("Please type your full name to sign.");
       return;
@@ -54,31 +65,55 @@ export function ProposalSignForm({ productId }: { productId: string }) {
   };
 
   return (
-    <form onSubmit={handleAccept} className="space-y-4">
-      <div className="flex items-center gap-2 text-sm font-semibold">
+    <form
+      onSubmit={handleAccept}
+      className="bg-muted/30 space-y-4 rounded-lg border border-dashed p-6"
+    >
+      <div className="flex items-center justify-center gap-2">
+        <span className="bg-warning-soft text-warning inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold">
+          <span className="bg-warning size-1.5 animate-pulse rounded-full" />
+          Awaiting signature
+        </span>
+      </div>
+
+      <div className="flex items-center justify-center gap-2 text-sm font-semibold">
         <PenLine className="size-4" /> Accept &amp; sign
       </div>
-      <div className="space-y-2">
-        <Label htmlFor="signature">Type your full name to sign</Label>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="signature">Signature</Label>
         <Input
           id="signature"
           value={signature}
           onChange={(e) => setSignature(e.target.value)}
-          placeholder="Your full name"
-          className="font-medium italic"
+          onBlur={() => setTouched(true)}
+          placeholder="Type your full name"
+          aria-invalid={showError || undefined}
+          className={cn(
+            "rounded-none border-0 border-b bg-transparent px-0 text-lg italic shadow-none focus-visible:ring-0",
+            showError && "border-destructive"
+          )}
           required
         />
-        <p className="text-muted-foreground text-xs">
-          By signing you confirm acceptance of this proposal and its price.
-        </p>
+        {showError ? (
+          <p className="text-destructive text-xs">Type your full name to sign.</p>
+        ) : (
+          <p className="text-muted-foreground text-center text-xs">
+            Sign here to confirm
+            {depositLabel ? ` — a 50% deposit (${depositLabel}) secures your dates` : ""}
+            .
+          </p>
+        )}
       </div>
-      <div className="flex flex-wrap gap-3">
-        <Button type="submit" disabled={pending || !canAccept}>
-          <Check className="mr-1 size-4" /> I accept this proposal
+
+      <div className="space-y-2">
+        <Button type="submit" size="lg" className="w-full" disabled={pending}>
+          {pending ? "Signing…" : "Accept & sign proposal"}
         </Button>
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
+          className="w-full"
           onClick={handleDecline}
           disabled={pending}
         >

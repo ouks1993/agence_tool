@@ -32,7 +32,7 @@ export default async function NewBookingPage({
       <BookingForm
         mode="create"
         clients={clients}
-        initial={{ clientId: sp.clientId ?? "", currency: "EUR" }}
+        initial={{ clientId: sp.clientId ?? "" }}
       />
     </div>
   );

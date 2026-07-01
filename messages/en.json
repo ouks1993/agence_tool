@@ -323,7 +323,19 @@
       "drawSignature": "Draw your signature",
       "submitSignature": "Submit signature",
       "signedBy": "Signed by {name}",
-      "termsNote": "Prices are per the package and subject to availability at the time of booking."
+      "termsNote": "Prices are per the package and subject to availability at the time of booking.",
+      "document": {
+        "eyebrow": "Private travel proposal",
+        "travellers": "{count, plural, one {# traveller} other {# travellers}}",
+        "greeting": "Dear {name}, it would be our pleasure to arrange this trip for you. Below is everything your journey includes.",
+        "dayByDay": "Day by day",
+        "whatsIncluded": "What's included",
+        "fullItinerary": "Full itinerary as detailed above",
+        "totalPackage": "Total package",
+        "taxesAndDeposit": "All taxes & fees included · deposit {deposit}",
+        "validUntil": "This proposal is valid until {date}.",
+        "preparedBy": "Prepared by {appName} · {tagline}. Prices are per the package and subject to availability at the time of booking."
+      }
     }
   },
   "errors": {

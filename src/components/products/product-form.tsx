@@ -56,11 +56,22 @@ export function ProductForm({
     summary: initial?.summary ?? "",
   });
 
+  const [dateError, setDateError] = useState(false);
+
   const set = (key: keyof FormState, value: string) =>
     setForm((f) => ({ ...f, [key]: value }));
 
+  // End date must not precede start date.
+  const invalidRange =
+    !!form.startDate && !!form.endDate && form.endDate < form.startDate;
+
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (invalidRange) {
+      setDateError(true);
+      toast.error("End date can't be before the start date.");
+      return;
+    }
     const payload: ProductInput = {
       title: form.title,
       clientId: form.clientId || undefined,
@@ -82,7 +93,7 @@ export function ProductForm({
       if (res.ok) {
         toast.success(mode === "create" ? "Proposal created" : "Saved");
         const id = mode === "create" && "data" in res ? res.data?.id : productId;
-        router.push(id ? `/products/${id}` : "/products");
+        router.push(id ? `/proposals/${id}` : "/proposals");
         router.refresh();
       } else {
         toast.error(res.error);
@@ -175,9 +186,19 @@ export function ProductForm({
             <Input
               id="endDate"
               type="date"
+              min={form.startDate || undefined}
               value={form.endDate}
-              onChange={(e) => set("endDate", e.target.value)}
+              onChange={(e) => {
+                set("endDate", e.target.value);
+                if (dateError) setDateError(false);
+              }}
+              aria-invalid={(dateError && invalidRange) || undefined}
             />
+            {dateError && invalidRange && (
+              <p className="text-destructive text-xs">
+                End date can&apos;t be before the start date.
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -206,6 +227,9 @@ export function ProductForm({
               value={form.markupPercent}
               onChange={(e) => set("markupPercent", e.target.value)}
             />
+            <p className="text-muted-foreground text-xs">
+              Agency margin added on top of net supplier cost.
+            </p>
           </div>
 
           <div className="space-y-2">

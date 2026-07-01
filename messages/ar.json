@@ -323,7 +323,19 @@
       "drawSignature": "ارسم توقيعك",
       "submitSignature": "إرسال التوقيع",
       "signedBy": "موقّع من {name}",
-      "termsNote": "الأسعار حسب الباقة وتخضع للتوفر وقت الحجز."
+      "termsNote": "الأسعار حسب الباقة وتخضع للتوفر وقت الحجز.",
+      "document": {
+        "eyebrow": "عرض سفر خاص",
+        "travellers": "{count, plural, zero {# مسافر} one {مسافر واحد} two {مسافران} few {# مسافرين} many {# مسافراً} other {# مسافر}}",
+        "greeting": "عزيزي {name}، يسعدنا ترتيب هذه الرحلة لك. فيما يلي كل ما تتضمنه رحلتك.",
+        "dayByDay": "يوماً بيوم",
+        "whatsIncluded": "ما هو مشمول",
+        "fullItinerary": "برنامج الرحلة الكامل مفصّل أعلاه",
+        "totalPackage": "إجمالي الباقة",
+        "taxesAndDeposit": "شامل جميع الضرائب والرسوم · العربون {deposit}",
+        "validUntil": "هذا العرض صالح حتى {date}.",
+        "preparedBy": "أُعدّ بواسطة {appName} · {tagline}. الأسعار حسب الباقة وتخضع للتوفر وقت الحجز."
+      }
     }
   },
   "errors": {

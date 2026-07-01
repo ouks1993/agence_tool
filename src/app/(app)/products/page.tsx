@@ -76,7 +76,7 @@ export default async function ProductsPage() {
                 <TableHead>Title</TableHead>
                 <TableHead>Client</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Total</TableHead>
+                <TableHead numeric>Total</TableHead>
                 <TableHead>Created</TableHead>
               </TableRow>
             </TableHeader>
@@ -101,7 +101,7 @@ export default async function ProductsPage() {
                     <TableCell>
                       <StatusBadge label={meta?.label ?? p.status} tone={meta?.badgeClass} />
                     </TableCell>
-                    <TableCell className="text-right font-medium">
+                    <TableCell numeric className="font-medium">
                       {formatMoney(p.totalPrice, p.currency)}
                     </TableCell>
                     <TableCell className="text-muted-foreground text-xs">

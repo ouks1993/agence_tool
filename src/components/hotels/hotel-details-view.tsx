@@ -276,7 +276,7 @@ export function HotelDetailsView({
               <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-3">
                 {content.facilities.map((f) => (
                   <p key={f} className="flex items-center gap-1.5 text-sm">
-                    <CheckCircle2 className="size-3.5 shrink-0 text-green-600 dark:text-green-400" />
+                    <CheckCircle2 className="text-success size-3.5 shrink-0" />
                     {f}
                   </p>
                 ))}
@@ -349,9 +349,9 @@ export function HotelDetailsView({
           )}
         </div>
 
-        <div className="overflow-x-auto rounded-lg border">
+        <div className="max-h-[32rem] overflow-x-auto overflow-y-auto rounded-lg border">
           <Table>
-            <TableHeader>
+            <TableHeader className="bg-card sticky top-0 z-10">
               <TableRow>
                 <TableHead>Room type</TableHead>
                 <TableHead>Occupancy</TableHead>
@@ -370,7 +370,7 @@ export function HotelDetailsView({
                 </TableRow>
               ) : (
                 rooms.map((r) => (
-                  <TableRow key={r.id}>
+                  <TableRow key={r.id} className="even:bg-muted/40">
                     <TableCell className="font-medium">
                       <span className="flex items-center gap-2">
                         {roomImage(r) ? (
@@ -396,7 +396,7 @@ export function HotelDetailsView({
                     <TableCell>{r.boardType ?? "Room only"}</TableCell>
                     <TableCell>
                       {r.refundable ? (
-                        <span className="text-green-600 dark:text-green-400">
+                        <span className="text-success">
                           Free cancellation
                           {r.cancellationDeadline
                             ? ` until ${formatDate(r.cancellationDeadline)}`
@@ -407,10 +407,10 @@ export function HotelDetailsView({
                       )}
                     </TableCell>
                     <TableCell className="text-end">
-                      <span className="font-semibold">
+                      <span className="font-semibold tabular-nums">
                         {formatMoney(r.priceTotal, r.currency)}
                       </span>
-                      <span className="text-muted-foreground block text-xs">
+                      <span className="text-muted-foreground block text-xs tabular-nums">
                         {formatMoney(r.pricePerNight, r.currency)}/night
                       </span>
                     </TableCell>
@@ -485,13 +485,19 @@ function ReviewsCard({ stars, code }: { stars: number; code: string }) {
   }, [code]);
   const score = Math.min(9.8, Math.max(6.5, 6.8 + stars * 0.5 + ((seed % 5) - 2) * 0.1));
   const cats = ["Staff", "Cleanliness", "Location", "Value", "Comfort"];
+  const scoreBg = score >= 9 ? "bg-success" : score >= 8 ? "bg-info" : "bg-muted-foreground";
 
   return (
     <Section title="Guest reviews">
       <Card>
         <CardContent className="space-y-3 p-4">
           <div className="flex items-center gap-2">
-            <span className="bg-primary text-primary-foreground rounded-md px-2 py-1 text-lg font-bold">
+            <span
+              className={cn(
+                "rounded-md px-2 py-1 text-lg font-bold text-white tabular-nums",
+                scoreBg
+              )}
+            >
               {score.toFixed(1)}
             </span>
             <div className="leading-tight">

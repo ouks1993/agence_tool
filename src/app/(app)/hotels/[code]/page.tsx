@@ -2,7 +2,16 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { HotelDetailsView } from "@/components/hotels/hotel-details-view";
 import type { Occupancy } from "@/components/hotels/occupancy-picker";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
+import { DEFAULT_CURRENCY } from "@/lib/domain";
 import { requireAgencyUser } from "@/lib/permissions";
 import {
   listClientOptions,
@@ -48,7 +57,7 @@ export default async function HotelDetailsPage({
   const dates = { checkIn: get("checkIn") ?? "", checkOut: get("checkOut") ?? "" };
   const city = get("city") ?? "";
   const cityCode = get("cityCode") ?? "";
-  const currency = get("currency") ?? "EUR";
+  const currency = get("currency") ?? DEFAULT_CURRENCY;
   const name = get("name") ?? "Hotel";
 
   // Prefer real Hotelbeds content (photos, facilities, map) for live codes; fall
@@ -70,6 +79,22 @@ export default async function HotelDetailsPage({
 
   return (
     <div className="container mx-auto space-y-5 px-4 py-8">
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>Search</BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href="/hotels">Hotels</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>{name}</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
       <Button asChild variant="ghost" size="sm" className="-ms-2 w-fit">
         <Link href="/hotels">
           <ArrowLeft className="size-4" /> Back to results

@@ -3,11 +3,12 @@ import { notFound } from "next/navigation";
 import { and, asc, eq } from "drizzle-orm";
 import {
   ArrowLeft,
-  Pencil,
-  MapPin,
-  Users,
-  Calendar,
   CalendarClock,
+  Calendar,
+  Eye,
+  MapPin,
+  Pencil,
+  Users,
 } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusBadge } from "@/components/app/status-badge";
@@ -15,19 +16,23 @@ import { ConvertToBookingButton } from "@/components/products/convert-to-booking
 import { DeleteProductButton } from "@/components/products/delete-product-button";
 import { ItemsManager } from "@/components/products/items-manager";
 import { ProductStatusControl } from "@/components/products/product-status-control";
+import { ProposalDocument } from "@/components/products/proposal-document";
 import { ProposalShareControl } from "@/components/products/proposal-share-control";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSuppliersForPicker } from "@/lib/actions/suppliers";
+import { APP_NAME, APP_TAGLINE } from "@/lib/config";
 import { db } from "@/lib/db";
 import {
   PRODUCT_STATUS_META,
   seesAllData,
   type ProductStatus,
 } from "@/lib/domain";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { requireAgencyUser } from "@/lib/permissions";
+import { toProposalDocData } from "@/lib/proposal-doc";
 import { product } from "@/lib/schema";
+import { cn } from "@/lib/utils";
 
 export default async function ProductDetailPage({
   params,
@@ -46,7 +51,7 @@ export default async function ProductDetailPage({
         seesAllData(user.role) ? undefined : eq(product.createdById, user.id)
       ),
       with: {
-        client: { columns: { id: true, name: true } },
+        client: { columns: { id: true, name: true, email: true, city: true } },
         opportunity: { columns: { id: true, title: true } },
         items: { orderBy: (t) => [asc(t.sortOrder)] },
       },
@@ -56,12 +61,10 @@ export default async function ProductDetailPage({
   if (!p) notFound();
 
   const meta = PRODUCT_STATUS_META[p.status as ProductStatus];
-  const totalCost = parseFloat(p.totalCost || "0");
-  const totalPrice = parseFloat(p.totalPrice || "0");
-  const margin = totalPrice - totalCost;
+  const doc = toProposalDocData(p, p.client?.name ?? null);
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8 sm:px-6">
+    <div className="mx-auto w-full max-w-7xl space-y-6 px-4 py-8 sm:px-6">
       <Button asChild variant="ghost" size="sm" className="-ml-2">
         <Link href="/proposals">
           <ArrowLeft className="mr-1 size-4" />
@@ -72,9 +75,13 @@ export default async function ProductDetailPage({
       <PageHeader title={p.title} description={p.reference}>
         <ProductStatusControl id={p.id} status={p.status} />
         <ProposalShareControl productId={p.id} shareToken={p.shareToken} />
-        {p.status === "accepted" && (
-          <ConvertToBookingButton productId={p.id} />
-        )}
+        {p.status === "accepted" && <ConvertToBookingButton productId={p.id} />}
+        <Button asChild variant="outline" size="sm">
+          <Link href={`/proposal/${p.id}`} target="_blank">
+            <Eye className="mr-2 size-4" />
+            Preview
+          </Link>
+        </Button>
         <Button asChild variant="outline" size="sm">
           <Link href={`/proposals/${p.id}/edit`}>
             <Pencil className="mr-2 size-4" />
@@ -96,11 +103,57 @@ export default async function ProductDetailPage({
         )}
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
-          <Card>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_460px]">
+        {/* Editing column */}
+        <div className="min-w-0 space-y-6">
+          {/* Client card */}
+          <Card className="card-elevated">
+            <CardContent className="flex items-center gap-3 py-4">
+              <div className="bg-brand/10 text-brand flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold">
+                {(p.client?.name ?? "—").trim().charAt(0).toUpperCase()}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold">
+                  {p.client?.name ?? "No client assigned"}
+                </p>
+                <p className="text-muted-foreground truncate text-xs">
+                  {[p.client?.city, p.client?.email]
+                    .filter(Boolean)
+                    .join(" · ") || "Assign a client to personalise the proposal"}
+                </p>
+              </div>
+              <Button asChild variant="outline" size="sm">
+                <Link href={`/proposals/${p.id}/edit`}>Change</Link>
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Trip details strip */}
+          <Card className="card-elevated">
+            <div className="grid grid-cols-2 divide-x divide-y md:grid-cols-4 md:divide-y-0">
+              <TripCell icon={MapPin} label="Destination" value={p.destination ?? "—"} />
+              <TripCell
+                icon={Calendar}
+                label="Dates"
+                value={
+                  p.startDate || p.endDate
+                    ? `${formatDate(p.startDate)} → ${formatDate(p.endDate)}`
+                    : "—"
+                }
+              />
+              <TripCell icon={Users} label="Travellers" value={String(p.paxCount)} />
+              <TripCell
+                icon={CalendarClock}
+                label="Valid until"
+                value={formatDate(p.validUntil)}
+              />
+            </div>
+          </Card>
+
+          {/* Line items */}
+          <Card className="card-elevated">
             <CardHeader>
-              <CardTitle className="text-base">Items</CardTitle>
+              <CardTitle className="text-base">Line items</CardTitle>
             </CardHeader>
             <CardContent>
               <ItemsManager
@@ -117,104 +170,66 @@ export default async function ProductDetailPage({
                   unitCost: i.unitCost,
                   unitPrice: i.unitPrice,
                   currency: i.currency,
+                  startDate: i.startDate,
                 }))}
               />
             </CardContent>
           </Card>
 
-          {p.summary && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Proposal summary</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm whitespace-pre-wrap">{p.summary}</p>
+          {p.opportunity && (
+            <Card className="card-elevated">
+              <CardContent className="py-4">
+                <Link
+                  href={`/opportunities/${p.opportunity.id}`}
+                  className="text-sm hover:underline"
+                >
+                  Linked opportunity: {p.opportunity.title}
+                </Link>
               </CardContent>
             </Card>
           )}
         </div>
 
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Pricing</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              <Row label="Net cost" value={formatMoney(totalCost, p.currency)} />
-              <Row label={`Margin (${p.markupPercent}%)`} value={formatMoney(margin, p.currency)} />
-              <div className="flex items-center justify-between border-t pt-3">
-                <span className="font-semibold">Client price</span>
-                <span className="text-lg font-bold">
-                  {formatMoney(totalPrice, p.currency)}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Trip details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <Detail icon={MapPin} label="Destination" value={p.destination ?? "—"} />
-              <Detail icon={Users} label="Travellers" value={String(p.paxCount)} />
-              <Detail
-                icon={Calendar}
-                label="Dates"
-                value={
-                  p.startDate || p.endDate
-                    ? `${formatDate(p.startDate)} → ${formatDate(p.endDate)}`
-                    : "—"
-                }
-              />
-              <Detail
-                icon={CalendarClock}
-                label="Valid until"
-                value={formatDate(p.validUntil)}
-              />
-              {p.opportunity && (
-                <div className="border-t pt-3">
-                  <Link
-                    href={`/opportunities/${p.opportunity.id}`}
-                    className="text-sm hover:underline"
-                  >
-                    Linked opportunity: {p.opportunity.title}
-                  </Link>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        {/* Live client preview rail */}
+        <div className="lg:sticky lg:top-6 lg:self-start">
+          <div className="mb-2 flex items-center gap-2">
+            <Eye className="text-muted-foreground size-4" />
+            <p className="text-sm font-semibold">Live client preview</p>
+            <span className="text-muted-foreground ml-auto text-xs">
+              What your client sees
+            </span>
+          </div>
+          <div className="max-h-[calc(100vh-8rem)] overflow-y-auto rounded-lg">
+            <ProposalDocument
+              data={doc}
+              appName={APP_NAME}
+              appTagline={APP_TAGLINE}
+            />
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-muted-foreground">{label}</span>
-      <span>{value}</span>
-    </div>
-  );
-}
-
-function Detail({
+function TripCell({
   icon: Icon,
   label,
   value,
+  className,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   value: string;
+  className?: string;
 }) {
   return (
-    <div className="flex items-start gap-2">
-      <Icon className="text-muted-foreground mt-0.5 size-4 shrink-0" />
-      <div>
-        <p className="text-muted-foreground text-xs">{label}</p>
-        <p>{value}</p>
-      </div>
+    <div className={cn("space-y-1 p-4", className)}>
+      <p className="text-muted-foreground flex items-center gap-1.5 text-[10.5px] font-semibold tracking-wide uppercase">
+        <Icon className="size-3" />
+        {label}
+      </p>
+      <p className="text-sm font-medium">{value}</p>
     </div>
   );
 }

@@ -1,6 +1,13 @@
 import { Info } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { HotelSearchExperience } from "@/components/hotels/hotel-search-experience";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { requireAgencyUser } from "@/lib/permissions";
 import {
   getActiveHotelProvider,
@@ -12,16 +19,25 @@ export const metadata = { title: "Hotels" };
 export default async function HotelsPage() {
   await requireAgencyUser();
   const live = isHotelProviderConfigured();
+  const providerLabel = getActiveHotelProvider().label;
 
   return (
     <div className="container mx-auto space-y-6 px-4 py-8">
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>Search</BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>Hotels</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
       <PageHeader
-        title="Hotels"
+        title="Hotel search"
         description="Search, compare and select hotels, then add them to a proposal."
       >
-        <span className="text-muted-foreground text-xs">
-          Source: {getActiveHotelProvider().label}
-        </span>
+        <span className="text-muted-foreground text-xs">Source: {providerLabel}</span>
       </PageHeader>
 
       {!live && (
@@ -36,7 +52,7 @@ export default async function HotelsPage() {
         </div>
       )}
 
-      <HotelSearchExperience />
+      <HotelSearchExperience providerLabel={providerLabel} />
     </div>
   );
 }

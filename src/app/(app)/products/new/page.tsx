@@ -45,7 +45,7 @@ export default async function NewProductPage({
         initial={{
           clientId: sp.clientId ?? "",
           opportunityId: sp.opportunityId ?? "",
-          currency: "EUR",
+          currency: "DZD",
           markupPercent: "10",
           paxCount: "1",
         }}
