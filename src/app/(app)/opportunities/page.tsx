@@ -1,9 +1,9 @@
-import { Fragment } from "react";
 import Link from "next/link";
 import { and, desc, eq } from "drizzle-orm";
 import { Plus, Target, Filter } from "lucide-react";
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
+import { StatStrip } from "@/components/app/stat-strip";
 import { FunnelInsight } from "@/components/charts/insight-charts";
 import { PipelineBoard, type BoardItem, type OwnerOption } from "@/components/opportunities/pipeline-board";
 import { PipelineExportButton } from "@/components/opportunities/pipeline-export-button";
@@ -29,7 +29,6 @@ import {
 import { formatMoney, formatMoneyCompact } from "@/lib/format";
 import { requireAgencyUser } from "@/lib/permissions";
 import { opportunity } from "@/lib/schema";
-import { cn } from "@/lib/utils";
 
 export const metadata = { title: "Opportunities" };
 
@@ -168,43 +167,19 @@ export default async function OpportunitiesPage() {
 
       {rows.length > 0 && (
         <>
-          <Card className="card-elevated">
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-4 px-5 py-4 sm:gap-x-8 sm:px-6">
-              {[
-                { label: "Open pipeline", value: formatMoneyCompact(openValue) },
-                { label: "Weighted forecast", value: formatMoneyCompact(forecast) },
-                {
-                  label: "Won this month",
-                  value: formatMoneyCompact(wonThisMonth),
-                  tone: "text-success",
-                },
-                { label: "Avg. win rate", value: `${winRate}%` },
-                { label: "Avg. deal size", value: formatMoneyCompact(avgDeal) },
-              ].map((kpi, i) => (
-                <Fragment key={kpi.label}>
-                  {i > 0 && (
-                    <div
-                      aria-hidden
-                      className="hidden h-9 w-px shrink-0 self-center bg-border sm:block"
-                    />
-                  )}
-                  <div className="min-w-[110px]">
-                    <div className="text-[11.5px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
-                      {kpi.label}
-                    </div>
-                    <div
-                      className={cn(
-                        "mt-1 text-[19px] leading-tight font-bold tracking-[-0.02em] tabular-nums text-foreground",
-                        kpi.tone
-                      )}
-                    >
-                      {kpi.value}
-                    </div>
-                  </div>
-                </Fragment>
-              ))}
-            </div>
-          </Card>
+          <StatStrip
+            items={[
+              { label: "Open pipeline", value: formatMoneyCompact(openValue) },
+              { label: "Weighted forecast", value: formatMoneyCompact(forecast) },
+              {
+                label: "Won this month",
+                value: formatMoneyCompact(wonThisMonth),
+                tone: "text-success",
+              },
+              { label: "Avg. win rate", value: `${winRate}%` },
+              { label: "Avg. deal size", value: formatMoneyCompact(avgDeal) },
+            ]}
+          />
 
           <Card className="card-elevated">
             <CardHeader>

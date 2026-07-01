@@ -5,7 +5,6 @@ import {
   Wallet,
   CircleDollarSign,
   TrendingUp,
-  AlertTriangle,
   Receipt,
   BadgePercent,
   CheckCircle2,
@@ -16,7 +15,8 @@ import { getTranslations } from "next-intl/server";
 import { CurrencyNote } from "@/components/app/currency-note";
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
-import { StatCard, type StatDelta } from "@/components/app/stat-card";
+import { type StatDelta } from "@/components/app/stat-card";
+import { StatStrip } from "@/components/app/stat-strip";
 import { StatusBadge } from "@/components/app/status-badge";
 import {
   AreaInsight,
@@ -52,7 +52,7 @@ import {
   PAYMENT_KIND_LABEL,
   type PaymentKind,
 } from "@/lib/domain";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatDate, formatMoney, formatMoneyCompact } from "@/lib/format";
 import { paymentSummary } from "@/lib/payments/summary";
 import { requireAgencyUser } from "@/lib/permissions";
 import { booking, commission, opportunity, payment, product, supplier } from "@/lib/schema";
@@ -424,42 +424,31 @@ export default async function FinancePage() {
 
       {/* KPIs — every headline is a single base-currency (DZD) figure; other
           currencies are surfaced explicitly, never blended into the total. */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div>
-          <StatCard
-            label={`Outstanding balance (${DEFAULT_CURRENCY})`}
-            value={formatMoney(outstandingBalance, DEFAULT_CURRENCY)}
-            hint={`${arRows.length} booking${arRows.length === 1 ? "" : "s"} with a balance`}
-            icon={Wallet}
-          />
+      <div className="space-y-2">
+        <StatStrip
+          items={[
+            {
+              label: "Outstanding balance",
+              value: formatMoneyCompact(outstandingBalance, DEFAULT_CURRENCY),
+            },
+            {
+              label: "Collected",
+              value: formatMoneyCompact(collected, DEFAULT_CURRENCY),
+              ...(collectedDelta ? { delta: collectedDelta } : {}),
+            },
+            {
+              label: "Confirmed revenue",
+              value: formatMoneyCompact(confirmedRevenue, DEFAULT_CURRENCY),
+              ...(confirmedDelta ? { delta: confirmedDelta } : {}),
+            },
+            { label: "Overdue", value: overdueCount },
+          ]}
+        />
+        <div className="flex flex-wrap gap-x-6 gap-y-1 px-1">
           <CurrencyNote others={outstandingOther} prefix="also outstanding" />
-        </div>
-        <div>
-          <StatCard
-            label={`Collected (${DEFAULT_CURRENCY})`}
-            value={formatMoney(collected, DEFAULT_CURRENCY)}
-            hint="Completed payments, net of refunds"
-            icon={CircleDollarSign}
-            {...(collectedDelta ? { delta: collectedDelta } : {})}
-          />
           <CurrencyNote others={collectedOther} prefix="also collected" />
-        </div>
-        <div>
-          <StatCard
-            label={`Confirmed revenue (${DEFAULT_CURRENCY})`}
-            value={formatMoney(confirmedRevenue, DEFAULT_CURRENCY)}
-            hint="Confirmed & paid bookings"
-            icon={TrendingUp}
-            {...(confirmedDelta ? { delta: confirmedDelta } : {})}
-          />
           <CurrencyNote others={confirmedOther} prefix="also" />
         </div>
-        <StatCard
-          label="Overdue"
-          value={overdueCount}
-          hint={overdueCount ? "Past departure, still owing" : "All on track"}
-          icon={AlertTriangle}
-        />
       </div>
 
       {/* Charts */}
@@ -781,26 +770,23 @@ export default async function FinancePage() {
         <h2 className="flex items-center gap-2 text-lg font-semibold">
           <BadgePercent className="size-5" /> Commissions
         </h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <StatCard
-            label={`Pending (${commissionCurrency})`}
-            value={formatMoney(commissionTotals.pending, commissionCurrency)}
-            hint="Not yet earned"
-            icon={Wallet}
-          />
-          <StatCard
-            label={`Earned (${commissionCurrency})`}
-            value={formatMoney(commissionTotals.earned, commissionCurrency)}
-            hint="Earned, awaiting payout"
-            icon={CircleDollarSign}
-          />
-          <StatCard
-            label={`Paid (${commissionCurrency})`}
-            value={formatMoney(commissionTotals.paid, commissionCurrency)}
-            hint="Settled commissions"
-            icon={CheckCircle2}
-          />
-        </div>
+        <StatStrip
+          items={[
+            {
+              label: "Pending",
+              value: formatMoneyCompact(commissionTotals.pending, commissionCurrency),
+            },
+            {
+              label: "Earned",
+              value: formatMoneyCompact(commissionTotals.earned, commissionCurrency),
+            },
+            {
+              label: "Paid",
+              value: formatMoneyCompact(commissionTotals.paid, commissionCurrency),
+              tone: "text-success",
+            },
+          ]}
+        />
       </div>
     </div>
   );
