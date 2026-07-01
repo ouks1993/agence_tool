@@ -33,7 +33,7 @@ export function BookingNotesCard({
       </CardHeader>
       <CardContent className="space-y-3">
         {showWarning && (
-          <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-300">
+          <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning-soft p-3 text-sm text-warning">
             <AlertTriangle className="mt-0.5 size-4 shrink-0" />
             <p>
               Collect {formatMoney(balance, currency)} balance before{" "}
@@ -42,8 +42,8 @@ export function BookingNotesCard({
           </div>
         )}
         {notes && (
-          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
-            <p className="text-sm whitespace-pre-wrap text-amber-900 dark:text-amber-100/90">
+          <div className="rounded-lg border border-warning/30 bg-warning-soft p-3">
+            <p className="text-sm whitespace-pre-wrap text-warning">
               {notes}
             </p>
           </div>

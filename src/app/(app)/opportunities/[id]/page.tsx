@@ -27,6 +27,8 @@ import {
 import { formatDate, formatMoney } from "@/lib/format";
 import { requireAgencyUser } from "@/lib/permissions";
 import { opportunity } from "@/lib/schema";
+import { statusTone } from "@/lib/status-tone";
+import { cn } from "@/lib/utils";
 
 export default async function OpportunityDetailPage({
   params,
@@ -87,8 +89,14 @@ export default async function OpportunityDetailPage({
       </PageHeader>
 
       <div className="flex flex-wrap items-center gap-2">
-        <StatusBadge label={stageMeta?.label ?? o.stage} tone={stageMeta?.badgeClass} />
-        <StatusBadge label={`${o.probability}% probability`} />
+        <StatusBadge
+          label={stageMeta?.label ?? o.stage}
+          variant={statusTone("opportunity", o.stage)}
+        />
+        <StatusBadge
+          label={`${o.probability}% probability`}
+          variant={o.probability >= 70 ? "success" : "info"}
+        />
         {o.client && (
           <Link
             href={`/clients/${o.client.id}`}
@@ -170,7 +178,7 @@ export default async function OpportunityDetailPage({
           {o.stage === "lost" && o.lostReason && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-destructive text-base">
+                <CardTitle className="text-danger text-base">
                   Reason lost
                 </CardTitle>
               </CardHeader>
@@ -183,11 +191,39 @@ export default async function OpportunityDetailPage({
 
         <div className="space-y-6">
           <Card>
-            <CardContent className="space-y-1 p-6 text-center">
-              <p className="text-muted-foreground flex items-center justify-center gap-1.5 text-sm">
-                <Target className="size-4" /> Estimated value
-              </p>
-              <p className="text-3xl font-bold">{formatMoney(o.value, o.currency)}</p>
+            <CardContent className="space-y-3 p-6 text-center">
+              <div className="space-y-1">
+                <p className="text-muted-foreground flex items-center justify-center gap-1.5 text-sm">
+                  <Target className="size-4" /> Estimated value
+                </p>
+                <p className="text-3xl font-bold tabular-nums">
+                  {formatMoney(o.value, o.currency)}
+                </p>
+              </div>
+              <div className="space-y-1 text-left">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground font-medium">Probability</span>
+                  <span
+                    className={cn(
+                      "font-semibold tabular-nums",
+                      o.probability >= 70 ? "text-success" : "text-foreground"
+                    )}
+                  >
+                    {o.probability}%
+                  </span>
+                </div>
+                <div className="bg-muted h-1.5 overflow-hidden rounded-full">
+                  <div
+                    className={cn(
+                      "h-full rounded-full",
+                      o.probability >= 70 ? "bg-success" : "bg-brand"
+                    )}
+                    style={{
+                      width: `${Math.min(100, Math.max(0, o.probability))}%`,
+                    }}
+                  />
+                </div>
+              </div>
             </CardContent>
           </Card>
 

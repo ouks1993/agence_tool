@@ -76,11 +76,41 @@ export function OpportunityForm({
     assignedToId: initial?.assignedToId ?? "",
   });
 
+  const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
+
   const set = <K extends keyof FormState>(key: K, value: string) =>
     setForm((f) => ({ ...f, [key]: value }));
 
+  /** Client-side validation mirroring the server action's constraints. */
+  const validate = (): boolean => {
+    const next: Partial<Record<keyof FormState, string>> = {};
+    if (!form.title.trim()) next.title = "Title is required.";
+    if (!form.clientId) next.clientId = "Select a client.";
+    if (form.value !== "" && Number(form.value) < 0)
+      next.value = "Value cannot be negative.";
+    if (form.probability !== "") {
+      const p = Number(form.probability);
+      if (Number.isNaN(p) || p < 0 || p > 100)
+        next.probability = "Probability must be between 0 and 100.";
+    }
+    if (form.paxCount !== "" && Number(form.paxCount) < 1)
+      next.paxCount = "At least 1 traveller.";
+    if (
+      form.travelStartDate &&
+      form.travelEndDate &&
+      form.travelEndDate < form.travelStartDate
+    )
+      next.travelEndDate = "End date is before the start date.";
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  };
+
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validate()) {
+      toast.error("Please fix the highlighted fields.");
+      return;
+    }
     const payload: OpportunityInput = {
       title: form.title,
       clientId: form.clientId,
@@ -126,8 +156,10 @@ export function OpportunityForm({
               value={form.title}
               onChange={(e) => set("title", e.target.value)}
               placeholder="e.g. Honeymoon in the Maldives"
+              aria-invalid={!!errors.title}
               required
             />
+            {errors.title && <p className="text-danger text-xs">{errors.title}</p>}
           </div>
 
           <div className="space-y-2">
@@ -145,6 +177,7 @@ export function OpportunityForm({
                 </option>
               ))}
             </Select>
+            {errors.clientId && <p className="text-danger text-xs">{errors.clientId}</p>}
           </div>
 
           <div className="space-y-2">
@@ -172,7 +205,10 @@ export function OpportunityForm({
               value={form.value}
               onChange={(e) => set("value", e.target.value)}
               placeholder="0.00"
+              aria-invalid={!!errors.value}
+              className="tabular-nums"
             />
+            {errors.value && <p className="text-danger text-xs">{errors.value}</p>}
           </div>
 
           <div className="space-y-2">
@@ -188,6 +224,25 @@ export function OpportunityForm({
                 </option>
               ))}
             </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="probability">Probability (%)</Label>
+            <Input
+              id="probability"
+              type="number"
+              min="0"
+              max="100"
+              step="1"
+              value={form.probability}
+              onChange={(e) => set("probability", e.target.value)}
+              placeholder="Stage default"
+              aria-invalid={!!errors.probability}
+              className="tabular-nums"
+            />
+            {errors.probability && (
+              <p className="text-danger text-xs">{errors.probability}</p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -224,7 +279,10 @@ export function OpportunityForm({
               min="1"
               value={form.paxCount}
               onChange={(e) => set("paxCount", e.target.value)}
+              aria-invalid={!!errors.paxCount}
+              className="tabular-nums"
             />
+            {errors.paxCount && <p className="text-danger text-xs">{errors.paxCount}</p>}
           </div>
 
           <div className="space-y-2">
@@ -244,7 +302,11 @@ export function OpportunityForm({
               type="date"
               value={form.travelEndDate}
               onChange={(e) => set("travelEndDate", e.target.value)}
+              aria-invalid={!!errors.travelEndDate}
             />
+            {errors.travelEndDate && (
+              <p className="text-danger text-xs">{errors.travelEndDate}</p>
+            )}
           </div>
 
           <div className="space-y-2">

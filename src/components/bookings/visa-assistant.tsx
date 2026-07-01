@@ -48,7 +48,7 @@ export function VisaAssistant({ bookingId }: { bookingId: string }) {
                 </li>
               ))}
             </ul>
-            <p className="rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-700 dark:text-amber-300">
+            <p className="rounded-md border border-warning/30 bg-warning-soft p-2 text-xs text-warning">
               {result.disclaimer}
             </p>
           </div>

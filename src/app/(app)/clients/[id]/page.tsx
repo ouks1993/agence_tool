@@ -385,8 +385,8 @@ export default async function ClientDetailPage({
                   className={cn(
                     "text-lg font-bold tracking-tight tabular-nums",
                     openBalanceZero
-                      ? "text-green-600 dark:text-green-400"
-                      : "text-amber-600 dark:text-amber-400"
+                      ? "text-success"
+                      : "text-warning"
                   )}
                 >
                   {formatMoneyCompact(openBalanceDzd, "DZD")}
@@ -602,8 +602,8 @@ export default async function ClientDetailPage({
                   className={cn(
                     "font-medium tabular-nums",
                     openBalanceZero
-                      ? "text-green-600 dark:text-green-400"
-                      : "text-amber-600 dark:text-amber-400"
+                      ? "text-success"
+                      : "text-warning"
                   )}
                 >
                   {formatMoney(openBalanceDzd, "DZD")}

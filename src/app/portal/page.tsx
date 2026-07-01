@@ -255,7 +255,7 @@ export default async function PortalPage() {
                         key={item.id}
                         className="flex items-center gap-2.5 text-sm"
                       >
-                        <CheckCircle2 className="size-4 shrink-0 text-green-600 dark:text-green-400" />
+                        <CheckCircle2 className="size-4 shrink-0 text-success" />
                         {item.title}
                       </div>
                     ))}
@@ -436,7 +436,7 @@ export default async function PortalPage() {
                     {t.passportNumber && (
                       <TripStatusPill
                         label="Verified"
-                        className="bg-green-500/15 text-green-600 dark:text-green-400"
+                        className="bg-success-soft text-success"
                       />
                     )}
                   </div>

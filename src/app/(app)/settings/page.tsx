@@ -32,55 +32,73 @@ export default async function SettingsPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="mx-auto max-w-2xl space-y-8">
+      <div className="mx-auto max-w-2xl space-y-10">
         <PageHeader title={t("title")} description={t("description")} />
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">{t("language")}</CardTitle>
-            <CardDescription>{t("languageDesc")}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <LanguageSelector current={locale} />
-          </CardContent>
-        </Card>
+        {/* Preferences — interface language + theme */}
+        <section className="space-y-4">
+          <h2 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+            {t("sectionPreferences")}
+          </h2>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">{t("theme")}</CardTitle>
-            <CardDescription>{t("themeDesc")}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ThemeSelector />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">{t("profile")}</CardTitle>
-            <CardDescription>{t("profileDesc")}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ProfileForm name={user.name} email={user.email} />
-          </CardContent>
-        </Card>
-
-        {showPayments && ag ? (
-          <Card>
+          <Card className="card-elevated">
             <CardHeader>
-              <CardTitle className="text-lg">Payments</CardTitle>
-              <CardDescription>
-                Connect Stripe to collect client payments directly to your
-                agency&apos;s bank account.
-              </CardDescription>
+              <CardTitle className="text-lg">{t("language")}</CardTitle>
+              <CardDescription>{t("languageDesc")}</CardDescription>
             </CardHeader>
             <CardContent>
-              <StripeConnect
-                onboarded={ag.stripeConnectOnboarded}
-                accountId={ag.stripeConnectAccountId}
-              />
+              <LanguageSelector current={locale} />
             </CardContent>
           </Card>
+
+          <Card className="card-elevated">
+            <CardHeader>
+              <CardTitle className="text-lg">{t("theme")}</CardTitle>
+              <CardDescription>{t("themeDesc")}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ThemeSelector />
+            </CardContent>
+          </Card>
+        </section>
+
+        {/* Account — the signed-in user's identity */}
+        <section className="space-y-4">
+          <h2 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+            {t("sectionAccount")}
+          </h2>
+
+          <Card className="card-elevated">
+            <CardHeader>
+              <CardTitle className="text-lg">{t("profile")}</CardTitle>
+              <CardDescription>{t("profileDesc")}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ProfileForm name={user.name} email={user.email} />
+            </CardContent>
+          </Card>
+        </section>
+
+        {/* Billing — admin-only Stripe Connect payouts */}
+        {showPayments && ag ? (
+          <section className="space-y-4">
+            <h2 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+              {t("sectionBilling")}
+            </h2>
+
+            <Card className="card-elevated">
+              <CardHeader>
+                <CardTitle className="text-lg">{t("payments")}</CardTitle>
+                <CardDescription>{t("paymentsDesc")}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <StripeConnect
+                  onboarded={ag.stripeConnectOnboarded}
+                  accountId={ag.stripeConnectAccountId}
+                />
+              </CardContent>
+            </Card>
+          </section>
         ) : null}
       </div>
     </div>

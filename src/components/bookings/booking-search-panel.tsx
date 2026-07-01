@@ -256,7 +256,7 @@ function FlightSearch({
                       {o.segments.map((s) => s.flightNumber).join(" · ")}
                     </span>
                     {idx === 0 && (
-                      <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-xs font-semibold text-green-600 dark:text-green-400">
+                      <span className="rounded-full bg-success-soft px-2 py-0.5 text-xs font-semibold text-success">
                         Cheapest
                       </span>
                     )}
@@ -465,7 +465,7 @@ function HotelSearch({
                       </span>
                     )}
                     {idx === 0 && (
-                      <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-xs font-semibold text-green-600 dark:text-green-400">
+                      <span className="rounded-full bg-success-soft px-2 py-0.5 text-xs font-semibold text-success">
                         Best value
                       </span>
                     )}
@@ -477,7 +477,7 @@ function HotelSearch({
                   )}
                   <p className="text-muted-foreground mt-1 text-xs">
                     {o.boardType ?? "Room only"} ·{" "}
-                    <span className={o.refundable ? "text-green-600 dark:text-green-400" : ""}>
+                    <span className={o.refundable ? "text-success" : ""}>
                       {o.refundable ? "Refundable" : "Non-refundable"}
                     </span>
                   </p>

@@ -50,7 +50,18 @@
     "profileDesc": "Update your name and how you appear to your team.",
     "name": "Name",
     "email": "Email",
-    "saved": "Settings saved"
+    "saved": "Settings saved",
+    "sectionPreferences": "Preferences",
+    "sectionAccount": "Account",
+    "sectionBilling": "Billing",
+    "payments": "Payments",
+    "paymentsDesc": "Connect Stripe to collect client payments directly to your agency's bank account.",
+    "stripeConnected": "Connected",
+    "stripeManagePayouts": "Manage payouts",
+    "stripeIncomplete": "Your Stripe account setup is incomplete. Finish onboarding to start accepting payments.",
+    "stripeCompleteSetup": "Complete setup",
+    "stripeIntro": "Accept payments from travelers and receive funds directly to your bank account.",
+    "stripeConnect": "Connect Stripe"
   },
   "login": {
     "welcome": "Welcome back",
@@ -615,6 +626,29 @@
       "title": "Agency not found",
       "description": "This agency may have been removed, or the link is out of date.",
       "back": "Back to console"
+    }
+  },
+  "proposalsList": {
+    "title": "Proposals",
+    "description": "Travel packages and quotes assembled for your clients.",
+    "newProposal": "New proposal",
+    "searchPlaceholder": "Search title, reference, client…",
+    "allStatuses": "All statuses",
+    "filter": "Filter",
+    "clear": "Clear",
+    "totalProposals": "Total proposals",
+    "showingFirst": "Showing first {count}",
+    "noProposals": "No proposals yet",
+    "noProposalsDescription": "Build a proposal from search results, or start one from scratch.",
+    "noMatch": "No proposals match your filters",
+    "noMatchDescription": "Try adjusting your search or clearing the filters.",
+    "table": {
+      "reference": "Reference",
+      "title": "Title",
+      "client": "Client",
+      "status": "Status",
+      "total": "Total",
+      "updated": "Updated"
     }
   }
 }

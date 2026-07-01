@@ -2,8 +2,9 @@
 
 import { useTransition } from "react";
 import { CreditCard, ExternalLink } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/app/status-badge";
 import { Button } from "@/components/ui/button";
 import { connectStripeAccount } from "@/lib/actions/payments";
 
@@ -20,6 +21,7 @@ export function StripeConnect({
   onboarded: boolean;
   accountId: string | null;
 }) {
+  const t = useTranslations("settings");
   const [pending, startTransition] = useTransition();
 
   const handleConnect = () => {
@@ -42,12 +44,12 @@ export function StripeConnect({
     return (
       <div className="space-y-4">
         <div className="flex items-center gap-2">
-          <Badge className="bg-green-500 text-white">Connected</Badge>
-          <code className="text-xs text-muted-foreground">{shortId}</code>
+          <StatusBadge label={t("stripeConnected")} variant="success" dot />
+          <code className="text-muted-foreground text-xs">{shortId}</code>
         </div>
         <Button asChild variant="outline">
           <a href={dashboardUrl} target="_blank" rel="noopener noreferrer">
-            Manage payouts
+            {t("stripeManagePayouts")}
             <ExternalLink className="h-4 w-4" />
           </a>
         </Button>
@@ -59,13 +61,10 @@ export function StripeConnect({
   if (accountId) {
     return (
       <div className="space-y-4">
-        <p className="text-sm text-muted-foreground">
-          Your Stripe account setup is incomplete. Finish onboarding to start
-          accepting payments.
-        </p>
+        <p className="text-muted-foreground text-sm">{t("stripeIncomplete")}</p>
         <Button onClick={handleConnect} disabled={pending}>
           <CreditCard className="h-4 w-4" />
-          Complete setup
+          {t("stripeCompleteSetup")}
         </Button>
       </div>
     );
@@ -74,13 +73,10 @@ export function StripeConnect({
   // No account yet: start the Connect flow.
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Accept payments from travelers and receive funds directly to your bank
-        account.
-      </p>
+      <p className="text-muted-foreground text-sm">{t("stripeIntro")}</p>
       <Button onClick={handleConnect} disabled={pending}>
         <CreditCard className="h-4 w-4" />
-        Connect Stripe
+        {t("stripeConnect")}
       </Button>
     </div>
   );

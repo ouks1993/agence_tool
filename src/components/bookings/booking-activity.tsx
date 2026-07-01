@@ -14,15 +14,15 @@ export type BookingEventRow = {
 // (see schema booking_event.event). Unknown names fall back to the raw value.
 const EVENT_META: Record<string, { label: string; tone: string }> = {
   search_initiated: { label: "Search initiated", tone: "bg-muted-foreground/40" },
-  offer_selected: { label: "Offer selected", tone: "bg-blue-500" },
-  price_validated: { label: "Price validated", tone: "bg-blue-500" },
-  price_changed: { label: "Price changed", tone: "bg-amber-500" },
-  booking_submitted: { label: "Booking submitted", tone: "bg-blue-500" },
-  booking_confirmed: { label: "Booking confirmed", tone: "bg-green-500" },
-  booking_failed: { label: "Booking failed", tone: "bg-red-500" },
-  booking_cancelled: { label: "Booking cancelled", tone: "bg-red-500" },
-  payment_started: { label: "Payment started", tone: "bg-amber-500" },
-  payment_completed: { label: "Payment completed", tone: "bg-green-500" },
+  offer_selected: { label: "Offer selected", tone: "bg-info" },
+  price_validated: { label: "Price validated", tone: "bg-info" },
+  price_changed: { label: "Price changed", tone: "bg-warning" },
+  booking_submitted: { label: "Booking submitted", tone: "bg-info" },
+  booking_confirmed: { label: "Booking confirmed", tone: "bg-success" },
+  booking_failed: { label: "Booking failed", tone: "bg-danger" },
+  booking_cancelled: { label: "Booking cancelled", tone: "bg-danger" },
+  payment_started: { label: "Payment started", tone: "bg-warning" },
+  payment_completed: { label: "Payment completed", tone: "bg-success" },
 };
 
 function labelFor(event: string): string {

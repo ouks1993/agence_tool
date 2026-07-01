@@ -50,7 +50,18 @@
     "profileDesc": "Mettez à jour votre nom et votre apparence pour l'équipe.",
     "name": "Nom",
     "email": "E-mail",
-    "saved": "Paramètres enregistrés"
+    "saved": "Paramètres enregistrés",
+    "sectionPreferences": "Préférences",
+    "sectionAccount": "Compte",
+    "sectionBilling": "Facturation",
+    "payments": "Paiements",
+    "paymentsDesc": "Connectez Stripe pour encaisser les paiements des clients directement sur le compte bancaire de votre agence.",
+    "stripeConnected": "Connecté",
+    "stripeManagePayouts": "Gérer les versements",
+    "stripeIncomplete": "La configuration de votre compte Stripe est incomplète. Terminez l'intégration pour commencer à accepter les paiements.",
+    "stripeCompleteSetup": "Terminer la configuration",
+    "stripeIntro": "Acceptez les paiements des voyageurs et recevez les fonds directement sur votre compte bancaire.",
+    "stripeConnect": "Connecter Stripe"
   },
   "login": {
     "welcome": "Bon retour",
@@ -615,6 +626,29 @@
       "title": "Agence introuvable",
       "description": "Cette agence a peut-être été supprimée, ou le lien n'est plus valide.",
       "back": "Retour à la console"
+    }
+  },
+  "proposalsList": {
+    "title": "Propositions",
+    "description": "Forfaits et devis de voyage assemblés pour vos clients.",
+    "newProposal": "Nouvelle proposition",
+    "searchPlaceholder": "Rechercher titre, référence, client…",
+    "allStatuses": "Tous les statuts",
+    "filter": "Filtrer",
+    "clear": "Effacer",
+    "totalProposals": "Total des propositions",
+    "showingFirst": "Affichage des {count} premières",
+    "noProposals": "Aucune proposition",
+    "noProposalsDescription": "Créez une proposition à partir des résultats de recherche ou partez de zéro.",
+    "noMatch": "Aucune proposition ne correspond à vos filtres",
+    "noMatchDescription": "Essayez d'ajuster votre recherche ou d'effacer les filtres.",
+    "table": {
+      "reference": "Référence",
+      "title": "Titre",
+      "client": "Client",
+      "status": "Statut",
+      "total": "Total",
+      "updated": "Mis à jour"
     }
   }
 }

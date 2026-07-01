@@ -119,19 +119,32 @@ the dark surface.
 | `sidebar-border` | `rgba(255,255,255,0.08)` | `rgba(255,255,255,0.08)` |
 | `sidebar-ring` | `#2B59C3` | `#4F7BD9` |
 
-### Status Colors — use the functional tokens
+### Status Colors — functional tokens are the standard
 
-For any status indicator (badges, pills, amount-due chips, deltas, alerts) use the
-**functional palette tokens** above, not raw Tailwind palette values:
+For **any** status/semantic indicator (badges, pills, amount-due chips, deltas, alerts,
+timeline dots, progress bars, verified/failed markers) the **functional palette tokens** are
+the documented standard. Never author raw Tailwind palette values for status meaning.
 
-- **Success / paid / confirmed:** `text-success`, `bg-success-soft`, `text-success-foreground` on `bg-success`.
-- **Warning / amount-due / expiry:** `text-warning`, `bg-warning-soft`, `border-border-strong` — outstanding balances (booking + portal finance cards) and passport-expiry alerts.
-- **Danger / overdue / error:** `text-danger` (or `text-destructive`), `bg-danger-soft`.
-- **Info / neutral status:** `text-info`, `bg-info-soft`.
+| Meaning | Text | Soft bg / pill | Solid fill / dot | Border |
+|---|---|---|---|---|
+| **Success** — paid, confirmed, positive delta, verified | `text-success` | `bg-success-soft` | `bg-success` | `border-success/30` |
+| **Warning** — amount-due, expiry, at-risk, pending money | `text-warning` | `bg-warning-soft` | `bg-warning` | `border-warning/30` |
+| **Danger** — overdue, error, failed, cancelled | `text-danger` (or `text-destructive`) | `bg-danger-soft` | `bg-danger` | `border-danger/30` |
+| **Info** — in-flight, acknowledged, mid-lifecycle | `text-info` | `bg-info-soft` | `bg-info` | `border-info/30` |
+| **Neutral** — draft, inactive, not-started | `text-muted-foreground` | `bg-secondary` / `bg-muted` | `bg-muted-foreground/40` | `border` |
 
-> Legacy note: some components still use raw utilities (`text-green-600`, `bg-amber-500/10`,
-> `text-red-600`, …). These are being migrated to the tokens above; do **not** introduce new
-> raw-palette status colors — reach for the functional tokens instead.
+Prefer the shared primitives that already resolve to these tokens:
+- **`<StatusBadge variant={…} />` / `<StatusPill domain status />`** with `statusTone(domain, status)`
+  (`src/lib/status-tone.ts`) — the single source of truth for status → tone.
+- **Soft-tint badges** (`bg-*-soft text-*`) for pills; **solid tokens** (`bg-*`) for dots and
+  progress fills.
+
+> **Deprecated / legacy:** raw Tailwind status utilities — `text-green-600`, `bg-green-500/15`,
+> `text-amber-600`, `bg-amber-500/10`, `text-red-600`, `text-blue-500`, `dark:*` status variants,
+> etc. — are **legacy and must not be used for new status meaning.** They are being removed in
+> favour of the tokens above. (Raw palette colors remain acceptable **only** for genuinely
+> decorative / categorical use — e.g. amber star-rating icons, brand gradients, chart series
+> `chart-1..6`, and print-doc brand colors — which are *not* status.)
 
 ---
 

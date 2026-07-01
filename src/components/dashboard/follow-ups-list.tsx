@@ -15,7 +15,7 @@ export type FollowUpItem = {
 
 const DOT_CLASS: Record<FollowUpPriority, string> = {
   high: "bg-destructive",
-  medium: "bg-amber-500",
+  medium: "bg-warning",
   low: "bg-muted-foreground/40",
 };
 

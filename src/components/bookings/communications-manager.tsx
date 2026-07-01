@@ -188,14 +188,14 @@ export function CommunicationsManager({
 function StatusPill({ status }: { status: string }) {
   if (status === "failed") {
     return (
-      <span className="inline-flex items-center gap-1 text-xs text-red-600 dark:text-red-400">
+      <span className="inline-flex items-center gap-1 text-xs text-danger">
         <AlertCircle className="size-3.5" /> Failed
       </span>
     );
   }
   if (status === "sent") {
     return (
-      <span className="inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+      <span className="inline-flex items-center gap-1 text-xs text-success">
         <Check className="size-3.5" /> Sent
       </span>
     );

@@ -128,8 +128,8 @@ export function PaymentsManager({
                   <span
                     className={
                       isRefund
-                        ? "font-semibold text-red-600 dark:text-red-400"
-                        : "font-semibold text-green-600 dark:text-green-400"
+                        ? "font-semibold text-danger"
+                        : "font-semibold text-success"
                     }
                   >
                     {isRefund ? "−" : "+"}

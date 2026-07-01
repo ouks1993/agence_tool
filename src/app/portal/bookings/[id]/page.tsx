@@ -173,7 +173,7 @@ export default async function PortalBookingPage({
 
       {/* Payment success banner (from Stripe redirect) */}
       {paid === "1" && (
-        <div className="flex items-center gap-2 rounded-lg border border-green-500/30 bg-green-500/10 p-4 text-sm text-green-700 dark:text-green-400">
+        <div className="flex items-center gap-2 rounded-lg border border-success/30 bg-success-soft p-4 text-sm text-success">
           <CheckCircle2 className="size-5 shrink-0" />
           <span>Payment received — thank you!</span>
         </div>
@@ -233,7 +233,7 @@ export default async function PortalBookingPage({
                           )}
                         </p>
                         {item.itemStatus === "confirmed" && (
-                          <span className="text-xs text-green-600 dark:text-green-400">
+                          <span className="text-xs text-success">
                             Confirmed
                           </span>
                         )}
@@ -338,7 +338,7 @@ export default async function PortalBookingPage({
                     <div className="text-muted-foreground text-xs">
                       Paid to date
                     </div>
-                    <div className="mt-1 text-lg font-bold tracking-tight tabular-nums text-green-600 dark:text-green-400">
+                    <div className="mt-1 text-lg font-bold tracking-tight tabular-nums text-success">
                       {formatMoney(totalPaid, currency)}
                     </div>
                   </div>
@@ -347,7 +347,7 @@ export default async function PortalBookingPage({
                       Balance due
                     </div>
                     <div
-                      className={`mt-1 text-lg font-bold tracking-tight tabular-nums ${balance > 0 ? "text-amber-600 dark:text-amber-400" : ""}`}
+                      className={`mt-1 text-lg font-bold tracking-tight tabular-nums ${balance > 0 ? "text-warning" : ""}`}
                     >
                       {formatMoney(Math.max(0, balance), currency)}
                     </div>
@@ -363,7 +363,7 @@ export default async function PortalBookingPage({
                     </div>
                     <div className="bg-muted h-2 overflow-hidden rounded-full">
                       <div
-                        className="h-full rounded-full bg-green-500 transition-all"
+                        className="h-full rounded-full bg-success transition-all"
                         style={{ width: `${paidPct}%` }}
                       />
                     </div>
@@ -372,20 +372,20 @@ export default async function PortalBookingPage({
 
                 {/* Balance-due banner + pay-now (preserves Stripe Connect flow) */}
                 {balance > 0 && (
-                  <div className="flex flex-wrap items-center gap-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
-                    <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                  <div className="flex flex-wrap items-center gap-4 rounded-lg border border-warning/30 bg-warning-soft p-4">
+                    <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-md bg-warning-soft text-warning">
                       <CreditCardIcon />
                     </span>
                     <div className="min-w-[8rem] flex-1">
-                      <div className="text-sm font-semibold text-amber-700 dark:text-amber-400">
+                      <div className="text-sm font-semibold text-warning">
                         Balance due
                       </div>
-                      <div className="text-xs text-amber-800/80 dark:text-amber-300/80">
+                      <div className="text-xs text-warning/80">
                         Settle the remaining balance to confirm your trip.
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-xl font-bold tracking-tight tabular-nums text-amber-600 dark:text-amber-400">
+                      <div className="text-xl font-bold tracking-tight tabular-nums text-warning">
                         {formatMoney(balance, currency)}
                       </div>
                       {canPayOnline && (
@@ -413,7 +413,7 @@ export default async function PortalBookingPage({
                           <span
                             className={`inline-flex size-7 shrink-0 items-center justify-center rounded-full ${
                               done
-                                ? "bg-green-500/15 text-green-600 dark:text-green-400"
+                                ? "bg-success-soft text-success"
                                 : "bg-muted text-muted-foreground"
                             }`}
                           >
@@ -438,7 +438,7 @@ export default async function PortalBookingPage({
                           <span
                             className={`shrink-0 font-semibold tabular-nums ${
                               done
-                                ? "text-green-600 dark:text-green-400"
+                                ? "text-success"
                                 : "text-muted-foreground"
                             }`}
                           >
@@ -544,7 +544,7 @@ export default async function PortalBookingPage({
                     {t.passportNumber && (
                       <TripStatusPill
                         label="Verified"
-                        className="bg-green-500/15 text-green-600 dark:text-green-400"
+                        className="bg-success-soft text-success"
                       />
                     )}
                   </div>

@@ -38,20 +38,20 @@ const KIND_META: Record<
   notification: {
     label: "Notification",
     icon: Bell,
-    chip: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
-    dot: "bg-blue-500",
+    chip: "bg-info-soft text-info",
+    dot: "bg-info",
   },
   booking_status: {
     label: "Booking",
     icon: TicketCheck,
-    chip: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-    dot: "bg-amber-500",
+    chip: "bg-warning-soft text-warning",
+    dot: "bg-warning",
   },
   payment: {
     label: "Payment",
     icon: Banknote,
-    chip: "bg-green-500/10 text-green-600 dark:text-green-400",
-    dot: "bg-green-500",
+    chip: "bg-success-soft text-success",
+    dot: "bg-success",
   },
 };
 

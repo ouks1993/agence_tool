@@ -323,9 +323,9 @@ function PassportBadge({
     );
   }
   const map = {
-    ok: { icon: ShieldCheck, cls: "text-green-600 dark:text-green-400" },
-    warning: { icon: ShieldAlert, cls: "text-amber-600 dark:text-amber-400" },
-    expired: { icon: ShieldX, cls: "text-red-600 dark:text-red-400" },
+    ok: { icon: ShieldCheck, cls: "text-success" },
+    warning: { icon: ShieldAlert, cls: "text-warning" },
+    expired: { icon: ShieldX, cls: "text-danger" },
   } as const;
   const { icon: Icon, cls } = map[status.level];
   return (

@@ -50,7 +50,18 @@
     "profileDesc": "حدّث اسمك وطريقة ظهورك لفريقك.",
     "name": "الاسم",
     "email": "البريد الإلكتروني",
-    "saved": "تم حفظ الإعدادات"
+    "saved": "تم حفظ الإعدادات",
+    "sectionPreferences": "التفضيلات",
+    "sectionAccount": "الحساب",
+    "sectionBilling": "الفوترة",
+    "payments": "المدفوعات",
+    "paymentsDesc": "اربط Stripe لتحصيل مدفوعات العملاء مباشرةً إلى الحساب البنكي لوكالتك.",
+    "stripeConnected": "متصل",
+    "stripeManagePayouts": "إدارة التحويلات",
+    "stripeIncomplete": "إعداد حساب Stripe الخاص بك غير مكتمل. أكمل الإعداد لبدء قبول المدفوعات.",
+    "stripeCompleteSetup": "إكمال الإعداد",
+    "stripeIntro": "اقبل المدفوعات من المسافرين واستلم الأموال مباشرةً إلى حسابك البنكي.",
+    "stripeConnect": "ربط Stripe"
   },
   "login": {
     "welcome": "مرحبًا بعودتك",
@@ -615,6 +626,29 @@
       "title": "الوكالة غير موجودة",
       "description": "ربما تمت إزالة هذه الوكالة، أو أن الرابط قديم.",
       "back": "العودة إلى وحدة التحكم"
+    }
+  },
+  "proposalsList": {
+    "title": "العروض",
+    "description": "باقات وعروض أسعار السفر المُجمَّعة لعملائك.",
+    "newProposal": "عرض جديد",
+    "searchPlaceholder": "ابحث بالعنوان أو المرجع أو العميل…",
+    "allStatuses": "كل الحالات",
+    "filter": "تصفية",
+    "clear": "مسح",
+    "totalProposals": "إجمالي العروض",
+    "showingFirst": "عرض أول {count}",
+    "noProposals": "لا توجد عروض بعد",
+    "noProposalsDescription": "أنشئ عرضًا من نتائج البحث أو ابدأ من الصفر.",
+    "noMatch": "لا توجد عروض تطابق عوامل التصفية",
+    "noMatchDescription": "حاول تعديل بحثك أو مسح عوامل التصفية.",
+    "table": {
+      "reference": "المرجع",
+      "title": "العنوان",
+      "client": "العميل",
+      "status": "الحالة",
+      "total": "الإجمالي",
+      "updated": "آخر تحديث"
     }
   }
 }

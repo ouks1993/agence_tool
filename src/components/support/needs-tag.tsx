@@ -11,12 +11,12 @@ const NEED_META: Record<
   payment: {
     label: "Awaiting payment",
     icon: CreditCard,
-    tone: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+    tone: "bg-warning-soft text-warning",
   },
   passport: {
     label: "Passport issue",
     icon: ShieldAlert,
-    tone: "bg-red-500/15 text-red-600 dark:text-red-400",
+    tone: "bg-danger-soft text-danger",
   },
 };
 

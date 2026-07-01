@@ -1,11 +1,21 @@
 import Link from "next/link";
 import { and, desc, eq } from "drizzle-orm";
-import { Plus, Target, Wallet, Gauge, Percent, TrendingUp, Filter, Trophy } from "lucide-react";
+import {
+  Plus,
+  Target,
+  Wallet,
+  Gauge,
+  Percent,
+  TrendingUp,
+  Filter,
+  Trophy,
+} from "lucide-react";
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
 import { StatCard } from "@/components/app/stat-card";
 import { FunnelInsight } from "@/components/charts/insight-charts";
 import { PipelineBoard, type BoardItem, type OwnerOption } from "@/components/opportunities/pipeline-board";
+import { PipelineExportButton } from "@/components/opportunities/pipeline-export-button";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -16,7 +26,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { conversionRate, num } from "@/lib/analytics";
+import { conversionRate, headlineTotal, num, sumByCurrency } from "@/lib/analytics";
 import { db } from "@/lib/db";
 import {
   OPEN_STAGES,
@@ -43,6 +53,12 @@ export default async function OpportunitiesPage() {
     with: {
       client: { columns: { name: true } },
       assignedTo: { columns: { id: true, name: true } },
+      // Latest linked proposal drives the card's proposal-status chip.
+      products: {
+        columns: { status: true, createdAt: true },
+        orderBy: (t, { desc: d }) => [d(t.createdAt)],
+        limit: 1,
+      },
     },
     orderBy: [desc(opportunity.updatedAt)],
     limit: 500,
@@ -62,6 +78,7 @@ export default async function OpportunitiesPage() {
     probability: o.probability,
     travelPurpose: o.travelPurpose,
     expectedCloseDate: o.expectedCloseDate,
+    proposalStatus: o.products[0]?.status ?? null,
   }));
 
   // Distinct owner list for the filter bar (real assignees only, de-duplicated).
@@ -73,42 +90,55 @@ export default async function OpportunitiesPage() {
     (a, b) => a.name.localeCompare(b.name)
   );
 
-  // DZD-only for monetary pipeline metrics (no FX).
-  const dzd = rows.filter((o) => (o.currency || "DZD") === "DZD");
+  // Monetary pipeline metrics are DZD-only (no FX). We aggregate every metric
+  // through sumByCurrency + headlineTotal so a stray EUR/USD deal is bucketed
+  // separately and can never be silently summed into the DZD headline figure.
   const isOpen = (s: string) => OPEN_STAGES.includes(s as (typeof OPEN_STAGES)[number]);
+  const cur = (o: (typeof rows)[number]) => o.currency || "DZD";
 
-  const openValue = dzd.filter((o) => isOpen(o.stage)).reduce((sum, o) => sum + num(o.value), 0);
-  const openCount = rows.filter((o) => isOpen(o.stage)).length;
+  const openDeals = rows.filter((o) => isOpen(o.stage));
+  const openValue = headlineTotal(sumByCurrency(openDeals, (o) => num(o.value), cur));
+  const openCount = openDeals.length;
 
-  // Weighted forecast: Σ value × probability across OPEN deals.
-  const forecast = dzd
-    .filter((o) => isOpen(o.stage))
-    .reduce((sum, o) => sum + num(o.value) * (o.probability / 100), 0);
+  // Weighted forecast: Σ value × probability across OPEN deals (DZD headline).
+  const forecast = headlineTotal(
+    sumByCurrency(openDeals, (o) => num(o.value) * (o.probability / 100), cur)
+  );
 
-  // Win rate: won ÷ closed (won + lost).
+  // Win rate: won ÷ closed (won + lost) — count-based, currency-agnostic.
   const wonCount = rows.filter((o) => o.stage === "won").length;
   const closedCount = rows.filter((o) => o.stage === "won" || o.stage === "lost").length;
   const winRate = conversionRate(wonCount, closedCount);
 
-  // Avg deal size: won deals' value (DZD).
-  const wonDzd = dzd.filter((o) => o.stage === "won");
-  const avgDeal = wonDzd.length
-    ? Math.round(wonDzd.reduce((s, o) => s + num(o.value), 0) / wonDzd.length)
-    : 0;
+  // Avg deal size: mean of won deals' value (DZD headline).
+  const wonDeals = rows.filter((o) => o.stage === "won");
+  const wonDzdCount = wonDeals.filter((o) => cur(o) === "DZD").length;
+  const wonValue = headlineTotal(sumByCurrency(wonDeals, (o) => num(o.value), cur));
+  const avgDeal = wonDzdCount ? Math.round(wonValue / wonDzdCount) : 0;
 
-  // Won this month: Σ value of won deals whose updatedAt is in the current month (DZD).
+  // Won this month: Σ value of won deals whose updatedAt is in the current month (DZD headline).
   const now = new Date();
-  const wonThisMonth = wonDzd
-    .filter((o) => {
-      const d = o.updatedAt instanceof Date ? o.updatedAt : new Date(o.updatedAt);
-      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-    })
-    .reduce((sum, o) => sum + num(o.value), 0);
+  const wonThisMonth = headlineTotal(
+    sumByCurrency(
+      wonDeals.filter((o) => {
+        const d = o.updatedAt instanceof Date ? o.updatedAt : new Date(o.updatedAt);
+        return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+      }),
+      (o) => num(o.value),
+      cur
+    )
+  );
 
-  // Funnel by VALUE across the ordered stages (DZD).
+  // Funnel by VALUE across the ordered open+won stages (DZD headline; no Lost lane).
   const funnel = OPPORTUNITY_STAGES.filter((s) => s !== "lost").map((s) => ({
     label: OPPORTUNITY_STAGE_META[s as OpportunityStage].label,
-    value: dzd.filter((o) => o.stage === s).reduce((sum, o) => sum + num(o.value), 0),
+    value: headlineTotal(
+      sumByCurrency(
+        rows.filter((o) => o.stage === s),
+        (o) => num(o.value),
+        cur
+      )
+    ),
   }));
 
   return (
@@ -135,6 +165,7 @@ export default async function OpportunitiesPage() {
             : "Your deal pipeline."
         }
       >
+        {rows.length > 0 && <PipelineExportButton items={items} />}
         <Button asChild>
           <Link href="/opportunities/new">
             <Plus className="mr-2 size-4" />
