@@ -1,9 +1,9 @@
 import { Fragment } from "react";
 import { ArrowDownRight, ArrowUpRight } from "lucide-react";
+import type { StatDelta } from "@/components/app/stat-card";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import type { StatDelta } from "@/components/app/stat-card";
 
 /** One KPI cell in a {@link StatStrip}. */
 export type StatStripItem = {
