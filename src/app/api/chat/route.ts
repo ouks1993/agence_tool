@@ -22,7 +22,12 @@ import {
   type HotelOffer,
 } from "@/lib/suppliers";
 
-const messagePartSchema = z.object({
+// Loose object: keep the full part shape. Tool-invocation parts carry
+// `toolCallId`, `input`, `output`, `state`, etc. — a strict object would strip
+// them, so `convertToModelMessages` would then build invalid tool messages and
+// the NEXT turn (after any tool ran) would throw AI_InvalidPromptError. We still
+// validate `type` and cap `text`; role-level injection is blocked in messageSchema.
+const messagePartSchema = z.looseObject({
   type: z.string(),
   text: z.string().max(10000, "Message text too long").optional(),
 });
