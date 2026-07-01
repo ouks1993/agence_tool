@@ -43,11 +43,14 @@ properties in `globals.css` and bridged to Tailwind via `@theme inline`.
 | `accent` | `#EAF0FC` | `oklch(0.30 0.04 264)` | Hover backgrounds, highlights (brand tint) |
 | `accent-foreground` | `#2249A6` | `#DCE6FA` | Text on accent |
 | `destructive` | `#D14343` | `oklch(0.704 0.191 22.216)` | Error states, delete actions |
+| `destructive-foreground` | `#FFFFFF` | `#FFFFFF` | Text on `destructive` (destructive Badge fill) |
+| `surface-2` | `#FBFCFE` | `oklch(0.25 0.006 285.885)` | Raised neutral surface — nested panels, zebra rows, table-head fill. Tailwind: `bg-surface-2`. |
 | `card` | `#FFFFFF` | `oklch(0.21 0.006 285.885)` | Card backgrounds |
 | `card-foreground` | `#1B2333` | `oklch(0.985 0 0)` | Card text |
 | `popover` | `#FFFFFF` | `oklch(0.21 0.006 285.885)` | Popover/dropdown bg |
 | `popover-foreground` | `#1B2333` | `oklch(0.985 0 0)` | Popover/dropdown text |
-| `border` | `#E6EAF1` | `oklch(1 0 0 / 10%)` | Borders, dividers |
+| `border` | `#E6EAF1` | `oklch(1 0 0 / 10%)` | Borders, dividers (hairline) |
+| `border-strong` | `#D4DAE6` | `oklch(1 0 0 / 18%)` | Heavier divider — input borders, dense tables where a hairline reads too faint. Tailwind: `border-border-strong`. |
 | `input` | `#E1E6EF` | `oklch(1 0 0 / 15%)` | Input borders |
 | `ring` | `#2B59C3` | `#4F7BD9` | Focus rings |
 
@@ -57,6 +60,31 @@ properties in `globals.css` and bridged to Tailwind via `@theme inline`.
 |---|---|---|---|
 | `brand` | `#2B59C3` | `#5B85DE` | Atlas Blue accent for marketing-grade highlights (charts, KPI emphasis). Exposed to Tailwind as `*-brand`. |
 | `brand-foreground` | `#FFFFFF` | `#0E1525` | Text on `brand`. |
+| `--brand-ring` | `rgba(43,89,195,0.35)` | `rgba(91,133,222,0.45)` | Canonical 3px keyboard-focus ring. Consumed by the `.focus-ring` / `.skip-link` utilities (raw CSS var, not a Tailwind color). |
+
+### Functional / Status Palette
+
+The deck's tuned, financial-grade status colors — each a **base** (solid fill / icon /
+strong text), a **`-soft`** low-contrast tint (pill & row backgrounds), and a
+**`-foreground`** (text on the solid base). Prefer these over raw Tailwind palette values
+(`text-green-600`, `bg-amber-500/10`, …) so status color stays on-brand. All are bridged to
+Tailwind, so `bg-success` / `text-success` / `bg-success-soft` / `text-success-foreground`
+(and the `warning`/`danger`/`info` equivalents) all resolve.
+
+| Token | Light | Dark | Usage |
+|---|---|---|---|
+| `success` | `#1E9E6A` | `oklch(0.75 0.14 162)` | Paid, confirmed, positive delta |
+| `success-soft` | `#E4F6EE` | `oklch(0.75 0.14 162 / 15%)` | Success pill / row bg |
+| `success-foreground` | `#FFFFFF` | `#FFFFFF` | Text on `success` |
+| `warning` | `#B45313` | `oklch(0.78 0.14 66)` | Amount-due, passport-expiry, at-risk |
+| `warning-soft` | `#FBEEE2` | `oklch(0.78 0.14 66 / 15%)` | Warning pill / row bg |
+| `warning-foreground` | `#FFFFFF` | `#0E1525` | Text on `warning` |
+| `danger` | `#D14343` | `oklch(0.704 0.191 22.216)` | Overdue, error, cancelled (alias of `destructive`) |
+| `danger-soft` | `#FBE9E9` | `oklch(0.704 0.191 22.216 / 15%)` | Danger pill / row bg |
+| `danger-foreground` | `#FFFFFF` | `#FFFFFF` | Text on `danger` |
+| `info` | `#2B59C3` | `#4F7BD9` | Neutral/informational status (Atlas Blue) |
+| `info-soft` | `#EAF0FC` | `oklch(0.55 0.14 264 / 20%)` | Info pill / row bg |
+| `info-foreground` | `#FFFFFF` | `#FFFFFF` | Text on `info` |
 
 ### Chart Colors
 
@@ -91,13 +119,19 @@ the dark surface.
 | `sidebar-border` | `rgba(255,255,255,0.08)` | `rgba(255,255,255,0.08)` |
 | `sidebar-ring` | `#2B59C3` | `#4F7BD9` |
 
-### Ad-hoc Status Colors
+### Status Colors — use the functional tokens
 
-Use these Tailwind utilities for status indicators — they are not part of the token system but are used consistently:
+For any status indicator (badges, pills, amount-due chips, deltas, alerts) use the
+**functional palette tokens** above, not raw Tailwind palette values:
 
-- **Success:** `text-green-600` / `dark:text-green-400`, `bg-green-500`
-- **Error:** `text-red-600`, `text-destructive`
-- **Warning / amount-due:** `text-amber-600` / `dark:text-amber-400`, `bg-amber-500/10`, `border-amber-500/30` — used for outstanding balances (booking + portal finance cards) and passport-expiry alerts.
+- **Success / paid / confirmed:** `text-success`, `bg-success-soft`, `text-success-foreground` on `bg-success`.
+- **Warning / amount-due / expiry:** `text-warning`, `bg-warning-soft`, `border-border-strong` — outstanding balances (booking + portal finance cards) and passport-expiry alerts.
+- **Danger / overdue / error:** `text-danger` (or `text-destructive`), `bg-danger-soft`.
+- **Info / neutral status:** `text-info`, `bg-info-soft`.
+
+> Legacy note: some components still use raw utilities (`text-green-600`, `bg-amber-500/10`,
+> `text-red-600`, …). These are being migrated to the tokens above; do **not** introduce new
+> raw-palette status colors — reach for the functional tokens instead.
 
 ---
 
@@ -119,9 +153,9 @@ Body has `font-feature-settings: "rlig" 1, "calt" 1` and `antialiased` enabled.
 | `text-xs` | 12px | Timestamps, shortcuts, helper text, code |
 | `text-sm` | 14px | Descriptions, labels, body copy, card descriptions |
 | `text-base` | 16px | Base text, inputs (mobile) |
-| `text-lg` | 18px | Dialog titles, sub-headings |
+| `text-lg` | 18px | Card titles, dialog/sheet titles, sub-headings |
 | `text-xl` | 20px | Section titles, header logo |
-| `text-2xl` | 24px | Page titles, card titles |
+| `text-2xl` | 24px | Page titles |
 | `text-3xl` | 30px | Dashboard/profile headings |
 | `text-4xl` | 36px | Large display text |
 | `text-5xl` | 48px | Hero title |
@@ -242,6 +276,10 @@ aligned to the marketing-deck `--shadow-sm` (resting) / `--shadow-md` (hover) va
 |---|---|---|
 | `--shadow-card` | `0 1px 2px rgba(16,24,40,.05), 0 1px 1px rgba(16,24,40,.04)` | Resting elevation for KPI / dashboard cards (via `.card-elevated`) |
 | `--shadow-card-hover` | `0 4px 12px rgba(16,24,40,.08), 0 2px 4px rgba(16,24,40,.04)` | Hover elevation for interactive cards (via `.card-interactive:hover`) |
+| `--shadow-lg` | `0 12px 32px rgba(16,24,40,.12), 0 4px 8px rgba(16,24,40,.05)` | Dialogs, popovers, dropdowns (deck lg). Tailwind: `shadow-lg` → bridged to this token. |
+| `--shadow-xl` | `0 24px 60px rgba(16,24,40,.16), 0 8px 16px rgba(16,24,40,.06)` | Device frames, hero / floating cards (deck xl). Tailwind: `shadow-xl`. |
+
+Dark theme keeps a coherent scaffold: `--shadow-lg` → `0 12px 32px oklch(0 0 0 / 45%), 0 4px 8px oklch(0 0 0 / 35%)`; `--shadow-xl` → `0 24px 60px oklch(0 0 0 / 55%), 0 8px 16px oklch(0 0 0 / 40%)`.
 
 ---
 
@@ -299,6 +337,26 @@ Used on dialogs and dropdowns:
   );
 }
 ```
+
+**Numeric alignment — `.tnum` / `.tabular-nums`:** opt-in `font-variant-numeric: tabular-nums`
+for numeric columns, KPI values, and currency figures (DZD/EUR/USD) so digits align and
+totals don't jitter. Apply to table cells and stat values.
+
+```css
+.tnum,
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+```
+
+**Brand focus ring — `.focus-ring`:** the canonical 3px Atlas-Blue focus affordance
+(`box-shadow: 0 0 0 3px var(--brand-ring)`). Pair with `focus-visible`.
+
+**Skip link — `.skip-link`:** visually hidden (`sr-only`) until focused, then fixed
+top-left with the brand ring. Used by the app shell for skip-to-content.
+
+**Reduced motion:** a global `@media (prefers-reduced-motion: reduce)` block collapses
+animation/transition durations to ~0 and disables smooth scroll for users who opt out.
 
 ---
 
@@ -404,6 +462,15 @@ All components live in `src/components/ui/`. They use `data-slot` attributes, ac
 
 Base: `rounded-lg border bg-card text-card-foreground shadow-sm`
 
+`CardTitle` is `text-lg font-semibold leading-none tracking-tight` (18px subhead scale —
+matches `DialogTitle` / `SheetTitle`; reserve `text-2xl`/`text-3xl` for page-level headings).
+
+**Elevation composition:** the base card sits at `shadow-sm`. To lift a card to the
+premium dashboard/KPI resting elevation, add `className="card-elevated"` (applies
+`--shadow-card`). For interactive cards that lift on hover, add `className="card-interactive"`
+(200ms ease-out, `--shadow-card-hover` + `-translate-y-0.5`). Both are utility classes in
+`globals.css` and compose cleanly via `cn()` — no wrapper or prop needed.
+
 ### Input / Textarea
 
 - Height: `h-9` (input), `min-h-16` (textarea)
@@ -412,11 +479,40 @@ Base: `rounded-lg border bg-card text-card-foreground shadow-sm`
 - Validation: `aria-invalid:border-destructive aria-invalid:ring-destructive/20`
 - Responsive font: `text-base md:text-sm`
 
+### Checkbox
+
+Radix-based (`radix-ui` unified import; `data-slot="checkbox"`). A `size-4`,
+`rounded-[4px]`, `border-input` box; checked state is `bg-primary` + `border-primary`
+with a white Lucide `Check` (`size-3.5`, `strokeWidth={3}`) indicator. Shares the input
+focus ring (`focus-visible:border-ring` + `ring-ring/50 ring-[3px]`), `aria-invalid`
+(`border-destructive` + `ring-destructive/20`), and `disabled` (`opacity-50`,
+`cursor-not-allowed`) treatments. Replaces native `<input type="checkbox">` (hotel-search,
+flight-results, contacts). Exports `Checkbox`.
+
 ### Badge
 
-4 variants: `default`, `secondary`, `destructive`, `outline`
+7 variants: `default`, `secondary`, `destructive`, `outline`, plus the deck **status
+variants** `success`, `warning`, `info`.
 
-Base: `rounded-full border px-2.5 py-0.5 text-xs font-semibold`
+Base: `rounded-full border px-2.5 py-0.5 text-xs font-semibold` with the canonical brand
+focus ring (`focus-visible:ring-ring/50 focus-visible:ring-[3px]`).
+
+**Status variants** follow the deck's pill look — a soft tinted background + solid token
+text — using the functional tokens:
+
+| Variant | Background | Text |
+|---|---|---|
+| `success` | `bg-success-soft` | `text-success` |
+| `warning` | `bg-warning-soft` | `text-warning` |
+| `info` | `bg-info-soft` | `text-info` |
+
+`destructive` now pairs the solid `bg-destructive` fill with the real
+`text-destructive-foreground` (white) token.
+
+**Leading status dot** — pass `dot` to render a small `size-1.5 rounded-full` span before
+the label. It defaults to `bg-current`, inheriting the variant's solid text color (e.g. an
+Atlas-green dot on a `success` badge). Override with `dotClassName` for a fixed hue. The
+dot is `aria-hidden`. Example: `<Badge variant="success" dot>Confirmed</Badge>`.
 
 ### Dialog
 
@@ -425,6 +521,38 @@ Radix-based with overlay (`bg-black/50`), fade + zoom animations, optional close
 ### DropdownMenu
 
 Radix-based. Content: `rounded-md border p-1 shadow-md min-w-[8rem]`. Items support a `destructive` variant.
+
+### Table
+
+The deck **data-table** treatment (`marketing/assets/atlas-ui.css .table`). Base exports
+(`Table`, `TableHeader`, `TableBody`, `TableRow`, `TableHead`, `TableCell`) keep their native
+element signatures — the deck upgrades are **additive / opt-in** so existing markup is unchanged.
+
+**Header band (default):** every `TableHead` now renders the deck header chrome —
+`bg-surface-2`, `text-[11px] font-semibold uppercase tracking-wider text-muted-foreground`,
+`h-10 px-4`, `whitespace-nowrap` — matching `.table thead th` verbatim. Body cells use
+`px-4 py-3` for the deck's 16px horizontal rhythm.
+
+**Opt-in props:**
+
+| Prop | On | Effect |
+|---|---|---|
+| `zebra` | `Table` | Stripes even body rows (`bg-surface-2/60`) — deck `.table.zebra`. |
+| `sticky` | `TableHeader` | Pins the header (`sticky top-0 z-10`, header cells keep `bg-surface-2`). Pair with a `max-h-*` / `overflow-auto` wrapper. |
+| `numeric` | `TableHead` / `TableCell` | Right-aligns + applies `tabular-nums` for money/counts. |
+| `align` | `TableHead` / `TableCell` | `"left" \| "center" \| "right"` — overrides `numeric`'s default right-align. |
+| `sortable` | `TableHead` | Renders a direction-aware chevron and sets `aria-sort`; wire `onClick` to re-order. |
+| `sortDirection` | `TableHead` | `"asc" \| "desc" \| false` — drives the chevron (`ChevronUp` / `ChevronDown` / faint `ArrowUpDown`) and `aria-sort` (`ascending`/`descending`/`none`). |
+
+**`TableSortButton`** (exported helper) — a standalone sortable-header trigger for when a
+`TableHead` must wrap a real `<button>` (router / server-action sorting). Renders the label + a
+`SortDirection`-aware chevron, carries the `.focus-ring`, and auto-labels (`Sort by {label}`).
+The `SortDirection` type (`"asc" | "desc" | false`) is also exported.
+
+**Mobile card-reflow pattern:** tables don't reflow under ~640px — hide the table and render
+list cards instead of horizontal-scrolling. Wrap the `<Table>` in `hidden sm:block` and render a
+`sm:hidden` `<ul>` of `Card` items with the same data + links (documented as a comment in
+`table.tsx`).
 
 ### Tabs
 
@@ -444,6 +572,30 @@ of detail/section pages (client profile, pipeline) for location context.
 Radix-based (added in Phase 1). `TooltipProvider` + `Tooltip` / `TooltipTrigger` /
 `TooltipContent` (`bg-primary text-primary-foreground`, fade + zoom in). For terse hover hints on
 icon-only affordances.
+
+### Sheet
+
+Radix-Dialog-based side drawer — the canonical drawer other screens compose. Slides from
+any side (`side="right"` default, `left`/`top`/`bottom`), overlay `bg-black/50`, panel
+`bg-background` with the deck's tuned `shadow-[var(--shadow-lg)]`. Motion is **ease-out only**
+(`ease-out`, open 300ms / close 200ms — no ease-in or bounce, per the motion rule). Slots:
+`Sheet`, `SheetTrigger`, `SheetClose`, `SheetContent`, `SheetHeader`, `SheetFooter`,
+`SheetTitle` (`text-lg font-semibold`), `SheetDescription` (`text-sm text-muted-foreground`).
+Built-in close button (top-right `XIcon`) uses the canonical `.focus-ring`.
+
+### Skeleton
+
+Neutral loading placeholder: `bg-muted animate-pulse` (muted grey — reads as absent content,
+not a brand-tinted/selected block), `aria-hidden` so screen readers skip the decorative bars.
+Optional `variant` prop (backward-compatible, defaults to `default`):
+
+| Variant | Shape | Usage |
+|---|---|---|
+| `default` | `rounded-md` | Block placeholders (cards, thumbnails, buttons) |
+| `text` | `h-4 w-full rounded-full` | Inline text-line placeholder |
+| `circle` | `rounded-full` | Avatar / icon placeholder |
+
+`className` still overrides sizing/shape as before. Exports `Skeleton` + `SkeletonVariant` type.
 
 ### Spinner
 
@@ -467,6 +619,11 @@ Component-level override:
 ```
 focus-visible:ring-ring/50 focus-visible:ring-[3px]
 ```
+
+**Canonical brand ring:** the `--brand-ring` token (`rgba(43,89,195,0.35)` light /
+`rgba(91,133,222,0.45)` dark) backs the `.focus-ring` utility — a single 3px Atlas-Blue
+ring for keyboard focus across interactive primitives. New focusable components should
+converge on this rather than inventing a fourth focus treatment.
 
 ### Disabled
 

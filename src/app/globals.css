@@ -17,9 +17,26 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  /* Raised neutral surface (nested panels, zebra rows, table-head fill). */
+  --color-surface-2: var(--surface-2);
+  /* Functional / status palette — base · soft tint · foreground. */
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-foreground: var(--danger-foreground);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-info-foreground: var(--info-foreground);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
@@ -30,6 +47,9 @@
   --color-brand-foreground: var(--brand-foreground);
   --shadow-card: var(--shadow-card);
   --shadow-card-hover: var(--shadow-card-hover);
+  /* Deck elevation ramp — lg (dialogs, popovers) · xl (device frames, hero cards). */
+  --shadow-lg: var(--shadow-lg);
+  --shadow-xl: var(--shadow-xl);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -66,12 +86,32 @@
   --accent: #EAF0FC;
   --accent-foreground: #2249A6;
   --destructive: #D14343;
+  --destructive-foreground: #FFFFFF;
   --border: #E6EAF1;
+  /* Heavier divider for input borders / dense tables where a hairline reads too faint. */
+  --border-strong: #D4DAE6;
   --input: #E1E6EF;
   --ring: #2B59C3;
+  /* Raised neutral surface — nested panels, zebra rows, table-head fill. */
+  --surface-2: #FBFCFE;
   /* Brand accent — Atlas Blue, drives marketing-grade highlights. */
   --brand: #2B59C3;
   --brand-foreground: #FFFFFF;
+  /* Brand focus ring — canonical 3px keyboard-focus affordance. */
+  --brand-ring: rgba(43, 89, 195, 0.35);
+  /* Functional / status palette (deck values) — base · soft tint · foreground. */
+  --success: #1E9E6A;
+  --success-soft: #E4F6EE;
+  --success-foreground: #FFFFFF;
+  --warning: #B45313;
+  --warning-soft: #FBEEE2;
+  --warning-foreground: #FFFFFF;
+  --danger: #D14343;
+  --danger-soft: #FBE9E9;
+  --danger-foreground: #FFFFFF;
+  --info: #2B59C3;
+  --info-soft: #EAF0FC;
+  --info-foreground: #FFFFFF;
   /* Chart palette (deck): blue · green · amber · violet · cyan · red. */
   --chart-1: #2B59C3;
   --chart-2: #1E9E6A;
@@ -82,6 +122,9 @@
   /* Deck elevations — shadow-sm (resting) / shadow-md (hover). */
   --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 1px rgba(16, 24, 40, 0.04);
   --shadow-card-hover: 0 4px 12px rgba(16, 24, 40, 0.08), 0 2px 4px rgba(16, 24, 40, 0.04);
+  /* Deck elevation ramp — lg (dialogs/popovers) · xl (device frames, hero cards). */
+  --shadow-lg: 0 12px 32px rgba(16, 24, 40, 0.12), 0 4px 8px rgba(16, 24, 40, 0.05);
+  --shadow-xl: 0 24px 60px rgba(16, 24, 40, 0.16), 0 8px 16px rgba(16, 24, 40, 0.06);
   /* Sidebar — dark ink rail (deck identity). */
   --sidebar: #0E1525;
   --sidebar-foreground: #C7CEDC;
@@ -110,11 +153,30 @@
   --accent: oklch(0.30 0.04 264);
   --accent-foreground: #DCE6FA;
   --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: #FFFFFF;
   --border: oklch(1 0 0 / 10%);
+  --border-strong: oklch(1 0 0 / 18%);
   --input: oklch(1 0 0 / 15%);
   --ring: #4F7BD9;
+  /* Raised neutral surface — one step lighter than card on dark. */
+  --surface-2: oklch(0.25 0.006 285.885);
   --brand: #5B85DE;
   --brand-foreground: #0E1525;
+  /* Brand focus ring — lifted opacity for dark surfaces. */
+  --brand-ring: rgba(91, 133, 222, 0.45);
+  /* Functional / status palette — brighter bases + low-alpha soft tints for dark surfaces. */
+  --success: oklch(0.75 0.14 162);
+  --success-soft: oklch(0.75 0.14 162 / 15%);
+  --success-foreground: #FFFFFF;
+  --warning: oklch(0.78 0.14 66);
+  --warning-soft: oklch(0.78 0.14 66 / 15%);
+  --warning-foreground: #0E1525;
+  --danger: oklch(0.704 0.191 22.216);
+  --danger-soft: oklch(0.704 0.191 22.216 / 15%);
+  --danger-foreground: #FFFFFF;
+  --info: #4F7BD9;
+  --info-soft: oklch(0.55 0.14 264 / 20%);
+  --info-foreground: #FFFFFF;
   /* Chart palette — brighter for dark surfaces. */
   --chart-1: oklch(0.7 0.14 264);
   --chart-2: oklch(0.78 0.14 184);
@@ -124,6 +186,8 @@
   --chart-6: oklch(0.78 0.13 240);
   --shadow-card: 0 1px 2px oklch(0 0 0 / 30%), 0 8px 24px oklch(0 0 0 / 35%);
   --shadow-card-hover: 0 2px 4px oklch(0 0 0 / 35%), 0 16px 40px oklch(0 0 0 / 45%);
+  --shadow-lg: 0 12px 32px oklch(0 0 0 / 45%), 0 4px 8px oklch(0 0 0 / 35%);
+  --shadow-xl: 0 24px 60px oklch(0 0 0 / 55%), 0 8px 16px oklch(0 0 0 / 40%);
   /* Sidebar — same dark ink rail as light mode (deck identity). */
   --sidebar: #0E1525;
   --sidebar-foreground: #C7CEDC;
@@ -204,5 +268,36 @@
       var(--accent) 0%,
       transparent 50%
     );
+  }
+  /* Tabular numerals — opt-in for numeric columns / KPIs so figures align and don't jitter. */
+  .tnum,
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+  /* Canonical brand focus ring — 3px, 35% Atlas Blue. Pair with focus-visible. */
+  .focus-ring {
+    @apply outline-none;
+    box-shadow: 0 0 0 3px var(--brand-ring);
+  }
+  /* Skip-to-content link — visually hidden until focused (used by the app shell). */
+  .skip-link {
+    @apply sr-only;
+  }
+  .skip-link:focus,
+  .skip-link:focus-visible {
+    @apply not-sr-only fixed left-4 top-4 z-50 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground;
+    box-shadow: 0 0 0 3px var(--brand-ring);
+  }
+}
+
+/* Respect reduced-motion — collapse animations/transitions for users who opt out. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
