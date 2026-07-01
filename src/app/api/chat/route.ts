@@ -14,6 +14,7 @@ import { createBooking, addBookingItem, addTraveller } from "@/lib/actions/booki
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { DEFAULT_CURRENCY } from "@/lib/domain";
+import { resolveEffectiveAgencyId } from "@/lib/permissions";
 import { client as clientTable, booking as bookingTable } from "@/lib/schema";
 import {
   getFlightSupplier,
@@ -54,11 +55,17 @@ export async function POST(req: Request) {
     return jsonError("Unauthorized", 401);
   }
 
-  // The agency this user belongs to (tenant scope). NULL only for the platform
-  // super-admin; in that case the data tools below decline rather than querying
-  // globally, so the assistant can never read across agencies.
-  const agencyId =
-    (session.user as unknown as { agencyId?: string | null }).agencyId ?? null;
+  // The agency this request is scoped to. Honors platform-admin "view as"
+  // impersonation (same resolution as requireUser), so when an admin is viewing
+  // an agency the assistant sees THAT agency's CRM — not the admin's own (none).
+  // NULL only for a platform admin not viewing any agency; the data tools then
+  // decline rather than querying globally, so it can never read across agencies.
+  const agencyId = await resolveEffectiveAgencyId(
+    session.user as unknown as {
+      agencyId?: string | null;
+      isPlatformAdmin?: boolean;
+    }
+  );
 
   let body: unknown;
   try {

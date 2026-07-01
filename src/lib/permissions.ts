@@ -118,6 +118,36 @@ export async function requireUser(): Promise<CurrentUser> {
 }
 
 /**
+ * Resolve the agencyId a request should be scoped to, honoring platform-admin
+ * "view as" impersonation — the SAME cookies requireUser() reads. Unlike
+ * requireUser it never redirects, so it is safe to call from API route handlers
+ * (e.g. the assistant chat route) where a redirect would corrupt the response.
+ * Returns the effective agencyId, or null (a platform admin not viewing any
+ * agency). Only platform admins can impersonate, so this can't cross tenants.
+ */
+export async function resolveEffectiveAgencyId(user: {
+  agencyId?: string | null;
+  isPlatformAdmin?: boolean | null;
+}): Promise<string | null> {
+  let agencyId = user.agencyId ?? null;
+  if (user.isPlatformAdmin) {
+    const cookieStore = await cookies();
+    const viewUserId = cookieStore.get(VIEW_AS_USER_COOKIE)?.value;
+    const viewAgencyId = cookieStore.get(VIEW_AS_AGENCY_COOKIE)?.value;
+    if (viewUserId) {
+      const target = await db.query.user.findFirst({
+        where: eq(userTable.id, viewUserId),
+        columns: { agencyId: true },
+      });
+      if (target?.agencyId) agencyId = target.agencyId;
+    } else if (viewAgencyId) {
+      agencyId = viewAgencyId;
+    }
+  }
+  return agencyId;
+}
+
+/**
  * Returns the user only if they belong to an agency (agencyId is non-null).
  * Use at the top of every tenant-scoped page/action so downstream queries can
  * safely scope by `user.agencyId`. The platform super-admin (no agency) is sent
