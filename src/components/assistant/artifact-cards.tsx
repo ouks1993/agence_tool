@@ -511,6 +511,13 @@ function ToolEmpty({ message }: { message: string }) {
  * Renders the right artifact card for a resolved tool part, or null if this
  * tool has no dedicated card. `toolName` is the tool key (without the
  * `tool-` prefix that AI SDK adds to the part type).
+ *
+ * The data read tools (listBookings, getBookingDetails, getClientDetails,
+ * listProposals, pipelineOverview, financeOverview, commissionsOverview) have
+ * no dedicated card by design: they hit the `default` branch and return null,
+ * so the assistant's markdown text answer (tables/bullets) carries the result.
+ * Rich cards for them are optional future work — falling through is safe and
+ * never crashes.
  */
 export function ToolArtifact({
   toolName,

@@ -65,11 +65,22 @@ Hard guardrails for every AI feature. These extend the
 - **Never perform destructive actions silently** — no deletes/overwrites without a
   clear, confirmed user action.
 
-> **Current state:** all assistant tools are agency-scoped. Of them only
-> `createBooking` mutates — it creates a **draft** booking (zero balance,
-> unconfirmed), and the system prompt forbids inventing supplier confirmations or
-> PNRs and restricts creation to explicit requests. Everything else
-> (`searchFlights`, `searchHotels`, `findClients`, `bookingsSummary`) is read-only.
+> **Current state:** all assistant tools are agency-scoped (via
+> `resolveEffectiveAgencyId`, which honors platform-admin "view as" impersonation).
+> Of them only `createBooking` mutates — it creates a **draft** booking (zero
+> balance, unconfirmed), and the system prompt forbids inventing supplier
+> confirmations or PNRs and restricts creation to explicit requests. Everything
+> else is **read-only**:
+>
+> - **Sourcing:** `searchFlights`, `searchHotels` (live suppliers).
+> - **CRM/ops read tools** (`src/lib/assistant/tools/{bookings,clients,sales,finance}.ts`,
+>   each a `make<Domain>Tools({ agencyId })` factory spread into the route when an
+>   agency is in scope): `findClients` + `getClientDetails` (profile, stats, history);
+>   `listBookings` (filter by status/client/destination/date — answers "who
+>   cancelled", "departing this week") + `getBookingDetails`; `listProposals` +
+>   `pipelineOverview`; `bookingsSummary` + `financeOverview` + `commissionsOverview`
+>   (all currency-safe, DZD headline). Every query is hard-scoped to `ctx.agencyId`.
+>
 > Gap: creation is intent-gated by the prompt, not yet behind a hard confirm step —
 > the "modify without confirmation" guard is a convention, not an enforced gate.
 

@@ -15,6 +15,10 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { DEFAULT_CURRENCY } from "@/lib/domain";
 import { resolveEffectiveAgencyId } from "@/lib/permissions";
+import { makeBookingTools } from "@/lib/assistant/tools/bookings";
+import { makeClientTools } from "@/lib/assistant/tools/clients";
+import { makeFinanceTools } from "@/lib/assistant/tools/finance";
+import { makeSalesTools } from "@/lib/assistant/tools/sales";
 import { client as clientTable, booking as bookingTable } from "@/lib/schema";
 import {
   getFlightSupplier,
@@ -373,6 +377,19 @@ export async function POST(req: Request) {
           }
         },
       }),
+
+      // Read tools that answer questions about the agency's own data. They
+      // require a real agencyId (they hard-scope every query to it), so they're
+      // only wired in when the caller has one — a platform admin not viewing any
+      // agency (agencyId === null) gets none of them and can't read cross-tenant.
+      ...(agencyId
+        ? {
+            ...makeBookingTools({ agencyId }),
+            ...makeClientTools({ agencyId }),
+            ...makeSalesTools({ agencyId }),
+            ...makeFinanceTools({ agencyId }),
+          }
+        : {}),
     },
   });
 
@@ -402,7 +419,12 @@ Today's date is ${today}. Internal agency figures — bookings, revenue, pipelin
 You can:
 - Search flights and hotels with the search tools and compare prices for the agent.
 - Build multi-day itineraries: suggest flights, hotels and excursions that fit the client's brief and budget.
-- Look up clients and summarise bookings.
+- Answer questions about the agency's own data using its read tools — always prefer these over guessing:
+  - Bookings: list and filter them by status, client, destination or departure window (e.g. which were cancelled, what departs next week), and open the full booking file for one (travellers, items, payment balance).
+  - Clients: pull a client's full history — contact details, lifetime value, open balance, and their recent bookings, proposals and opportunities.
+  - Sales: list proposals/quotes by status or client, and summarise the pipeline (deals by stage, value, biggest open deals, what's closing soon).
+  - Finance: report confirmed revenue, cash collected, outstanding balance, and overdue amounts.
+  - Commissions: report the commission ledger by status and the top-earning agents.
 - Create a booking file with createBooking when the agent asks to build/save one (flights, hotels, excursions and fees, plus any travellers).
 
 Guidelines:
