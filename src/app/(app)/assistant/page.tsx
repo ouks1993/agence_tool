@@ -25,15 +25,15 @@ import {
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ToolArtifact } from "@/components/assistant/artifact-cards";
 import {
   ContextRail,
   type SuggestedAction,
 } from "@/components/assistant/context-rail";
 import { TypingIndicator } from "@/components/assistant/typing-indicator";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useSession } from "@/lib/auth-client";
 import { initials } from "@/lib/format";
 import { cn } from "@/lib/utils";

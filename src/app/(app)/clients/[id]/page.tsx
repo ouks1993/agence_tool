@@ -16,8 +16,8 @@ import {
 } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { StatusBadge } from "@/components/app/status-badge";
-import { ClientAvatar } from "@/components/clients/client-avatar";
 import { SparkLine } from "@/components/charts/insight-charts";
+import { ClientAvatar } from "@/components/clients/client-avatar";
 import {
   ClientProfileTabs,
   type DealRow,

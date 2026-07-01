@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useTranslations } from "next-intl";
 import {
   Briefcase,
   FileText,
@@ -9,6 +8,7 @@ import {
   Target,
   Users,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { EmptyState } from "@/components/app/empty-state";
 import { StatusBadge } from "@/components/app/status-badge";
 import { AreaInsight } from "@/components/charts/insight-charts";
