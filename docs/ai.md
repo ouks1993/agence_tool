@@ -22,13 +22,16 @@ when *both* are missing. The two surfaces differ in *how* they fall back:
 | Surface | Where | Primary → fallback | Model env (default) |
 |---|---|---|---|
 | Assistant chat (streaming) | `src/app/api/chat/route.ts` | **Static** — Gemini if `GEMINI_API_KEY` set, else OpenRouter (streams can't fall back mid-response) | `GEMINI_MODEL` (`gemini-2.5-flash`) / `OPENROUTER_MODEL` (`openai/gpt-5-mini`) |
-| Inline actions | `src/lib/actions/ai.ts` | **Runtime** — every call runs through `withAiFallback()`: try Gemini, and on *any* error (rate limit, quota, transient) transparently retry with OpenRouter | `GEMINI_MODEL` (`gemini-2.5-flash`) / `OPENROUTER_MODEL` (`openai/gpt-4.1-mini`) |
+| Inline actions | `src/lib/actions/ai.ts` | **Runtime chain** — every call runs through `withAiFallback()` over an ordered candidate list: primary Gemini → lighter Gemini models → OpenRouter. On *any* error it rolls to the next candidate | `GEMINI_MODEL` (`gemini-2.5-flash`) / `OPENROUTER_MODEL` (`openai/gpt-4.1-mini`) |
 
 The runtime fallback exists chiefly for **Gemini's free tier**, which has real
-rate/quota limits — a rate-limited Gemini call silently retries on OpenRouter so
-inline features never break. `aiModels()` builds the ordered candidate list from
-whichever keys are present; `withAiFallback()` iterates it. If no provider key is
-set, both surfaces error clearly ("No AI provider configured…").
+rate/quota limits. Because each free-tier Gemini model has its **own** quota
+bucket, `aiModels()` builds the candidate list as `GEMINI_MODEL` → the
+`GEMINI_FALLBACK_CHAIN` (`gemini-2.5-flash` → `gemini-2.5-flash-lite` →
+`gemini-2.0-flash`, deduped) → OpenRouter (only if `OPENROUTER_API_KEY` is set).
+`withAiFallback()` iterates it, so a throttled model rolls over to the next one —
+staying on Gemini if possible, crossing to OpenRouter only as a last resort. If no
+provider key is set at all, both surfaces error clearly ("No AI provider configured…").
 
 ### AI SDK primitives used
 

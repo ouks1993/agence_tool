@@ -12,10 +12,22 @@ import { requireAgencyUser } from "@/lib/permissions";
 import { booking, bookingDay } from "@/lib/schema";
 
 /**
- * Ordered list of AI models to try: Google Gemini (primary) then OpenRouter
- * (fallback). Gemini is used first; if its call fails at runtime (e.g. the free
- * tier's rate/quota limit) or its key is missing, we transparently retry with
- * OpenRouter. Whichever keys are configured determines what's available.
+ * Gemini models tried in order. Each free-tier model has its OWN rate/quota
+ * bucket, so when the primary is throttled the call rolls over to the next
+ * Gemini model before ever leaving the provider. The primary is configurable
+ * via GEMINI_MODEL; the rest are lighter flash models that share the same key.
+ */
+const GEMINI_FALLBACK_CHAIN = [
+  "gemini-2.5-flash",
+  "gemini-2.5-flash-lite",
+  "gemini-2.0-flash",
+];
+
+/**
+ * Ordered list of AI models to try. Google Gemini first — the primary model,
+ * then its lighter siblings as free-tier-quota fallbacks — then OpenRouter if a
+ * key is configured. Every candidate is attempted in turn by `withAiFallback`,
+ * so a throttled/failed model transparently rolls over to the next.
  */
 function aiModels(): LanguageModel[] {
   const models: LanguageModel[] = [];
@@ -23,7 +35,9 @@ function aiModels(): LanguageModel[] {
   const geminiKey = process.env.GEMINI_API_KEY;
   if (geminiKey) {
     const google = createGoogleGenerativeAI({ apiKey: geminiKey });
-    models.push(google(process.env.GEMINI_MODEL ?? "gemini-2.5-flash"));
+    const primary = process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
+    const chain = [...new Set([primary, ...GEMINI_FALLBACK_CHAIN])];
+    for (const id of chain) models.push(google(id));
   }
 
   const openrouterKey = process.env.OPENROUTER_API_KEY;
