@@ -1,7 +1,12 @@
 # UI Redesign — Phased Plan
 
 **Status:** active · **Owner decision:** Option 2 (upgrade the whole app), by phase
-**Progress:** Phases 0–4 ✅ · Phase 5 (polish & responsive) next
+**Progress:** Phases 0–5 ✅ — full-app deck-quality uplift complete across all 55 routes
+(token layer + primitives; app shell with ⌘K palette + mobile tab bar; every screen
+rebuilt to its mockup / the design language; currency-safe money screens; consistency
+token sweep). Verified by typecheck + lint (0/0) + full production build + all-routes
+no-500 check. **Pending:** authenticated visual/functional QA (blocked on a stale dev-DB
+password in `.env`; see memory `dev-db-credentials-stale`).
 **Decision record:** [docs/decisions/0005-app-ui-redesign.md](../../docs/decisions/0005-app-ui-redesign.md)
 
 > **Delivery policy (Phases 1–5): redesign, not rewrite.** No schema changes per
