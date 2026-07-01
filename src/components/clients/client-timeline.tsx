@@ -4,9 +4,11 @@ import {
   Banknote,
   Bell,
   Clock,
+  Plus,
   TicketCheck,
   type LucideIcon,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate, formatRelative, formatTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -53,17 +55,34 @@ const KIND_META: Record<
   },
 };
 
-export function ClientTimeline({ events }: { events: TimelineEvent[] }) {
+export function ClientTimeline({
+  events,
+  logHref,
+}: {
+  events: TimelineEvent[];
+  /** When provided, renders a "Log activity" action in the header. */
+  logHref?: string;
+}) {
   return (
     <Card className="card-elevated">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Clock className="text-muted-foreground size-4" />
-          Communication timeline
-        </CardTitle>
-        <p className="text-muted-foreground text-sm">
-          Activities, notifications &amp; payments
-        </p>
+      <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
+        <div className="space-y-1">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Clock className="text-muted-foreground size-4" />
+            Communication timeline
+          </CardTitle>
+          <p className="text-muted-foreground text-sm">
+            Activities, notifications &amp; payments
+          </p>
+        </div>
+        {logHref && (
+          <Button asChild variant="outline" size="sm">
+            <Link href={logHref}>
+              <Plus className="mr-1.5 size-4" />
+              Log activity
+            </Link>
+          </Button>
+        )}
       </CardHeader>
       <CardContent>
         {events.length === 0 ? (

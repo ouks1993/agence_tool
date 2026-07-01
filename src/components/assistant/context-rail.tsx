@@ -36,10 +36,12 @@ const ICONS = {
   flight: Plane,
 } as const;
 
+// Aligned to the deck's soft-tint token family (matches marketing/mockups
+// suggested-action icon chips i1–i4): brand · success · amber(warning) · violet.
 const TONE_CLASSES: Record<SuggestedAction["tone"], string> = {
   brand: "bg-brand/10 text-brand",
-  green: "bg-green-500/10 text-green-600 dark:text-green-400",
-  amber: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+  green: "bg-success-soft text-success",
+  amber: "bg-warning-soft text-warning",
   violet: "bg-chart-4/10 text-chart-4",
 };
 
@@ -61,7 +63,7 @@ export function ContextRail({
   onAction: (prompt: string) => void;
 }) {
   return (
-    <aside className="bg-card border-border hidden w-[332px] shrink-0 flex-col overflow-y-auto border-l xl:flex">
+    <aside className="bg-card border-border hidden w-[332px] shrink-0 flex-col overflow-y-auto border-l min-[1100px]:flex">
       {/* Current client — generic state (no client selected on this surface) */}
       <div className="border-border border-b p-5">
         <RailLabel>Current client</RailLabel>

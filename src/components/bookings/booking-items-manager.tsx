@@ -2,19 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Plane,
-  BedDouble,
-  Car,
-  Ticket,
-  ShieldCheck,
-  Receipt,
-  Package,
-  Trash2,
-  Plus,
-} from "lucide-react";
+import { Trash2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { BookingSearchPanel } from "@/components/bookings/booking-search-panel";
+import { BookingSegmentCard } from "@/components/bookings/booking-segment-cards";
 import { SupplierPicker, type SupplierOption } from "@/components/suppliers/supplier-picker";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,17 +25,7 @@ import {
   EXTRA_ITEM_TYPES,
   type BookingItemType,
 } from "@/lib/domain";
-import { formatMoney, formatDate } from "@/lib/format";
-
-const ICONS: Record<BookingItemType, React.ComponentType<{ className?: string }>> = {
-  flight: Plane,
-  hotel: BedDouble,
-  transfer: Car,
-  excursion: Ticket,
-  insurance: ShieldCheck,
-  fee: Receipt,
-  other: Package,
-};
+import { formatMoney } from "@/lib/format";
 
 export type BookingItemRow = {
   id: string;
@@ -60,6 +41,8 @@ export type BookingItemRow = {
   currency: string;
   itemStatus: string | null;
   confirmationNumber: string | null;
+  /** Structured provider offer (FlightOffer/HotelOffer) when added from Search. */
+  details: unknown;
 };
 
 export function BookingItemsManager({
@@ -369,53 +352,58 @@ function ItemSection({
       {items.length === 0 ? (
         <p className="text-muted-foreground mb-2 text-sm">{emptyText}</p>
       ) : (
-        <ul className="mb-2 divide-y">
+        <ul className="mb-3 space-y-3">
           {items.map((item) => {
-            const Icon = ICONS[item.type as BookingItemType] ?? Package;
-            const line = parseFloat(item.amount || "0") * item.quantity;
+            const canConfirm =
+              item.itemStatus === "pending" &&
+              !item.confirmationNumber &&
+              (item.type === "flight" || item.type === "hotel");
             return (
-              <li key={item.id} className="flex items-start gap-3 py-2.5">
-                <div className="bg-muted mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md">
-                  <Icon className="size-4" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium">{item.title}</p>
-                  <p className="text-muted-foreground text-xs">
-                    {BOOKING_ITEM_TYPE_META[item.type as BookingItemType]?.label ??
-                      item.type}
-                    {item.supplier ? ` · ${item.supplier}` : ""}
-                    {item.bookingRef ? ` · ${item.bookingRef}` : ""}
-                    {item.quantity > 1 ? ` · ×${item.quantity}` : ""}
-                    {item.startDate ? ` · ${formatDate(item.startDate)}` : ""}
-                  </p>
-                </div>
-                <span className="shrink-0 font-semibold">
-                  {formatMoney(line, item.currency)}
-                </span>
-                {item.itemStatus === "confirmed" || item.confirmationNumber ? (
-                  <span className="shrink-0 self-center text-xs text-green-600 dark:text-green-400">
-                    {item.confirmationNumber}
-                  </span>
-                ) : item.itemStatus === "pending" &&
-                  (item.type === "flight" || item.type === "hotel") ? (
+              <li key={item.id} className="group/item relative">
+                <BookingSegmentCard
+                  item={{
+                    id: item.id,
+                    type: item.type,
+                    title: item.title,
+                    description: item.description,
+                    supplier: item.supplier,
+                    bookingRef: item.bookingRef,
+                    startDate: item.startDate,
+                    endDate: item.endDate,
+                    quantity: item.quantity,
+                    amount: item.amount,
+                    currency: item.currency,
+                    itemStatus: item.itemStatus,
+                    confirmationNumber: item.confirmationNumber,
+                    details: item.details,
+                  }}
+                />
+                <div className="mt-2 flex items-center justify-end gap-2">
+                  {item.confirmationNumber && (
+                    <span className="text-muted-foreground mr-auto font-mono text-xs">
+                      {item.confirmationNumber}
+                    </span>
+                  )}
+                  {canConfirm && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => onConfirm(item.id)}
+                      disabled={pending}
+                    >
+                      Confirm
+                    </Button>
+                  )}
                   <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => onConfirm(item.id)}
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onRemove(item.id)}
                     disabled={pending}
+                    aria-label="Remove item"
                   >
-                    Confirm
+                    <Trash2 className="size-4" />
                   </Button>
-                ) : null}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => onRemove(item.id)}
-                  disabled={pending}
-                  aria-label="Remove item"
-                >
-                  <Trash2 className="size-4" />
-                </Button>
+                </div>
               </li>
             );
           })}

@@ -1,10 +1,19 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 // Route-level skeleton: the Clients page awaits the client list (up to 200 rows)
 // plus opportunity counts before rendering, so we show the page shell — header,
-// summary card, filter row and table — while that data loads. Mirrors the live
-// layout in page.tsx (max-w-6xl, summary card, filters, table).
+// summary card, filter row and the real 7-column table — while that data loads.
+// Rendering the actual Table primitives keeps column widths, header band and
+// card elevation identical to page.tsx so nothing reflows on load.
 export default function ClientsLoading() {
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8 sm:px-6">
@@ -44,28 +53,55 @@ export default function ClientsLoading() {
         <Skeleton className="h-9 w-20" />
       </div>
 
-      {/* Clients table — header bar + ~6 rows */}
-      <div className="rounded-lg border">
-        <div className="border-b px-4 py-3">
-          <Skeleton className="h-4 w-40" />
-        </div>
-        <div className="divide-y">
-          {[0, 1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="flex items-center gap-4 px-4 py-3">
-              <Skeleton className="size-9 rounded-full" />
-              <div className="min-w-0 space-y-1.5">
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-3 w-40" />
-              </div>
-              <Skeleton className="hidden h-4 w-20 sm:block" />
-              <div className="flex-1" />
-              <Skeleton className="h-5 w-16 rounded-full" />
-              <Skeleton className="hidden h-4 w-24 sm:block" />
-              <Skeleton className="h-4 w-12" />
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* Clients table — mirrors the live 7-column table exactly */}
+      <Card className="card-elevated overflow-hidden p-0">
+        <Table>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead>Name</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Location</TableHead>
+              <TableHead>Owner</TableHead>
+              <TableHead numeric>Opps</TableHead>
+              <TableHead numeric>Updated</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {Array.from({ length: 8 }).map((_, i) => (
+              <TableRow key={i} className="hover:bg-transparent">
+                <TableCell>
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="size-9 rounded-full" />
+                    <div className="min-w-0 space-y-1.5">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-3 w-40" />
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-4 w-20" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-5 w-16 rounded-full" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-4 w-24" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-4 w-24" />
+                </TableCell>
+                <TableCell numeric>
+                  <Skeleton className="ml-auto h-4 w-6" />
+                </TableCell>
+                <TableCell numeric>
+                  <Skeleton className="ml-auto h-4 w-20" />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
     </div>
   );
 }

@@ -1,29 +1,16 @@
 import Link from "next/link";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
-import { Plus, Briefcase, Users, CalendarClock, Wallet, CheckCircle2 } from "lucide-react";
+import { Plus, Briefcase, CalendarClock, Wallet, CheckCircle2 } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
 import { StatCard } from "@/components/app/stat-card";
-import { StatusBadge } from "@/components/app/status-badge";
 import { BookingsBoard } from "@/components/bookings/bookings-board";
+import { BookingsTable } from "@/components/bookings/bookings-table";
 import { BookingsViewToggle } from "@/components/bookings/view-toggle";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { db } from "@/lib/db";
-import {
-  BOOKING_STATUS_META,
-  seesAllData,
-  type BookingStatus,
-} from "@/lib/domain";
-import { formatDate, formatMoney } from "@/lib/format";
+import { seesAllData } from "@/lib/domain";
 import { requireAgencyUser } from "@/lib/permissions";
 import { booking, bookingTraveller } from "@/lib/schema";
 
@@ -124,60 +111,28 @@ export default async function BookingsPage({
           }))}
         />
       ) : (
-        <div className="rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("table.reference")}</TableHead>
-                <TableHead>{t("table.client")}</TableHead>
-                <TableHead>{t("table.destination")}</TableHead>
-                <TableHead>{t("table.dates")}</TableHead>
-                <TableHead className="text-right">Pax</TableHead>
-                <TableHead>{t("table.status")}</TableHead>
-                <TableHead className="text-right">{t("table.total")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {bookings.map((b) => {
-                const meta = BOOKING_STATUS_META[b.status as BookingStatus];
-                return (
-                  <TableRow key={b.id}>
-                    <TableCell className="text-muted-foreground font-mono text-xs">
-                      <Link href={`/bookings/${b.id}`} className="hover:underline">
-                        {b.reference}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      <Link href={`/bookings/${b.id}`} className="font-medium hover:underline">
-                        {b.client?.name ?? "—"}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {b.destination ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-xs">
-                      {b.departDate || b.returnDate
-                        ? `${formatDate(b.departDate)} → ${formatDate(b.returnDate)}`
-                        : "—"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <span className="text-muted-foreground inline-flex items-center gap-1">
-                        <Users className="size-3" />
-                        {countMap.get(b.id) ?? 0}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge label={meta?.label ?? b.status} tone={meta?.badgeClass} />
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                      {formatMoney(b.totalAmount, b.currency)}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
+        <BookingsTable
+          labels={{
+            reference: t("table.reference"),
+            client: t("table.client"),
+            destination: t("table.destination"),
+            dates: t("table.dates"),
+            status: t("table.status"),
+            total: t("table.total"),
+          }}
+          rows={bookings.map((b) => ({
+            id: b.id,
+            reference: b.reference,
+            clientName: b.client?.name ?? null,
+            destination: b.destination,
+            departDate: b.departDate,
+            returnDate: b.returnDate,
+            pax: countMap.get(b.id) ?? 0,
+            status: b.status,
+            totalAmount: b.totalAmount,
+            currency: b.currency,
+          }))}
+        />
       )}
     </div>
   );

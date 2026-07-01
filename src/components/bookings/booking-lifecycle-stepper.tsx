@@ -1,97 +1,70 @@
-"use client";
-
-import { useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { ArrowRight, Check, XCircle } from "lucide-react";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { Check, Circle, Plane, Send, Wallet, XCircle } from "lucide-react";
+import { StatusBadge } from "@/components/app/status-badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { advanceStatus } from "@/lib/actions/bookings";
 import {
   BOOKING_LIFECYCLE,
   BOOKING_STATUS_META,
-  nextBookingStatus,
   type BookingStatus,
 } from "@/lib/domain";
+import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /**
- * Horizontal stepper visualising a booking's progression through the
- * operational lifecycle, with a primary "advance" action below it.
+ * Horizontal stepper visualising a booking's progression through the operational
+ * lifecycle (deck: status stepper). Presentation-only — the advance action lives
+ * in the hero (BookingStatusControl), matching the deck which keeps the stepper
+ * free of controls.
  *
- * The stepper renders the ordered `BOOKING_LIFECYCLE` stages (which exclude the
- * "cancelled" exit state). When a booking is cancelled there is no forward path,
- * so we show a muted pill instead of the steps.
+ * Per-stage icons follow the deck (draft/awaiting/confirmed/ticketed/completed);
+ * completed connectors are success-green; the current stage shows a "now"
+ * sublabel with the booking's last-updated date. We never invent per-stage
+ * timestamps that aren't stored — only the current stage carries `updatedAt`.
  */
-export function BookingLifecycleStepper({
-  bookingId,
-  status,
-  hasItems,
-  hasBalance,
-}: {
-  bookingId: string;
-  status: string;
-  hasItems: boolean;
-  hasBalance: boolean;
-}) {
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
 
+const STAGE_ICON: Record<BookingStatus, React.ComponentType<{ className?: string }>> = {
+  draft: Circle,
+  awaiting_payment: Wallet,
+  confirmed: Check,
+  ticketed: Send,
+  completed: Plane,
+  cancelled: XCircle,
+};
+
+export function BookingLifecycleStepper({
+  status,
+  updatedAt,
+}: {
+  status: string;
+  /** Booking last-updated timestamp — dates the current stage only. */
+  updatedAt?: Date | string | null;
+}) {
   // Cancelled is an exit state: no stepper, just a muted pill.
   if (status === "cancelled") {
     return (
-      <Card>
+      <Card className="card-elevated">
         <CardContent className="p-4">
-          <span className="bg-muted text-muted-foreground inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium">
-            <XCircle className="size-4" />
-            {BOOKING_STATUS_META.cancelled.label}
-          </span>
+          <StatusBadge
+            variant="danger"
+            label={BOOKING_STATUS_META.cancelled.label}
+            dot
+          />
         </CardContent>
       </Card>
     );
   }
 
-  // Where the booking currently sits in the lifecycle. -1 means an unknown /
-  // off-lifecycle status, in which case nothing is treated as "past".
   const currentIndex = BOOKING_LIFECYCLE.indexOf(status as BookingStatus);
-  const next = nextBookingStatus(status);
-  const canAdvance = next !== null && next !== "cancelled";
-
-  const onAdvance = () => {
-    if (!next) return;
-
-    // Soft warnings mirror BookingStatusControl so the two paths behave the same.
-    if (next === "confirmed" && !hasItems) {
-      if (!window.confirm("This booking has no trip services yet. Confirm anyway?")) return;
-    }
-    // Advancing past the payment stage while money is still owed.
-    const nextIndex = BOOKING_LIFECYCLE.indexOf(next);
-    const paymentIndex = BOOKING_LIFECYCLE.indexOf("awaiting_payment");
-    if (hasBalance && paymentIndex !== -1 && nextIndex > paymentIndex) {
-      if (!window.confirm("There is still a balance due. Advance anyway?")) return;
-    }
-
-    startTransition(async () => {
-      const res = await advanceStatus(bookingId);
-      if (res.ok) {
-        toast.success(
-          `Moved to ${BOOKING_STATUS_META[next]?.label ?? next}`
-        );
-        router.refresh();
-      } else {
-        toast.error(res.error);
-      }
-    });
-  };
 
   return (
-    <Card>
-      <CardContent className="space-y-4 p-4">
+    <Card className="card-elevated">
+      <CardContent className="p-5">
         <ol className="flex items-start">
           {BOOKING_LIFECYCLE.map((stage, index) => {
             const isPast = currentIndex > -1 && index < currentIndex;
             const isCurrent = index === currentIndex;
+            const isDone = isPast;
             const meta = BOOKING_STATUS_META[stage];
+            const Icon = isPast ? Check : STAGE_ICON[stage];
 
             return (
               <li
@@ -99,61 +72,59 @@ export function BookingLifecycleStepper({
                 className="flex flex-1 flex-col items-center last:flex-none"
               >
                 <div className="flex w-full items-center">
-                  {/* Leading connector (filled if we've passed this stage). */}
+                  {/* Leading connector (green once passed). */}
                   {index > 0 && (
                     <span
                       className={cn(
-                        "h-px flex-1",
-                        index <= currentIndex ? "bg-primary" : "bg-border"
+                        "h-0.5 flex-1 rounded-full",
+                        index <= currentIndex ? "bg-success" : "bg-border-strong"
                       )}
                     />
                   )}
                   <span
                     className={cn(
-                      "flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
-                      isPast && "bg-primary text-primary-foreground",
-                      isCurrent && "ring-primary bg-primary/10 text-primary ring-2",
-                      !isPast && !isCurrent && "bg-muted text-muted-foreground"
+                      "flex size-7 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
+                      isDone && "bg-success border-success text-white",
+                      isCurrent &&
+                        "bg-primary border-primary text-primary-foreground ring-primary/25 ring-4",
+                      !isDone &&
+                        !isCurrent &&
+                        "bg-card border-border-strong text-muted-foreground/50"
                     )}
                   >
-                    {isPast ? <Check className="size-4" /> : index + 1}
+                    <Icon className="size-3.5" aria-hidden />
                   </span>
-                  {/* Trailing connector (filled if the next stage is reached). */}
+                  {/* Trailing connector (green once passed). */}
                   {index < BOOKING_LIFECYCLE.length - 1 && (
                     <span
                       className={cn(
-                        "h-px flex-1",
-                        index < currentIndex ? "bg-primary" : "bg-border"
+                        "h-0.5 flex-1 rounded-full",
+                        index < currentIndex ? "bg-success" : "bg-border-strong"
                       )}
                     />
                   )}
                 </div>
                 <span
                   className={cn(
-                    "mt-1.5 text-center text-xs",
+                    "mt-2 text-center text-[11.5px] leading-tight whitespace-nowrap",
                     isCurrent
-                      ? "text-foreground font-medium"
-                      : "text-muted-foreground"
+                      ? "text-primary font-semibold"
+                      : isDone
+                        ? "text-foreground font-medium"
+                        : "text-muted-foreground/70"
                   )}
                 >
                   {meta.label}
+                  {isCurrent && (
+                    <span className="text-muted-foreground mt-0.5 block text-[10px] font-normal tabular-nums">
+                      {updatedAt ? `${formatDate(updatedAt)} · now` : "now"}
+                    </span>
+                  )}
                 </span>
               </li>
             );
           })}
         </ol>
-
-        {canAdvance && next && (
-          <Button
-            variant="default"
-            size="sm"
-            onClick={onAdvance}
-            disabled={pending}
-          >
-            Advance to {BOOKING_STATUS_META[next]?.label ?? next}
-            <ArrowRight className="ml-1 size-4" />
-          </Button>
-        )}
       </CardContent>
     </Card>
   );

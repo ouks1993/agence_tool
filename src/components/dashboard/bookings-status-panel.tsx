@@ -14,9 +14,15 @@ export function BookingsStatusPanel({
   outstanding: string;
   avgBookingValue: string;
 }) {
+  const total = data.reduce((s, d) => s + d.value, 0);
   return (
     <div className="space-y-4">
-      <DonutInsight data={data} height={180} />
+      <DonutInsight
+        data={data}
+        height={180}
+        centerValue={total.toLocaleString()}
+        centerLabel={total === 1 ? "booking" : "bookings"}
+      />
       <div className="space-y-2 border-t pt-4">
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground text-sm">Outstanding balance</span>

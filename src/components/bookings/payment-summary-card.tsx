@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { formatDate, formatMoney } from "@/lib/format";
+import { statusTone } from "@/lib/status-tone";
 import { cn } from "@/lib/utils";
 
 /**
@@ -33,11 +34,7 @@ export function PaymentSummaryCard({
   balanceDueDate: Date | string | null;
 }) {
   const settled = balance <= 0 && total > 0;
-  const tone = settled
-    ? "bg-green-500/15 text-green-600 dark:text-green-400"
-    : paid > 0
-      ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
-      : "bg-slate-500/15 text-slate-600 dark:text-slate-300";
+  const financeStatus = settled ? "paid_full" : paid > 0 ? "part_paid" : "unpaid";
   const statusLabel = settled ? "Paid in full" : paid > 0 ? "Part-paid" : "Unpaid";
 
   return (
@@ -46,7 +43,11 @@ export function PaymentSummaryCard({
         <CardTitle className="flex items-center gap-2 text-base">
           <Wallet className="size-4" /> Payment summary
         </CardTitle>
-        <StatusBadge label={statusLabel} tone={tone} />
+        <StatusBadge
+          label={statusLabel}
+          variant={statusTone("paymentSummary", financeStatus)}
+          dot
+        />
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
@@ -68,7 +69,7 @@ export function PaymentSummaryCard({
               style={{ width: `${paidPct}%` }}
               className={cn(
                 "h-2 rounded-full",
-                settled ? "bg-green-500" : "bg-primary"
+                settled ? "bg-success" : "bg-primary"
               )}
             />
           </div>
@@ -81,14 +82,12 @@ export function PaymentSummaryCard({
           <Row
             label="Paid"
             value={formatMoney(paid, currency)}
-            valueClass="text-green-600 dark:text-green-400"
+            valueClass="text-success"
           />
           <Row
             label="Outstanding"
             value={formatMoney(balance, currency)}
-            valueClass={
-              balance > 0 ? "text-amber-600 dark:text-amber-400" : undefined
-            }
+            valueClass={balance > 0 ? "text-warning" : undefined}
           />
           {balanceDueDate && balance > 0 && (
             <Row label="Balance due" value={formatDate(balanceDueDate)} />

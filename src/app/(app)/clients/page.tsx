@@ -1,11 +1,31 @@
 import Link from "next/link";
-import { and, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
-import { Plus, Users, Building2, User as UserIcon } from "lucide-react";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  ilike,
+  or,
+  sql,
+  type SQL,
+  type SQLWrapper,
+} from "drizzle-orm";
+import {
+  ArrowUpDown,
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+  Plus,
+  Users,
+  Building2,
+  User as UserIcon,
+} from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusBadge } from "@/components/app/status-badge";
 import { ClientAvatar } from "@/components/clients/client-avatar";
+import { flagFor } from "@/components/clients/country-flag";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,6 +37,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  type SortDirection,
 } from "@/components/ui/table";
 import { db } from "@/lib/db";
 import {
@@ -28,12 +49,76 @@ import { formatDate } from "@/lib/format";
 import { requireAgencyUser } from "@/lib/permissions";
 import { listTeamMembers } from "@/lib/queries";
 import { client, opportunity } from "@/lib/schema";
+import { cn } from "@/lib/utils";
 
 export const metadata = { title: "Clients" };
 
-type SearchParams = Promise<{ q?: string; status?: string; owner?: string }>;
+type SearchParams = Promise<{
+  q?: string;
+  status?: string;
+  owner?: string;
+  sort?: string;
+  dir?: string;
+}>;
 
 const STATUS_ORDER: ClientStatus[] = ["active", "lead", "inactive"];
+
+// Sortable columns → the client column they order by. `opps` sorts client-side
+// (derived count) so it is intentionally excluded here.
+const SORTABLE = {
+  name: client.name,
+  type: client.type,
+  status: client.status,
+  location: client.country,
+  updated: client.updatedAt,
+} as const;
+type SortKey = keyof typeof SORTABLE;
+
+/**
+ * A sortable column header that navigates (server-side re-order) via a Link,
+ * preserving the active filters. Uses the deck's sortable TableHead affordance.
+ */
+function SortHead({
+  href,
+  dir,
+  numeric = false,
+  children,
+}: {
+  href: string;
+  dir: SortDirection;
+  numeric?: boolean;
+  children: React.ReactNode;
+}) {
+  const Icon =
+    dir === "asc" ? ChevronUp : dir === "desc" ? ChevronDown : ArrowUpDown;
+  return (
+    <TableHead
+      numeric={numeric}
+      aria-sort={
+        dir === "asc" ? "ascending" : dir === "desc" ? "descending" : "none"
+      }
+      className="group p-0"
+    >
+      <Link
+        href={href}
+        scroll={false}
+        className={cn(
+          "hover:text-foreground flex h-10 w-full items-center gap-1.5 px-4 transition-colors",
+          numeric && "flex-row-reverse"
+        )}
+      >
+        {children}
+        <Icon
+          className={cn(
+            "size-3.5 shrink-0 transition-opacity",
+            dir ? "opacity-100" : "opacity-50 group-hover:opacity-100"
+          )}
+          aria-hidden
+        />
+      </Link>
+    </TableHead>
+  );
+}
 
 export default async function ClientsPage({
   searchParams,
@@ -60,12 +145,45 @@ export default async function ClientsPage({
   if (sp.owner) conditions.push(eq(client.ownerId, sp.owner));
   const where = and(...conditions);
 
+  // Sort: default to most-recently-updated; honour ?sort=&dir= for the header.
+  const sortKey = (sp.sort && sp.sort in SORTABLE ? sp.sort : "updated") as SortKey;
+  const sortDir: "asc" | "desc" =
+    sp.dir === "asc" || sp.dir === "desc"
+      ? sp.dir
+      : sortKey === "updated"
+        ? "desc"
+        : "asc";
+  const sortCol: SQLWrapper = SORTABLE[sortKey];
+  const orderBy = sortDir === "asc" ? asc(sortCol) : desc(sortCol);
+
   const clients = await db.query.client.findMany({
     where,
     with: { owner: { columns: { name: true } } },
-    orderBy: [desc(client.updatedAt)],
+    orderBy: [orderBy, desc(client.updatedAt)],
     limit: 200,
   });
+
+  // Build a sort-toggle href that preserves the active filters.
+  const sortHref = (key: SortKey): string => {
+    const params = new URLSearchParams();
+    if (sp.q) params.set("q", sp.q);
+    if (sp.status) params.set("status", sp.status);
+    if (sp.owner) params.set("owner", sp.owner);
+    params.set("sort", key);
+    // Toggle direction when clicking the active column, else sensible default.
+    const nextDir =
+      sortKey === key
+        ? sortDir === "asc"
+          ? "desc"
+          : "asc"
+        : key === "updated"
+          ? "desc"
+          : "asc";
+    params.set("dir", nextDir);
+    return `/clients?${params.toString()}`;
+  };
+  const dirFor = (key: SortKey): SortDirection =>
+    sortKey === key ? sortDir : false;
 
   // Opportunity counts per client.
   const counts = await db
@@ -181,17 +299,31 @@ export default async function ClientsPage({
         />
       ) : (
         <Card className="card-elevated overflow-hidden p-0">
-          <div className="overflow-x-auto">
+          <div className="max-h-[70vh] overflow-auto">
             <Table>
-              <TableHeader>
+              <TableHeader sticky>
                 <TableRow className="hover:bg-transparent">
-                  <TableHead>{t("table.name")}</TableHead>
-                  <TableHead>{t("table.type")}</TableHead>
-                  <TableHead>{t("table.status")}</TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Owner</TableHead>
-                  <TableHead className="text-right">Opps</TableHead>
-                  <TableHead>Updated</TableHead>
+                  <SortHead href={sortHref("name")} dir={dirFor("name")}>
+                    {t("table.name")}
+                  </SortHead>
+                  <SortHead href={sortHref("type")} dir={dirFor("type")}>
+                    {t("table.type")}
+                  </SortHead>
+                  <SortHead href={sortHref("status")} dir={dirFor("status")}>
+                    {t("table.status")}
+                  </SortHead>
+                  <SortHead href={sortHref("location")} dir={dirFor("location")}>
+                    {t("list.location")}
+                  </SortHead>
+                  <TableHead>{t("list.owner")}</TableHead>
+                  <TableHead numeric>{t("list.opps")}</TableHead>
+                  <SortHead
+                    href={sortHref("updated")}
+                    dir={dirFor("updated")}
+                    numeric
+                  >
+                    {t("list.updated")}
+                  </SortHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -199,13 +331,20 @@ export default async function ClientsPage({
                   const statusMeta = CLIENT_STATUS_META[c.status as ClientStatus];
                   const isCorporate = c.type === "corporate";
                   const TypeIcon = isCorporate ? Building2 : UserIcon;
+                  const flag = flagFor(c.country ?? c.city);
+                  const location =
+                    [c.city, c.country].filter(Boolean).join(", ") || "—";
                   return (
-                    <TableRow key={c.id}>
+                    // Full-row navigation: an absolutely-positioned overlay Link
+                    // makes the whole row a single click target (honest hover).
+                    <TableRow key={c.id} className="group relative">
                       <TableCell>
                         <Link
                           href={`/clients/${c.id}`}
-                          className="flex items-center gap-3 group"
-                        >
+                          className="absolute inset-0 z-0"
+                          aria-label={c.name}
+                        />
+                        <span className="relative z-10 flex items-center gap-3">
                           <ClientAvatar
                             name={c.name}
                             className="size-9 text-xs"
@@ -220,7 +359,7 @@ export default async function ClientsPage({
                               </span>
                             )}
                           </span>
-                        </Link>
+                        </span>
                       </TableCell>
                       <TableCell>
                         <span className="text-muted-foreground inline-flex items-center gap-1.5 text-sm capitalize">
@@ -235,16 +374,29 @@ export default async function ClientsPage({
                         />
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
-                        {[c.city, c.country].filter(Boolean).join(", ") || "—"}
+                        <span className="inline-flex items-center gap-1.5">
+                          {flag && (
+                            <span aria-hidden className="text-base leading-none">
+                              {flag}
+                            </span>
+                          )}
+                          {location}
+                        </span>
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
-                        {c.owner?.name ?? "Unassigned"}
+                        {c.owner?.name ?? t("list.unassigned")}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums">
+                      <TableCell numeric className="font-medium">
                         {countMap.get(c.id) ?? 0}
                       </TableCell>
-                      <TableCell className="text-muted-foreground text-xs tabular-nums">
-                        {formatDate(c.updatedAt)}
+                      <TableCell
+                        numeric
+                        className="text-muted-foreground text-xs"
+                      >
+                        <span className="relative z-10 inline-flex items-center gap-1">
+                          {formatDate(c.updatedAt)}
+                          <ChevronRight className="text-muted-foreground/50 size-3.5 opacity-0 transition-opacity group-hover:opacity-100" />
+                        </span>
                       </TableCell>
                     </TableRow>
                   );

@@ -8,27 +8,27 @@ import {
   Users,
   ShieldAlert,
   Wallet,
-  FileText,
-  Receipt,
   Mail,
   BadgePercent,
-  Map as MapIcon,
   Search,
 } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusBadge } from "@/components/app/status-badge";
 import { AssignedAgentCard } from "@/components/bookings/assigned-agent-card";
+import { BookingActionsMenu } from "@/components/bookings/booking-actions-menu";
 import { BookingActivity } from "@/components/bookings/booking-activity";
+import { BookingAdvanceButton } from "@/components/bookings/booking-advance-button";
 import { BookingDocuments } from "@/components/bookings/booking-documents";
 import { BookingItemsManager } from "@/components/bookings/booking-items-manager";
 import { BookingLifecycleStepper } from "@/components/bookings/booking-lifecycle-stepper";
+import { BookingMarginCard } from "@/components/bookings/booking-margin-card";
 import { BookingNotesCard } from "@/components/bookings/booking-notes-card";
 import { BookingStatusControl } from "@/components/bookings/booking-status-control";
 import { CommunicationsManager } from "@/components/bookings/communications-manager";
 import { DeleteBookingButton } from "@/components/bookings/delete-booking-button";
-import { PaymentsManager } from "@/components/bookings/payments-manager";
 import { PaymentSummaryCard } from "@/components/bookings/payment-summary-card";
+import { PaymentsManager } from "@/components/bookings/payments-manager";
 import { SearchSheet } from "@/components/bookings/search-sheet";
 import { SupplierRefsCard } from "@/components/bookings/supplier-refs-card";
 import { TravellersManager } from "@/components/bookings/travellers-manager";
@@ -61,6 +61,7 @@ import { paymentSummary } from "@/lib/payments/summary";
 import { requireAgencyUser } from "@/lib/permissions";
 import { listClientOptions, listOpenBookings } from "@/lib/queries";
 import { booking } from "@/lib/schema";
+import { statusTone } from "@/lib/status-tone";
 import {
   getActiveFlightProvider,
   getActiveHotelProvider,
@@ -123,6 +124,13 @@ export default async function BookingWorkspace({
   const total = parseFloat(b.totalAmount || "0");
   const { paid, balance } = paymentSummary(b.payments, total);
 
+  // Gross margin for the rail Margin card: sum of this booking's commission
+  // lines that are in the booking's own currency (never mix currencies). Lines
+  // in other currencies are excluded, so the derived net cost stays honest.
+  const marginTotal = commissions
+    .filter((c) => c.currency === b.currency)
+    .reduce((s, c) => s + parseFloat(c.amount || "0"), 0);
+
   // Passport expiry warnings across travellers.
   const passportIssues = b.travellers
     .map((t) => ({ t, status: passportExpiryStatus(t.passportExpiry, travelDate) }))
@@ -158,7 +166,7 @@ export default async function BookingWorkspace({
         </BreadcrumbList>
       </Breadcrumb>
 
-      {/* ===== Hero header: ref + status badges + actions ===== */}
+      {/* ===== Hero header: ref + status control + weighted actions ===== */}
       <PageHeader title={b.reference}>
         <BookingStatusControl
           id={b.id}
@@ -167,41 +175,40 @@ export default async function BookingWorkspace({
           hasBalance={balance > 0}
         />
         <Button asChild variant="outline" size="sm">
-          <Link href={`/bookings/${b.id}/itinerary`}>
-            <MapIcon className="mr-2 size-4" />
-            Itinerary
-          </Link>
-        </Button>
-        <Button asChild variant="outline" size="sm">
-          <Link href={`/booking-docs/${b.id}/voucher`} target="_blank">
-            <FileText className="mr-2 size-4" />
-            Voucher
-          </Link>
-        </Button>
-        <Button asChild variant="outline" size="sm">
-          <Link href={`/booking-docs/${b.id}/invoice`} target="_blank">
-            <Receipt className="mr-2 size-4" />
-            Invoice
-          </Link>
-        </Button>
-        <Button asChild variant="outline" size="sm">
           <Link href={`/bookings/${b.id}/edit`}>
             <Pencil className="mr-2 size-4" />
             Edit trip
           </Link>
         </Button>
-        {b.client && (
-          <PortalInviteButton
-            clientId={b.client.id}
-            clientEmail={b.client.email ?? null}
-          />
-        )}
-        <DeleteBookingButton id={b.id} label={b.reference} />
+        <BookingActionsMenu
+          bookingId={b.id}
+          extra={
+            <div className="flex flex-col gap-0.5 p-1 pt-0">
+              {b.client && (
+                <PortalInviteButton
+                  clientId={b.client.id}
+                  clientEmail={b.client.email ?? null}
+                />
+              )}
+              <DeleteBookingButton id={b.id} label={b.reference} />
+            </div>
+          }
+        />
+        <BookingAdvanceButton
+          bookingId={b.id}
+          status={b.status}
+          hasItems={b.items.length > 0}
+          hasBalance={balance > 0}
+        />
       </PageHeader>
 
       {/* Sub-line: status + client + trip facts (real columns only). */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
-        <StatusBadge label={meta?.label ?? b.status} tone={meta?.badgeClass} />
+        <StatusBadge
+          label={meta?.label ?? b.status}
+          variant={statusTone("booking", b.status)}
+          dot
+        />
         {b.client && (
           <Link
             href={`/clients/${b.client.id}`}
@@ -246,13 +253,8 @@ export default async function BookingWorkspace({
         )}
       </div>
 
-      {/* ===== Lifecycle stepper (preserved control) ===== */}
-      <BookingLifecycleStepper
-        bookingId={b.id}
-        status={b.status}
-        hasItems={b.items.length > 0}
-        hasBalance={balance > 0}
-      />
+      {/* ===== Lifecycle stepper (presentation; advance lives in the hero) ===== */}
+      <BookingLifecycleStepper status={b.status} updatedAt={b.updatedAt} />
 
       {passportIssues.length > 0 && (
         <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-300">
@@ -270,9 +272,9 @@ export default async function BookingWorkspace({
         </div>
       )}
 
-      {/* ===== Two-column: main workspace + compact right rail ===== */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
+      {/* ===== Two-column: main workspace + fixed compact right rail ===== */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="space-y-6">
           <Card className="card-elevated">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
@@ -351,6 +353,7 @@ export default async function BookingWorkspace({
                   currency: i.currency,
                   itemStatus: i.itemStatus,
                   confirmationNumber: i.confirmationNumber,
+                  details: i.details,
                 }))}
               />
             </CardContent>
@@ -451,6 +454,14 @@ export default async function BookingWorkspace({
             paidPct={paidPct}
             balanceDueDate={b.departDate}
           />
+
+          {showCommissions && (
+            <BookingMarginCard
+              currency={b.currency}
+              sell={total}
+              margin={marginTotal}
+            />
+          )}
 
           <SupplierRefsCard
             refs={b.supplierRefs.map((r) => ({

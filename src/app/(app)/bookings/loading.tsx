@@ -28,20 +28,32 @@ export default function BookingsLoading() {
         ))}
       </div>
 
-      {/* Bookings table — header bar + ~6 rows */}
-      <div className="rounded-lg border">
-        <div className="border-b px-4 py-3">
-          <Skeleton className="h-4 w-40" />
+      {/* Bookings table — 7-column header + ~7 rows matching the real grid */}
+      <div className="overflow-hidden rounded-lg border">
+        {/* Header band */}
+        <div className="bg-surface-2 grid grid-cols-[1fr_1.2fr_1fr_1.4fr_0.6fr_1fr_1fr] gap-4 border-b px-4 py-3">
+          {["ref", "client", "dest", "dates", "pax", "status", "total"].map((k, i) => (
+            <Skeleton
+              key={k}
+              className={`h-3 ${
+                i === 4 || i === 6 ? "ml-auto w-10" : "w-20"
+              }`}
+            />
+          ))}
         </div>
         <div className="divide-y">
-          {[0, 1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="flex items-center gap-4 px-4 py-3">
+          {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+            <div
+              key={i}
+              className="grid grid-cols-[1fr_1.2fr_1fr_1.4fr_0.6fr_1fr_1fr] items-center gap-4 px-4 py-3"
+            >
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-4 w-28" />
               <Skeleton className="h-4 w-20" />
               <Skeleton className="h-4 w-32" />
-              <Skeleton className="hidden h-4 w-24 sm:block" />
-              <div className="flex-1" />
+              <Skeleton className="ml-auto h-4 w-8" />
               <Skeleton className="h-5 w-20 rounded-full" />
-              <Skeleton className="h-4 w-16" />
+              <Skeleton className="ml-auto h-4 w-16" />
             </div>
           ))}
         </div>

@@ -42,7 +42,11 @@ export function BookingNotesCard({
           </div>
         )}
         {notes && (
-          <p className="text-sm whitespace-pre-wrap">{notes}</p>
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
+            <p className="text-sm whitespace-pre-wrap text-amber-900 dark:text-amber-100/90">
+              {notes}
+            </p>
+          </div>
         )}
       </CardContent>
     </Card>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import {
   Briefcase,
   FileText,
@@ -8,8 +9,9 @@ import {
   Target,
   Users,
 } from "lucide-react";
+import { EmptyState } from "@/components/app/empty-state";
 import { StatusBadge } from "@/components/app/status-badge";
-import { BarInsight } from "@/components/charts/insight-charts";
+import { AreaInsight } from "@/components/charts/insight-charts";
 import {
   ClientTimeline,
   type TimelineEvent,
@@ -24,6 +26,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
@@ -62,6 +72,8 @@ function TabCount({ n }: { n: number }) {
 export function ClientProfileTabs({
   clientId,
   trips,
+  lifetimeValue,
+  avgPerTrip,
   opportunities,
   proposals,
   contacts,
@@ -71,6 +83,10 @@ export function ClientProfileTabs({
 }: {
   clientId: string;
   trips: TripRow[];
+  /** Formatted DZD lifetime total (for the trips-tab subtitle). */
+  lifetimeValue: string;
+  /** Formatted compact avg/trip (DZD), or null when no DZD bookings. */
+  avgPerTrip: string | null;
   opportunities: DealRow[];
   proposals: DealRow[];
   contacts: ContactRow[];
@@ -78,6 +94,7 @@ export function ClientProfileTabs({
   spend: SpendPoint[];
   timelineEvents: TimelineEvent[];
 }) {
+  const t = useTranslations("clients");
   return (
     <Tabs defaultValue="overview" className="gap-5">
       <div className="overflow-x-auto">
@@ -106,14 +123,28 @@ export function ClientProfileTabs({
       {/* ---------------- Overview ---------------- */}
       <TabsContent value="overview" className="space-y-5">
         <Card className="card-elevated">
-          <CardHeader>
-            <CardTitle className="text-base">Spend over time</CardTitle>
-            <p className="text-muted-foreground text-sm">
-              Annual booked value (DZD) · last 5 years
-            </p>
+          <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
+            <div className="space-y-1">
+              <CardTitle className="text-base">
+                {t("profile.spendOverTime")}
+              </CardTitle>
+              <p className="text-muted-foreground text-sm">
+                {t("profile.spendSubtitle")}
+              </p>
+            </div>
+            {avgPerTrip && (
+              <div className="text-right">
+                <p className="text-muted-foreground text-xs">
+                  {t("profile.avgPerTrip")}
+                </p>
+                <p className="text-sm font-semibold tabular-nums">
+                  {avgPerTrip}
+                </p>
+              </div>
+            )}
           </CardHeader>
           <CardContent>
-            <BarInsight
+            <AreaInsight
               data={spend}
               format="currency"
               currency="DZD"
@@ -123,20 +154,34 @@ export function ClientProfileTabs({
           </CardContent>
         </Card>
 
-        <ClientTimeline events={timelineEvents} />
+        <ClientTimeline
+          events={timelineEvents}
+          logHref={`/clients/${clientId}/edit`}
+        />
       </TabsContent>
 
       {/* ---------------- Trips ---------------- */}
       <TabsContent value="trips">
-        <Card className="card-elevated">
+        <Card className="card-elevated overflow-hidden">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Briefcase className="text-muted-foreground size-4" />
-              Trip history
+              {t("profile.tripHistory")}
             </CardTitle>
+            {trips.length > 0 && (
+              <p className="text-muted-foreground text-sm tabular-nums">
+                {trips.length}{" "}
+                {trips.length === 1 ? "booking" : "bookings"} · {lifetimeValue}{" "}
+                {t("profile.lifetimeValue").toLowerCase()}
+              </p>
+            )}
           </CardHeader>
-          <CardContent>
-            <TripsTable trips={trips} clientId={clientId} />
+          <CardContent className="p-0">
+            <TripsTable
+              trips={trips}
+              clientId={clientId}
+              t={t}
+            />
           </CardContent>
         </Card>
       </TabsContent>
@@ -153,7 +198,9 @@ export function ClientProfileTabs({
           <CardContent>
             <DealList
               rows={opportunities}
-              emptyLabel="No opportunities yet."
+              emptyIcon={Target}
+              emptyTitle="No opportunities yet"
+              emptyDescription="Deals for this client will appear here."
             />
           </CardContent>
         </Card>
@@ -169,7 +216,20 @@ export function ClientProfileTabs({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <DealList rows={proposals} emptyLabel="No proposals yet." />
+            <DealList
+              rows={proposals}
+              emptyIcon={FileText}
+              emptyTitle="No proposals yet"
+              emptyDescription="Proposals built for this client will appear here."
+              emptyAction={
+                <Link
+                  href={`/proposals/new?clientId=${clientId}`}
+                  className="text-brand text-sm font-medium hover:underline"
+                >
+                  Build a proposal →
+                </Link>
+              }
+            />
           </CardContent>
         </Card>
       </TabsContent>
@@ -202,7 +262,19 @@ export function ClientProfileTabs({
             {notes ? (
               <p className="text-sm leading-6 whitespace-pre-wrap">{notes}</p>
             ) : (
-              <p className="text-muted-foreground text-sm">No notes yet.</p>
+              <EmptyState
+                icon={StickyNote}
+                title="No notes yet"
+                description="Internal notes about this client will appear here."
+                action={
+                  <Link
+                    href={`/clients/${clientId}/edit`}
+                    className="text-brand text-sm font-medium hover:underline"
+                  >
+                    Add a note →
+                  </Link>
+                }
+              />
             )}
           </CardContent>
         </Card>
@@ -214,91 +286,115 @@ export function ClientProfileTabs({
 function TripsTable({
   trips,
   clientId,
+  t,
 }: {
   trips: TripRow[];
   clientId: string;
+  t: ReturnType<typeof useTranslations>;
 }) {
   if (trips.length === 0) {
     return (
-      <div className="text-muted-foreground space-y-3 py-6 text-center text-sm">
-        <p>No trips booked yet.</p>
-        <Link
-          href={`/bookings/new?clientId=${clientId}`}
-          className="text-brand font-medium hover:underline"
-        >
-          Start the first booking →
-        </Link>
+      <div className="p-6">
+        <EmptyState
+          icon={Briefcase}
+          title="No trips booked yet"
+          description="Start the first booking to build this client's trip history."
+          action={
+            <Link
+              href={`/bookings/new?clientId=${clientId}`}
+              className="text-brand text-sm font-medium hover:underline"
+            >
+              Start the first booking →
+            </Link>
+          }
+        />
       </div>
     );
   }
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="text-muted-foreground border-b text-left text-xs">
-            <th className="py-2 pr-3 font-medium">Reference</th>
-            <th className="py-2 pr-3 font-medium">Destination</th>
-            <th className="py-2 pr-3 font-medium">Dates</th>
-            <th className="py-2 pr-3 font-medium">Status</th>
-            <th className="py-2 pl-3 text-right font-medium">Value</th>
-          </tr>
-        </thead>
-        <tbody>
-          {trips.map((t) => (
-            <tr
-              key={t.id}
-              className="hover:bg-accent/40 border-b transition-colors last:border-0"
-            >
-              <td className="py-3 pr-3">
-                <Link
-                  href={`/bookings/${t.id}`}
-                  className="text-muted-foreground font-mono text-xs hover:underline"
-                >
-                  {t.reference}
-                </Link>
-              </td>
-              <td className="py-3 pr-3">
-                <Link
-                  href={`/bookings/${t.id}`}
-                  className="flex items-center gap-2 font-medium hover:underline"
-                >
-                  {t.flag && (
-                    <span aria-hidden className="text-base leading-none">
-                      {t.flag}
-                    </span>
-                  )}
-                  {t.destination}
-                </Link>
-              </td>
-              <td className="text-muted-foreground py-3 pr-3 tabular-nums">
-                {t.dates}
-              </td>
-              <td className="py-3 pr-3">
-                <StatusBadge
-                  label={t.statusLabel}
-                  {...(t.statusTone ? { tone: t.statusTone } : {})}
-                />
-              </td>
-              <td className="py-3 pl-3 text-right font-medium tabular-nums">
-                {t.amount}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <>
+      <div className="max-h-[28rem] overflow-auto">
+        <Table>
+          <TableHeader sticky>
+            <TableRow className="hover:bg-transparent">
+              <TableHead>Reference</TableHead>
+              <TableHead>Destination</TableHead>
+              <TableHead>Dates</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead numeric>Value</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {trips.map((row) => (
+              <TableRow key={row.id} className="group relative">
+                <TableCell>
+                  <Link
+                    href={`/bookings/${row.id}`}
+                    className="absolute inset-0 z-0"
+                    aria-label={row.reference}
+                  />
+                  <span className="text-muted-foreground relative z-10 font-mono text-xs group-hover:underline">
+                    {row.reference}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <span className="flex items-center gap-2 font-medium">
+                    {row.flag && (
+                      <span aria-hidden className="text-base leading-none">
+                        {row.flag}
+                      </span>
+                    )}
+                    {row.destination}
+                  </span>
+                </TableCell>
+                <TableCell className="text-muted-foreground tabular-nums">
+                  {row.dates}
+                </TableCell>
+                <TableCell>
+                  <StatusBadge
+                    label={row.statusLabel}
+                    {...(row.statusTone ? { tone: row.statusTone } : {})}
+                  />
+                </TableCell>
+                <TableCell numeric className="font-medium">
+                  {row.amount}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+      <div className="text-muted-foreground flex items-center justify-between border-t px-5 py-3 text-sm">
+        <span className="tabular-nums">
+          {t("profile.showingOf", { shown: trips.length, total: trips.length })}
+        </span>
+      </div>
+    </>
   );
 }
 
 function DealList({
   rows,
-  emptyLabel,
+  emptyIcon,
+  emptyTitle,
+  emptyDescription,
+  emptyAction,
 }: {
   rows: DealRow[];
-  emptyLabel: string;
+  emptyIcon: React.ComponentType<{ className?: string }>;
+  emptyTitle: string;
+  emptyDescription: string;
+  emptyAction?: React.ReactNode;
 }) {
   if (rows.length === 0) {
-    return <p className="text-muted-foreground text-sm">{emptyLabel}</p>;
+    return (
+      <EmptyState
+        icon={emptyIcon}
+        title={emptyTitle}
+        description={emptyDescription}
+        {...(emptyAction ? { action: emptyAction } : {})}
+      />
+    );
   }
   return (
     <ul className="divide-y">

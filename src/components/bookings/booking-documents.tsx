@@ -86,11 +86,8 @@ export function BookingDocuments({ documents }: { documents: BookingDocumentRow[
                 </div>
                 <StatusBadge
                   label={ready ? "Ready" : "Pending"}
-                  tone={
-                    ready
-                      ? "bg-green-500/15 text-green-600 dark:text-green-400"
-                      : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
-                  }
+                  variant={ready ? "success" : "warning"}
+                  dot
                 />
                 {ready ? (
                   <Button asChild variant="ghost" size="icon" aria-label={`Download ${meta.label}`}>

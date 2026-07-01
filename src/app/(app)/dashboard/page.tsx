@@ -12,27 +12,31 @@ import {
   Plus,
   Activity,
   TrendingUp,
+  MapPin,
 } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { GettingStartedCard } from "@/components/app/getting-started-card";
 import { PageHeader } from "@/components/app/page-header";
 import { StatCard } from "@/components/app/stat-card";
 import { FunnelInsight } from "@/components/charts/insight-charts";
+import { ActivityTimeline } from "@/components/dashboard/activity-timeline";
+import { AtlasSuggests, type Suggestion } from "@/components/dashboard/atlas-suggests";
 import { BookingsStatusPanel } from "@/components/dashboard/bookings-status-panel";
 import { DeparturesList, type DepartureRow } from "@/components/dashboard/departures-list";
 import { FollowUpsList, type FollowUpItem } from "@/components/dashboard/follow-ups-list";
 import { RevenueTrend } from "@/components/dashboard/revenue-trend";
 import { SectionCard } from "@/components/dashboard/section-card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { TopDestinations, type DestinationRow } from "@/components/dashboard/top-destinations";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { describeActivity } from "@/lib/activity-format";
 import {
   conversionRate,
   countBy,
   growthPct,
   monthlyBuckets,
   num,
+  topN,
 } from "@/lib/analytics";
 import { db } from "@/lib/db";
 import {
@@ -47,9 +51,8 @@ import {
 } from "@/lib/domain";
 import {
   formatMoney,
-  formatRelative,
+  formatMoneyCompact,
   formatDate,
-  initials,
   passportExpiryStatus,
 } from "@/lib/format";
 import { paymentSummary } from "@/lib/payments/summary";
@@ -195,6 +198,15 @@ export default async function DashboardPage() {
     12,
     now
   );
+  // Confirmed-booking COUNT per month, same 12-month window — powers the
+  // Revenue | Bookings series toggle on the revenue card.
+  const bookingsMonthly = monthlyBuckets(
+    confirmedBookings,
+    (b) => b.createdAt,
+    () => 1,
+    12,
+    now
+  );
 
   // --- Bookings-by-status donut + summary figures -------------------------
   const byStatus = countBy(
@@ -220,6 +232,34 @@ export default async function DashboardPage() {
     value: dzdOpps
       .filter((o) => o.stage === s)
       .reduce((sum, o) => sum + num(o.value), 0),
+  }));
+
+  // --- Top destinations by revenue THIS MONTH (DZD, currency-safe) --------
+  // Confirmed & paid DZD bookings created this calendar month, grouped by the
+  // destination country. Currency-safe: only the DZD series is summed.
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const countryOf = (raw: string | null | undefined) =>
+    raw
+      ? raw.includes(",")
+        ? raw.slice(raw.lastIndexOf(",") + 1).trim() || raw
+        : raw
+      : "Unknown";
+  const destThisMonth = dzdConfirmed.filter(
+    (b) => new Date(b.createdAt) >= monthStart
+  );
+  const destTotals = topN(
+    destThisMonth,
+    (b) => countryOf(b.destination),
+    (b) => num(b.totalAmount),
+    5
+  );
+  const destTotalRevenue = destTotals.reduce((s, d) => s + d.value, 0);
+  const destinationRows: DestinationRow[] = destTotals.map((d) => ({
+    ...d,
+    display: formatMoneyCompact(d.value),
+    share: destTotalRevenue
+      ? Math.round((d.value / destTotalRevenue) * 1000) / 10
+      : 0,
   }));
 
   // --- Upcoming departures ------------------------------------------------
@@ -319,6 +359,105 @@ export default async function DashboardPage() {
   followUps.sort((x, y) => PRIORITY_RANK[x.priority] - PRIORITY_RANK[y.priority]);
   const dueSoonCount = followUps.filter((f) => f.priority === "high").length;
 
+  // --- "Atlas suggests" — actionable cards DERIVED from real records ------
+  // 1) The largest outstanding balance on an upcoming booking → chase it.
+  // 2) The open opportunity closing soonest (highest value on ties) → convert.
+  // 3) An expired-passport traveller on an upcoming trip → re-check.
+  // Each links straight to the underlying record; nothing is fabricated.
+  const suggestions: Suggestion[] = [];
+  const daysUntil = (d: Date) =>
+    Math.max(0, Math.round((d.getTime() - now.getTime()) / 86_400_000));
+
+  // 1) Biggest outstanding balance (prefer bookings that depart soon).
+  let topBalance: {
+    id: string;
+    reference: string;
+    balance: number;
+    currency: string;
+    departDate: Date | null;
+    total: number;
+  } | null = null;
+  for (const b of active) {
+    const total = num(b.totalAmount);
+    const { balance } = paymentSummary(b.payments, total);
+    if (balance <= 0.005) continue;
+    if (!topBalance || balance > topBalance.balance) {
+      topBalance = {
+        id: b.id,
+        reference: b.reference,
+        balance,
+        currency: b.currency || "DZD",
+        departDate: b.departDate ? new Date(b.departDate) : null,
+        total,
+      };
+    }
+  }
+  if (topBalance) {
+    const pct = topBalance.total
+      ? Math.round((topBalance.balance / topBalance.total) * 100)
+      : null;
+    const departsIn =
+      topBalance.departDate && topBalance.departDate >= now
+        ? ` before it departs in ${daysUntil(topBalance.departDate)} day${
+            daysUntil(topBalance.departDate) === 1 ? "" : "s"
+          }`
+        : "";
+    suggestions.push({
+      id: `sg-balance-${topBalance.id}`,
+      kind: "balance",
+      title: `Chase ${formatMoney(topBalance.balance, topBalance.currency)} on ${topBalance.reference}`,
+      description: `${topBalance.reference} still has ${
+        pct !== null ? `${pct}% ` : "an "
+      }outstanding balance${departsIn}. Sending the payment link now protects the allotment.`,
+      actionLabel: "Collect balance",
+      actionHref: `/bookings/${topBalance.id}`,
+    });
+  }
+
+  // 2) Open opportunity closing soonest (within ~30 days), highest value wins ties.
+  const closingSoon = opps
+    .filter((o) => isOpenStage(o.stage) && o.expectedCloseDate)
+    .map((o) => ({ ...o, close: new Date(o.expectedCloseDate as string | Date) }))
+    .filter((o) => !Number.isNaN(o.close.getTime()) && o.close <= new Date(now.getTime() + 30 * 86_400_000))
+    .sort(
+      (a, b) => a.close.getTime() - b.close.getTime() || num(b.value) - num(a.value)
+    );
+  const nextClose = closingSoon[0];
+  if (nextClose) {
+    const overdue = nextClose.close < now;
+    const valueStr =
+      (nextClose.currency || "DZD") === "DZD" && num(nextClose.value) > 0
+        ? ` — ${formatMoney(num(nextClose.value), nextClose.currency || "DZD")}`
+        : "";
+    suggestions.push({
+      id: `sg-opp-${nextClose.id}`,
+      kind: "proposal",
+      title: overdue
+        ? `Revive ${nextClose.title} — close date passed`
+        : `Convert ${nextClose.title} closing in ${daysUntil(nextClose.close)} day${daysUntil(nextClose.close) === 1 ? "" : "s"}`,
+      description: `This deal${valueStr} is still open and ${
+        overdue
+          ? `overdue since ${formatDate(nextClose.close)}`
+          : `due to close ${formatDate(nextClose.close)}`
+      }. A nudge now could win it before it slips.`,
+      actionLabel: "Follow up",
+      actionHref: `/opportunities/${nextClose.id}`,
+    });
+  }
+
+  // 3) An expired-passport traveller on an upcoming trip → re-check.
+  const expiredPassport = passportAlerts.find((a) => a.level === "expired");
+  if (expiredPassport) {
+    suggestions.push({
+      id: `sg-passport-${expiredPassport.bookingId}`,
+      kind: "passport",
+      title: `Re-verify passport — ${expiredPassport.traveller}`,
+      description: `${expiredPassport.reference}: ${expiredPassport.message}. Fix this before ticketing to avoid a denied boarding.`,
+      actionLabel: "Open booking",
+      actionHref: `/bookings/${expiredPassport.bookingId}`,
+    });
+  }
+
   const activities = await db.query.activityLog.findMany({
     where: canSeeAll
       ? eq(activityLog.agencyId, user.agencyId)
@@ -358,7 +497,7 @@ export default async function DashboardPage() {
       : null;
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8 sm:px-6">
+    <div className="mx-auto w-full max-w-7xl space-y-6 px-4 py-8 sm:px-6">
       <PageHeader
         title={
           canSeeAll
@@ -457,6 +596,7 @@ export default async function DashboardPage() {
         >
           <RevenueTrend
             data={revenueMonthly}
+            bookingsData={bookingsMonthly}
             headline={formatMoney(revenueThisMonth)}
             {...(revenueDelta
               ? { deltaLabel: revenueDelta.value, deltaDirection: revenueDelta.direction }
@@ -498,8 +638,10 @@ export default async function DashboardPage() {
             <FunnelInsight data={funnel} format="currency" />
           )}
           <div className="mt-4 flex items-center justify-between border-t pt-4">
-            <span className="text-muted-foreground text-sm">Win rate</span>
-            <span className="text-sm font-semibold tabular-nums">{convRate}%</span>
+            <span className="text-muted-foreground text-sm">Proposal win rate</span>
+            <Badge variant="success" dot className="tabular-nums">
+              {convRate}%
+            </Badge>
           </div>
         </SectionCard>
 
@@ -544,46 +686,41 @@ export default async function DashboardPage() {
         </SectionCard>
       </div>
 
-      {/* Recent activity */}
-      <Card className="card-elevated">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Activity className="size-4" />
-            {canSeeAll ? t("teamActivity") : t("yourActivity")}
-          </CardTitle>
-          {canSeeAll && (
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/team">View team</Link>
-            </Button>
-          )}
-        </CardHeader>
-        <CardContent>
-          {activities.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No activity yet.</p>
-          ) : (
-            <ul className="space-y-3">
-              {activities.map((a) => (
-                <li key={a.id} className="flex items-start gap-3">
-                  <Avatar className="mt-0.5 size-7">
-                    <AvatarFallback className="text-xs">
-                      {initials(a.user?.name ?? "?")}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm">
-                      <span className="font-medium">{a.user?.name ?? "Someone"}</span>{" "}
-                      {describeActivity(a)}
-                    </p>
-                    <p className="text-muted-foreground text-xs">
-                      {formatRelative(a.createdAt)}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
+      {/* Row 3 — Recent activity (2fr) + Atlas suggests / Top destinations stack */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <Card className="card-elevated lg:col-span-2">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Activity className="size-4" />
+              {canSeeAll ? t("teamActivity") : t("yourActivity")}
+            </CardTitle>
+            {canSeeAll && (
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/team">View team</Link>
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent>
+            {activities.length === 0 ? (
+              <p className="text-muted-foreground text-sm">No activity yet.</p>
+            ) : (
+              <ActivityTimeline items={activities} />
+            )}
+          </CardContent>
+        </Card>
+
+        <div className="space-y-6">
+          {suggestions.length > 0 && <AtlasSuggests suggestions={suggestions} />}
+
+          <SectionCard
+            icon={MapPin}
+            title="Top destinations"
+            subtitle="By revenue this month"
+          >
+            <TopDestinations rows={destinationRows} />
+          </SectionCard>
+        </div>
+      </div>
 
       {/* Insights — manager/admin only (full-visibility roles). Rendered in a
           Suspense boundary so the shell above streams without waiting on the

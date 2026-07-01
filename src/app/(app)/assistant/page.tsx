@@ -28,6 +28,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { ToolArtifact } from "@/components/assistant/artifact-cards";
 import {
   ContextRail,
   type SuggestedAction,
@@ -133,39 +134,61 @@ const markdownComponents: Components = {
   td: TD,
 };
 
-type TextPart = { type?: string; text?: string };
+type MessagePart = {
+  type?: string;
+  text?: string;
+  // Tool parts (AI SDK v5): type is `tool-<name>`, output present once resolved.
+  state?: string;
+  output?: unknown;
+  toolName?: string;
+};
 type MaybePartsMessage = {
   display?: ReactNode;
-  parts?: TextPart[];
-  content?: TextPart[];
+  parts?: MessagePart[];
+  content?: MessagePart[];
 };
 
-function getMessageText(message: MaybePartsMessage): string {
-  const parts = Array.isArray(message.parts)
+function getParts(message: MaybePartsMessage): MessagePart[] {
+  return Array.isArray(message.parts)
     ? message.parts
     : Array.isArray(message.content)
     ? message.content
     : [];
-  return parts
+}
+
+function getMessageText(message: MaybePartsMessage): string {
+  return getParts(message)
     .filter((p) => p?.type === "text" && p.text)
     .map((p) => p.text)
     .join("\n");
 }
 
+/**
+ * Renders a message's parts in order: text runs through markdown, and any
+ * resolved tool part is rendered as its structured artifact card. Tool parts
+ * that have no dedicated card (or aren't resolved yet) are skipped.
+ */
 function renderMessageContent(message: MaybePartsMessage): ReactNode {
   if (message.display) return message.display;
-  const parts = Array.isArray(message.parts)
-    ? message.parts
-    : Array.isArray(message.content)
-    ? message.content
-    : [];
-  return parts.map((p, idx) =>
-    p?.type === "text" && p.text ? (
-      <ReactMarkdown key={idx} components={markdownComponents}>
-        {p.text}
-      </ReactMarkdown>
-    ) : null
-  );
+  return getParts(message).map((p, idx) => {
+    if (p?.type === "text" && p.text) {
+      return (
+        <ReactMarkdown key={idx} components={markdownComponents}>
+          {p.text}
+        </ReactMarkdown>
+      );
+    }
+    if (
+      typeof p?.type === "string" &&
+      p.type.startsWith("tool-") &&
+      p.state === "output-available" &&
+      p.output !== undefined
+    ) {
+      const toolName = p.toolName ?? p.type.slice("tool-".length);
+      return <ToolArtifact key={idx} toolName={toolName} output={p.output} />;
+    }
+    return null;
+  });
 }
 
 function formatTimestamp(date: Date): string {
@@ -439,8 +462,8 @@ export default function ChatPage() {
               </Badge>
             </div>
             <p className="text-muted-foreground mt-0.5 flex items-center gap-1.5 text-xs">
-              <span className="inline-flex size-1.5 rounded-full bg-green-500 shadow-[0_0_0_3px] shadow-green-500/20" />
-              Search, plan itineraries and draft proposals.
+              <span className="bg-success shadow-success-soft inline-flex size-1.5 rounded-full shadow-[0_0_0_3px]" />
+              Grounded on your live CRM &amp; supplier data
             </p>
           </div>
           <Button
@@ -561,13 +584,13 @@ export default function ChatPage() {
                             </div>
 
                             {isUser ? (
-                              <div className="bg-primary text-primary-foreground rounded-2xl rounded-br-sm px-4 py-2.5 text-sm leading-relaxed shadow-sm">
+                              <div className="bg-primary text-primary-foreground rounded-2xl rounded-br-[4px] px-4 py-2.5 text-sm leading-relaxed shadow-sm">
                                 {renderMessageContent(
                                   message as MaybePartsMessage
                                 )}
                               </div>
                             ) : (
-                              <div className="text-foreground text-sm [&_.gen-card]:mt-2">
+                              <div className="text-foreground text-sm leading-relaxed">
                                 {renderMessageContent(
                                   message as MaybePartsMessage
                                 )}
@@ -621,7 +644,7 @@ export default function ChatPage() {
                 send(input);
               }}
             >
-              <div className="border-input bg-card focus-within:border-ring focus-within:ring-ring/50 flex items-end gap-2 rounded-lg border py-2 pr-2 pl-3 shadow-xs transition-[color,box-shadow] focus-within:ring-[3px]">
+              <div className="border-strong bg-card focus-within:border-ring focus-within:ring-ring/50 flex items-end gap-2 rounded-lg border py-2 pr-2 pl-3 shadow-sm transition-[color,box-shadow] focus-within:ring-[3px]">
                 <textarea
                   ref={textareaRef}
                   value={input}

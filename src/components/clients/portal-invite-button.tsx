@@ -1,17 +1,27 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Check, Copy, Mail } from "lucide-react";
+import { Check, Copy, Mail, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { sendPortalInvite } from "@/lib/actions/portal-invite";
+import { cn } from "@/lib/utils";
 
 export function PortalInviteButton({
   clientId,
   clientEmail,
+  variant = "outline",
+  fullWidth = false,
+  label,
 }: {
   clientId: string;
   clientEmail: string | null;
+  /** Button style; the action rail uses "ghost". */
+  variant?: "outline" | "ghost";
+  /** Stretch to fill its container and left-align (action-rail layout). */
+  fullWidth?: boolean;
+  /** Override the default "Send portal invite" label. */
+  label?: string;
 }) {
   const [pending, startTransition] = useTransition();
   // The portal URL is revealed after a successful send so the agent can copy it
@@ -47,16 +57,19 @@ export function PortalInviteButton({
     }
   };
 
+  const Icon = fullWidth ? Share2 : Mail;
+
   return (
     <div className="flex flex-col items-stretch gap-2">
       <Button
-        variant="outline"
+        variant={variant}
         size="sm"
         onClick={onClick}
         disabled={pending}
+        className={cn(fullWidth && "w-full justify-start")}
       >
-        <Mail className="mr-2 size-4" />
-        {pending ? "Sending…" : "Send portal invite"}
+        <Icon className="mr-2 size-4" />
+        {pending ? "Sending…" : (label ?? "Send portal invite")}
       </Button>
 
       {portalUrl && (

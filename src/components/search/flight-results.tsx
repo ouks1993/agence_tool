@@ -4,12 +4,11 @@ import { useMemo, useState } from "react";
 import {
   Plane,
   Briefcase,
-  Luggage,
-  Check,
   Sunrise,
   Sun,
   Sunset,
   Moon,
+  Plus,
 } from "lucide-react";
 import { EmptyState } from "@/components/app/empty-state";
 import {
@@ -19,9 +18,10 @@ import {
 } from "@/components/search/add-to-booking-dialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import type { BookingItemInput } from "@/lib/actions/bookings";
 import { formatMoney, formatDuration, formatTime } from "@/lib/format";
-import type { FlightOffer, FlightSegment } from "@/lib/suppliers";
+import type { FlightOffer, FlightSegment, CabinClass } from "@/lib/suppliers";
 import { cn } from "@/lib/utils";
 
 type SortKey = "best" | "cheapest" | "fastest";
@@ -35,6 +35,16 @@ const WINDOWS = [
 ] as const;
 
 type WindowKey = (typeof WINDOWS)[number]["key"];
+
+const CABIN_LABELS: Record<CabinClass, string> = {
+  economy: "Economy",
+  premium: "Premium",
+  business: "Business",
+  first: "First",
+};
+
+/** How many fares to render before the "Show more fares" control. */
+const PAGE_SIZE = 8;
 
 function stopBucket(stops: number): "0" | "1" | "2" {
   if (stops <= 0) return "0";
@@ -81,6 +91,8 @@ export function FlightResults({
   const [stops, setStops] = useState<Set<"0" | "1" | "2">>(new Set());
   const [airlines, setAirlines] = useState<Set<string>>(new Set());
   const [windows, setWindows] = useState<Set<WindowKey>>(new Set());
+  const [cabins, setCabins] = useState<Set<CabinClass>>(new Set());
+  const [visible, setVisible] = useState(PAGE_SIZE);
 
   // --- Facets derived from the REAL result set ------------------------------
   const stopFacets = useMemo(() => {
@@ -115,24 +127,45 @@ export function FlightResults({
     return counts;
   }, [results]);
 
+  const cabinFacets = useMemo(() => {
+    const map = new Map<CabinClass, number>();
+    for (const o of results) map.set(o.cabin, (map.get(o.cabin) ?? 0) + 1);
+    return (["economy", "premium", "business", "first"] as CabinClass[])
+      .filter((c) => map.has(c))
+      .map((c) => ({ cabin: c, count: map.get(c)! }));
+  }, [results]);
+
   const priceRange = useMemo(() => {
     if (results.length === 0) return null;
     const prices = results.map((o) => o.priceTotal);
     return { min: Math.min(...prices), max: Math.max(...prices) };
   }, [results]);
 
+  // Live price bounds (per-traveller when we know the pax count). Two knobs the
+  // agent can drag to constrain fares — bound to the REAL min/max of results.
+  const [priceBounds, setPriceBounds] = useState<[number, number] | null>(null);
+  const activeBounds = useMemo<[number, number] | null>(() => {
+    if (!priceRange) return null;
+    return priceBounds ?? [priceRange.min, priceRange.max];
+  }, [priceRange, priceBounds]);
+
   // --- Client-side filtering ------------------------------------------------
   const filtered = useMemo(() => {
     return results.filter((o) => {
       if (stops.size && !stops.has(stopBucket(o.stops))) return false;
       if (airlines.size && !airlines.has(o.airlineCode)) return false;
+      if (cabins.size && !cabins.has(o.cabin)) return false;
       if (windows.size) {
         const w = windowOf(departHour(o));
         if (!w || !windows.has(w)) return false;
       }
+      if (activeBounds) {
+        if (o.priceTotal < activeBounds[0] || o.priceTotal > activeBounds[1])
+          return false;
+      }
       return true;
     });
-  }, [results, stops, airlines, windows]);
+  }, [results, stops, airlines, cabins, windows, activeBounds]);
 
   // Ribbon badges derived from the full result set.
   const cheapestId = useMemo(() => {
@@ -192,11 +225,14 @@ export function FlightResults({
   const currency = results[0]?.currency ?? "DZD";
   const routeLabel = `${route.origin.toUpperCase()} → ${route.destination.toUpperCase()}`;
 
-  const anyFilter = stops.size || airlines.size || windows.size;
+  const anyFilter =
+    stops.size || airlines.size || windows.size || cabins.size || priceBounds;
   const resetFilters = () => {
     setStops(new Set());
     setAirlines(new Set());
     setWindows(new Set());
+    setCabins(new Set());
+    setPriceBounds(null);
   };
 
   const toggle = <T,>(set: Set<T>, value: T): Set<T> => {
@@ -215,6 +251,8 @@ export function FlightResults({
       />
     );
   }
+
+  const shown = sorted.slice(0, visible);
 
   return (
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-[256px_1fr] lg:items-start">
@@ -327,16 +365,44 @@ export function FlightResults({
               </div>
             </FilterGroup>
 
-            {/* Price per traveller (read-only summary from real prices) */}
-            {priceRange && adults > 0 && (
-              <FilterGroup title="Price per traveller">
-                <div className="text-muted-foreground flex items-center justify-between text-xs tabular-nums">
-                  <span>{formatMoney(priceRange.min / adults, currency)}</span>
-                  <span>{formatMoney(priceRange.max / adults, currency)}</span>
-                </div>
-                <div className="bg-border relative mt-3 h-1.5 rounded-full">
-                  <div className="bg-primary absolute inset-y-0 left-0 right-0 rounded-full" />
-                </div>
+            {/* Price — real dual-knob range bound to actual fares */}
+            {priceRange && activeBounds && priceRange.max > priceRange.min && (
+              <FilterGroup
+                title="Price"
+                action={
+                  priceBounds ? (
+                    <button
+                      type="button"
+                      onClick={() => setPriceBounds(null)}
+                      className="text-primary text-xs font-medium hover:underline"
+                    >
+                      Reset
+                    </button>
+                  ) : undefined
+                }
+              >
+                <PriceRange
+                  min={priceRange.min}
+                  max={priceRange.max}
+                  value={activeBounds}
+                  currency={currency}
+                  onChange={setPriceBounds}
+                />
+              </FilterGroup>
+            )}
+
+            {/* Cabin — derived from real offer.cabin */}
+            {cabinFacets.length > 1 && (
+              <FilterGroup title="Cabin">
+                {cabinFacets.map((c) => (
+                  <CheckRow
+                    key={c.cabin}
+                    label={CABIN_LABELS[c.cabin]}
+                    count={c.count}
+                    checked={cabins.has(c.cabin)}
+                    onToggle={() => setCabins((s) => toggle(s, c.cabin))}
+                  />
+                ))}
               </FilterGroup>
             )}
           </div>
@@ -386,32 +452,48 @@ export function FlightResults({
             description="Clear or relax the filters to see more results."
           />
         ) : (
-          <div className="space-y-3.5">
-            {sorted.map((o) => {
-              let ribbon: { label: string; tone: "brand" | "green" | "amber" } | null =
-                null;
-              if (o.id === bestValueId) ribbon = { label: "Best value", tone: "green" };
-              else if (o.id === cheapestId) ribbon = { label: "Cheapest", tone: "green" };
-              else if (o.id === businessId)
-                ribbon = { label: "Business upgrade", tone: "amber" };
-              else if (o.stops === 0) ribbon = { label: "Direct", tone: "brand" };
-              return (
-                <FlightCard
-                  key={o.id}
-                  offer={o}
-                  adults={adults}
-                  ribbon={ribbon}
-                  featured={o.id === bestValueId}
-                  fastest={o.id === fastestId}
-                  bookings={bookings}
-                  clients={clients}
-                  defaultBookingId={defaultBookingId}
-                  routeLabel={routeLabel}
-                  toItem={toItem}
-                />
-              );
-            })}
-          </div>
+          <>
+            <div className="space-y-3.5">
+              {shown.map((o) => {
+                let ribbon: { label: string; tone: "brand" | "success" | "warning" } | null =
+                  null;
+                if (o.id === bestValueId) ribbon = { label: "Best value", tone: "success" };
+                else if (o.id === cheapestId) ribbon = { label: "Cheapest", tone: "success" };
+                else if (o.id === businessId)
+                  ribbon = { label: "Business upgrade", tone: "warning" };
+                else if (o.stops === 0) ribbon = { label: "Direct", tone: "brand" };
+                return (
+                  <FlightCard
+                    key={o.id}
+                    offer={o}
+                    adults={adults}
+                    ribbon={ribbon}
+                    featured={o.id === bestValueId}
+                    fastest={o.id === fastestId}
+                    bookings={bookings}
+                    clients={clients}
+                    defaultBookingId={defaultBookingId}
+                    routeLabel={routeLabel}
+                    toItem={toItem}
+                  />
+                );
+              })}
+            </div>
+
+            {sorted.length > visible && (
+              <div className="mt-4 flex justify-center">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setVisible((v) => v + PAGE_SIZE)}
+                >
+                  Show {Math.min(PAGE_SIZE, sorted.length - visible)} more fare
+                  {sorted.length - visible === 1 ? "" : "s"}
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </section>
     </div>
@@ -460,27 +542,95 @@ function CheckRow({
         disabled && "cursor-not-allowed opacity-40"
       )}
     >
-      <input
-        type="checkbox"
-        className="sr-only"
+      <Checkbox
         checked={checked}
         disabled={disabled}
-        onChange={onToggle}
+        onCheckedChange={onToggle}
       />
-      <span
-        aria-hidden
-        className={cn(
-          "flex size-4 shrink-0 items-center justify-center rounded-[5px] border transition-colors",
-          checked
-            ? "border-primary bg-primary text-primary-foreground"
-            : "border-input bg-background"
-        )}
-      >
-        {checked && <Check className="size-3" strokeWidth={3} />}
-      </span>
       <span className="text-foreground flex-1 text-sm">{label}</span>
       <span className="text-muted-foreground text-xs tabular-nums">{count}</span>
     </label>
+  );
+}
+
+/** Dual-knob price range bound to the real min/max fares in the result set. */
+function PriceRange({
+  min,
+  max,
+  value,
+  currency,
+  onChange,
+}: {
+  min: number;
+  max: number;
+  value: [number, number];
+  currency: string;
+  onChange: (v: [number, number]) => void;
+}) {
+  const [lo, hi] = value;
+  const pct = (v: number) => ((v - min) / (max - min)) * 100;
+
+  return (
+    <div>
+      <div className="text-foreground mb-1 flex items-center justify-between text-xs font-medium tabular-nums">
+        <span>{formatMoney(lo, currency)}</span>
+        <span>{formatMoney(hi, currency)}</span>
+      </div>
+      <div className="relative mx-1 mt-3 mb-2 h-1.5">
+        <div className="bg-border absolute inset-x-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full" />
+        <div
+          className="bg-primary absolute top-1/2 h-1.5 -translate-y-1/2 rounded-full"
+          style={{ left: `${pct(lo)}%`, right: `${100 - pct(hi)}%` }}
+        />
+        {/* Lower knob */}
+        <input
+          type="range"
+          aria-label="Minimum price"
+          min={min}
+          max={max}
+          value={lo}
+          onChange={(e) =>
+            onChange([Math.min(Number(e.target.value), hi), hi])
+          }
+          className="range-thumb pointer-events-none absolute inset-0 h-1.5 w-full appearance-none bg-transparent"
+        />
+        {/* Upper knob */}
+        <input
+          type="range"
+          aria-label="Maximum price"
+          min={min}
+          max={max}
+          value={hi}
+          onChange={(e) =>
+            onChange([lo, Math.max(Number(e.target.value), lo)])
+          }
+          className="range-thumb pointer-events-none absolute inset-0 h-1.5 w-full appearance-none bg-transparent"
+        />
+      </div>
+      <style jsx>{`
+        .range-thumb::-webkit-slider-thumb {
+          pointer-events: auto;
+          appearance: none;
+          height: 15px;
+          width: 15px;
+          border-radius: 9999px;
+          background: var(--background);
+          border: 2px solid var(--primary);
+          box-shadow: var(--shadow-sm);
+          cursor: pointer;
+        }
+        .range-thumb::-moz-range-thumb {
+          pointer-events: auto;
+          height: 15px;
+          width: 15px;
+          border-radius: 9999px;
+          background: var(--background);
+          border: 2px solid var(--primary);
+          box-shadow: var(--shadow-sm);
+          cursor: pointer;
+        }
+      `}</style>
+    </div>
   );
 }
 
@@ -508,9 +658,7 @@ function SortPill({
     >
       {children}
       {hint && (
-        <span className="font-semibold text-green-600 tabular-nums dark:text-green-400">
-          {hint}
-        </span>
+        <span className="text-success font-semibold tabular-nums">{hint}</span>
       )}
     </button>
   );
@@ -518,19 +666,34 @@ function SortPill({
 
 // --- Flight card ------------------------------------------------------------
 
-/** Deterministic brand-tinted colour for an airline mark. */
-const MARK_COLORS = [
-  "bg-[#C8102E]",
-  "bg-[#0A6B3B]",
-  "bg-[#5C0632]",
-  "bg-[#1B4B8F]",
-  "bg-[#7C5CE6]",
-  "bg-[#B45313]",
+/**
+ * Brand colours for known IATA carriers → a subtle top-lit gradient, matching
+ * the mockup's airline-logo blocks. Unknown carriers fall back to a
+ * deterministic tint so the mark is stable per code (presentation only).
+ */
+const AIRLINE_BRANDS: Record<string, string> = {
+  EK: "linear-gradient(135deg,#C8102E,#9e0c24)", // Emirates
+  AH: "linear-gradient(135deg,#0A6B3B,#07502c)", // Air Algérie
+  TK: "linear-gradient(135deg,#C8102E,#a00d24)", // Turkish
+  QR: "linear-gradient(135deg,#5C0632,#3f0422)", // Qatar
+  AF: "linear-gradient(135deg,#1B3C8C,#122a63)", // Air France
+  BA: "linear-gradient(135deg,#1D4696,#132f66)", // British Airways
+  LH: "linear-gradient(135deg,#05164D,#030d30)", // Lufthansa
+  EY: "linear-gradient(135deg,#BD8B13,#8c680e)", // Etihad
+  SV: "linear-gradient(135deg,#0C592E,#083f20)", // Saudia
+  MS: "linear-gradient(135deg,#003C71,#002b51)", // EgyptAir
+};
+const FALLBACK_MARKS = [
+  "linear-gradient(135deg,#334155,#1e293b)",
+  "linear-gradient(135deg,#3F4A63,#2a3346)",
+  "linear-gradient(135deg,#4B5563,#374151)",
 ];
-function markColor(code: string): string {
+function markGradient(code: string): string {
+  const known = AIRLINE_BRANDS[code.toUpperCase()];
+  if (known) return known;
   let h = 0;
   for (let i = 0; i < code.length; i++) h = (h * 31 + code.charCodeAt(i)) >>> 0;
-  return MARK_COLORS[h % MARK_COLORS.length]!;
+  return FALLBACK_MARKS[h % FALLBACK_MARKS.length]!;
 }
 
 function FlightCard({
@@ -547,7 +710,7 @@ function FlightCard({
 }: {
   offer: FlightOffer;
   adults: number;
-  ribbon: { label: string; tone: "brand" | "green" | "amber" } | null;
+  ribbon: { label: string; tone: "brand" | "success" | "warning" } | null;
   featured: boolean;
   fastest: boolean;
   bookings: BookingOption[];
@@ -565,15 +728,15 @@ function FlightCard({
     <Card
       className={cn(
         "card-interactive relative overflow-hidden p-0",
-        featured && "ring-primary/40 ring-1"
+        featured && "border-[#C9D8F6] shadow-md dark:border-primary/40"
       )}
     >
       {ribbon && (
         <span
           className={cn(
             "absolute left-0 top-0 z-10 inline-flex items-center gap-1 rounded-br-md px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-white",
-            ribbon.tone === "green" && "bg-green-600",
-            ribbon.tone === "amber" && "bg-amber-500",
+            ribbon.tone === "success" && "bg-success",
+            ribbon.tone === "warning" && "bg-warning",
             ribbon.tone === "brand" && "bg-primary"
           )}
         >
@@ -597,20 +760,19 @@ function FlightCard({
 
           {/* Chips row — only fields backed by real data */}
           <div className="border-border mt-4 flex flex-wrap gap-2 border-t pt-3.5">
-            <Chip icon={Briefcase}>
-              <span className="capitalize">{offer.cabin}</span>
-            </Chip>
-            <Chip icon={Luggage}>
+            <Chip icon={Briefcase}>{CABIN_LABELS[offer.cabin]}</Chip>
+            <Chip>
               {offer.stops === 0
                 ? "Direct itinerary"
                 : `${offer.stops} stop${offer.stops > 1 ? "s" : ""}`}
             </Chip>
+            <Chip>{formatDuration(offer.durationMinutes)}</Chip>
             {fastest && <Chip>Fastest option</Chip>}
           </div>
         </div>
 
         {/* Price rail */}
-        <div className="bg-muted/40 border-border flex flex-col justify-center gap-1 border-t p-5 sm:border-l sm:border-t-0">
+        <div className="bg-surface-2 border-border flex flex-col justify-center gap-1 border-t p-5 sm:border-l sm:border-t-0">
           {adults > 0 && (
             <p className="text-muted-foreground text-xs">
               {adults} traveller{adults === 1 ? "" : "s"} · total
@@ -621,6 +783,7 @@ function FlightCard({
             {formatMoney(offer.priceTotal, offer.currency)}
           </p>
           <div className="mt-3 flex flex-col gap-2">
+            {/* Primary conversion path: commit the fare into a booking. */}
             <AddToBookingDialog
               item={toItem(offer)}
               itemSummary={summary}
@@ -630,6 +793,20 @@ function FlightCard({
               defaultDestination={routeLabel}
               trigger={
                 <Button size="sm" className="w-full">
+                  Select
+                </Button>
+              }
+            />
+            <AddToBookingDialog
+              item={toItem(offer)}
+              itemSummary={summary}
+              bookings={bookings}
+              clients={clients}
+              defaultBookingId={defaultBookingId}
+              defaultDestination={routeLabel}
+              trigger={
+                <Button size="sm" variant="outline" className="w-full">
+                  <Plus className="size-4" />
                   Add to proposal
                 </Button>
               }
@@ -679,10 +856,8 @@ function Leg({
       {/* Airline block */}
       <div className="flex items-center gap-3">
         <span
-          className={cn(
-            "flex size-10 shrink-0 items-center justify-center rounded-md text-sm font-extrabold tracking-tight text-white",
-            markColor(airlineCode)
-          )}
+          className="flex size-10 shrink-0 items-center justify-center rounded-md text-sm font-extrabold tracking-tight text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.18)]"
+          style={{ backgroundImage: markGradient(airlineCode) }}
         >
           {airlineCode.slice(0, 2).toUpperCase()}
         </span>
@@ -710,11 +885,11 @@ function Leg({
           <p className="text-muted-foreground text-xs font-medium">
             {formatDuration(totalMinutes)}
           </p>
-          <div className="bg-border relative my-1.5 h-0.5 rounded">
+          <div className="bg-border-strong relative my-1.5 h-0.5 rounded">
             {Array.from({ length: stopCount }).map((_, i) => (
               <span
                 key={i}
-                className="bg-background border-amber-500 absolute top-1/2 size-1.5 -translate-y-1/2 rounded-full border-2"
+                className="bg-background border-warning absolute top-1/2 size-1.5 -translate-y-1/2 rounded-full border-2"
                 style={{ left: `${((i + 1) / (stopCount + 1)) * 100}%` }}
               />
             ))}
@@ -723,9 +898,7 @@ function Leg({
           <p
             className={cn(
               "text-xs font-semibold",
-              stopCount === 0
-                ? "text-green-600 dark:text-green-400"
-                : "text-amber-600 dark:text-amber-400"
+              stopCount === 0 ? "text-success" : "text-warning"
             )}
           >
             {stopCount === 0
