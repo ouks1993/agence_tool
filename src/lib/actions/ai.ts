@@ -1,8 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
-import { generateObject, generateText } from "ai";
+import { generateObject, generateText, type LanguageModel } from "ai";
 import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 import type { ActionResult } from "@/lib/actions/types";
@@ -10,14 +11,58 @@ import { db } from "@/lib/db";
 import { requireAgencyUser } from "@/lib/permissions";
 import { booking, bookingDay } from "@/lib/schema";
 
-function openrouter() {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) throw new Error("OPENROUTER_API_KEY is not configured.");
-  return createOpenRouter({ apiKey });
+/**
+ * Ordered list of AI models to try: Google Gemini (primary) then OpenRouter
+ * (fallback). Gemini is used first; if its call fails at runtime (e.g. the free
+ * tier's rate/quota limit) or its key is missing, we transparently retry with
+ * OpenRouter. Whichever keys are configured determines what's available.
+ */
+function aiModels(): LanguageModel[] {
+  const models: LanguageModel[] = [];
+
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (geminiKey) {
+    const google = createGoogleGenerativeAI({ apiKey: geminiKey });
+    models.push(google(process.env.GEMINI_MODEL ?? "gemini-2.5-flash"));
+  }
+
+  const openrouterKey = process.env.OPENROUTER_API_KEY;
+  if (openrouterKey) {
+    const openrouter = createOpenRouter({ apiKey: openrouterKey });
+    models.push(openrouter(process.env.OPENROUTER_MODEL ?? "openai/gpt-4.1-mini"));
+  }
+
+  if (models.length === 0) {
+    throw new Error(
+      "No AI provider configured. Set GEMINI_API_KEY (primary) or OPENROUTER_API_KEY (fallback)."
+    );
+  }
+  return models;
 }
 
-function model() {
-  return openrouter()(process.env.OPENROUTER_MODEL ?? "openai/gpt-4.1-mini");
+/**
+ * Run an AI SDK call against the primary model, transparently falling back to the
+ * next configured provider if it throws (rate limit, quota, transient error, …).
+ */
+async function withAiFallback<T>(
+  run: (model: LanguageModel) => Promise<T>
+): Promise<T> {
+  const models = aiModels();
+  let lastError: unknown;
+  for (let i = 0; i < models.length; i++) {
+    try {
+      return await run(models[i]!);
+    } catch (error) {
+      lastError = error;
+      if (i < models.length - 1) {
+        console.warn(
+          `AI provider ${i + 1}/${models.length} failed; falling back to the next.`,
+          error instanceof Error ? error.message : error
+        );
+      }
+    }
+  }
+  throw lastError;
 }
 
 // ---------------------------------------------------------------------------
@@ -60,8 +105,8 @@ export async function generateItinerary(
   const returnStr = b.returnDate ? new Date(b.returnDate).toDateString() : "unknown";
 
   try {
-    const { object } = await generateObject({
-      model: model(),
+    const { object } = await withAiFallback((m) => generateObject({
+      model: m,
       schema: itinerarySchema,
       prompt: `You are a travel itinerary writer for a professional travel agency.
 
@@ -77,7 +122,7 @@ Write a concise day-by-day itinerary. Each day should have:
 - notes: 1–3 sentences describing the day's programme, referencing the actual booking items
 
 Only generate days that have activity. Keep notes professional and engaging.`,
-    });
+    }));
 
     for (const day of object.days) {
       const existing = await db.query.bookingDay.findFirst({
@@ -144,8 +189,8 @@ export async function buildQuote(
   if (!brief.trim()) return { ok: false, error: "Please describe the trip." };
 
   try {
-    const { object } = await generateObject({
-      model: model(),
+    const { object } = await withAiFallback((m) => generateObject({
+      model: m,
       schema: quoteSchema,
       prompt: `You are a travel agency quote builder.
 
@@ -165,7 +210,7 @@ Build a realistic travel package quote. Return:
   - description: brief note (optional)
 
 Use reasonable market estimates. Keep item titles concise and professional.`,
-    });
+    }));
 
     return { ok: true, data: object };
   } catch (err) {
@@ -218,8 +263,8 @@ export async function draftEmail(
     .join("\n");
 
   try {
-    const { text } = await generateText({
-      model: model(),
+    const { text } = await withAiFallback((m) => generateText({
+      model: m,
       prompt: `You are writing on behalf of a professional travel agency.
 
 Client: ${clientName}
@@ -238,7 +283,7 @@ SUBJECT: <subject line>
 <email body>
 
 Keep it professional, warm, and concise (under 200 words). Use the client's first name.`,
-    });
+    }));
 
     const [subjectLine, ...bodyLines] = text.split("\n---\n");
     const subject = (subjectLine ?? "").replace(/^SUBJECT:\s*/i, "").trim();
@@ -308,8 +353,8 @@ export async function checkVisa(bookingId: string): Promise<ActionResult<VisaRes
   });
 
   try {
-    const { object } = await generateObject({
-      model: model(),
+    const { object } = await withAiFallback((m) => generateObject({
+      model: m,
       schema: visaSchema,
       prompt: `You are a travel visa information assistant for a professional travel agency.
 
@@ -324,7 +369,7 @@ For each nationality, provide:
 Also provide a short disclaimer reminding agents to verify with official government sources.
 
 Be accurate based on your training data. Use the country name from the destination field as-is.`,
-    });
+    }));
 
     return { ok: true, data: object };
   } catch (err) {

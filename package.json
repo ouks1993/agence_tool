@@ -21,6 +21,7 @@
     "db:reset": "drizzle-kit drop && drizzle-kit push"
   },
   "dependencies": {
+    "@ai-sdk/google": "^2.0.77",
     "@ai-sdk/react": "^2.0.190",
     "@better-auth/api-key": "^1.6.11",
     "@openrouter/ai-sdk-provider": "^1.5.4",

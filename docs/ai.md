@@ -1,9 +1,9 @@
 # AI Features
 
-Built on the **Vercel AI SDK (`ai` v5)** talking to **OpenRouter** via the
-`@openrouter/ai-sdk-provider` package (`OPENROUTER_API_KEY`). All features
-degrade/no-op gracefully when the key is unset. See
-[api-integrations.md](api-integrations.md).
+Built on the **Vercel AI SDK (`ai` v5)**. **Google Gemini is the primary provider**
+(`@ai-sdk/google`, `GEMINI_API_KEY`), with **OpenRouter** (`@openrouter/ai-sdk-provider`,
+`OPENROUTER_API_KEY`) as the automatic fallback. All features degrade/no-op gracefully
+when no provider key is set. See [api-integrations.md](api-integrations.md).
 
 There are two surfaces:
 
@@ -15,20 +15,20 @@ There are two surfaces:
 
 ## Provider & models
 
-Every call goes through OpenRouter. The model id is read from `OPENROUTER_MODEL`;
-each surface supplies a different **fallback** when the env var is unset:
+**Gemini is tried first, OpenRouter second.** Both keys are optional in
+`src/lib/env.ts`; set at least one. `env.ts` warns "No AI provider configured…" only
+when *both* are missing. The two surfaces differ in *how* they fall back:
 
-| Surface | Where | Model source | Fallback |
+| Surface | Where | Primary → fallback | Model env (default) |
 |---|---|---|---|
-| Assistant chat | `src/app/api/chat/route.ts` | `process.env.OPENROUTER_MODEL` | `openai/gpt-5-mini` |
-| Inline actions | `src/lib/actions/ai.ts` (`model()`) | `process.env.OPENROUTER_MODEL` | `openai/gpt-4.1-mini` |
+| Assistant chat (streaming) | `src/app/api/chat/route.ts` | **Static** — Gemini if `GEMINI_API_KEY` set, else OpenRouter (streams can't fall back mid-response) | `GEMINI_MODEL` (`gemini-2.5-flash`) / `OPENROUTER_MODEL` (`openai/gpt-5-mini`) |
+| Inline actions | `src/lib/actions/ai.ts` | **Runtime** — every call runs through `withAiFallback()`: try Gemini, and on *any* error (rate limit, quota, transient) transparently retry with OpenRouter | `GEMINI_MODEL` (`gemini-2.5-flash`) / `OPENROUTER_MODEL` (`openai/gpt-4.1-mini`) |
 
-`OPENROUTER_MODEL` is validated in `src/lib/env.ts` with a default of
-`openai/gpt-5-mini`; `OPENROUTER_API_KEY` is optional there, and `env.ts` warns
-"OPENROUTER_API_KEY is not set. AI chat will not work." when it is missing. Both the
-chat route and the inline actions construct the client with
-`createOpenRouter({ apiKey })` and abort/throw if the key is absent (the route
-returns HTTP 500; the actions throw `"OPENROUTER_API_KEY is not configured."`).
+The runtime fallback exists chiefly for **Gemini's free tier**, which has real
+rate/quota limits — a rate-limited Gemini call silently retries on OpenRouter so
+inline features never break. `aiModels()` builds the ordered candidate list from
+whichever keys are present; `withAiFallback()` iterates it. If no provider key is
+set, both surfaces error clearly ("No AI provider configured…").
 
 ### AI SDK primitives used
 
@@ -41,7 +41,9 @@ returns HTTP 500; the actions throw `"OPENROUTER_API_KEY is not configured."`).
 | `tool`, `convertToModelMessages`, `stepCountIs` | `ai` | Assistant tool loop |
 
 Package versions (per `package.json`): `ai@^5.0.188`, `@ai-sdk/react@^2.0.190`,
-`@openrouter/ai-sdk-provider@^1.5.4`.
+`@ai-sdk/google@^2.0.77` (Gemini, must stay on the `2.x` line to match the
+`@ai-sdk/provider@2` that `ai@5` uses — `@ai-sdk/google@4` pulls `provider@4` and is
+incompatible), `@openrouter/ai-sdk-provider@^1.5.4`.
 
 ## AI must never
 

@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import {
   streamText,
@@ -70,17 +71,29 @@ export async function POST(req: Request) {
 
   const { messages }: { messages: UIMessage[] } = parsed.data as { messages: UIMessage[] };
 
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    return jsonError("OpenRouter API key not configured", 500);
+  // Assistant model: Gemini (primary) when configured, else OpenRouter. Streaming
+  // can't fall back mid-response, so this is a static key-presence selection; the
+  // inline AI actions (src/lib/actions/ai.ts) do full runtime provider fallback.
+  const geminiKey = process.env.GEMINI_API_KEY;
+  const openrouterKey = process.env.OPENROUTER_API_KEY;
+  if (!geminiKey && !openrouterKey) {
+    return jsonError(
+      "No AI provider configured (set GEMINI_API_KEY or OPENROUTER_API_KEY)",
+      500
+    );
   }
-
-  const openrouter = createOpenRouter({ apiKey });
+  const chatModel = geminiKey
+    ? createGoogleGenerativeAI({ apiKey: geminiKey })(
+        process.env.GEMINI_MODEL || "gemini-2.5-flash"
+      )
+    : createOpenRouter({ apiKey: openrouterKey! })(
+        process.env.OPENROUTER_MODEL || "openai/gpt-5-mini"
+      );
   const today = new Date().toISOString().slice(0, 10);
 
   try {
     const result = streamText({
-    model: openrouter(process.env.OPENROUTER_MODEL || "openai/gpt-5-mini"),
+    model: chatModel,
     system: SYSTEM_PROMPT(today, session.user.name),
     messages: convertToModelMessages(messages),
     stopWhen: stepCountIs(6),
