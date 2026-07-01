@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, gte } from "drizzle-orm";
 import {
   Briefcase,
   GitBranch,
@@ -11,12 +11,13 @@ import {
   Activity,
   TrendingUp,
   MapPin,
+  CalendarClock,
 } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { GettingStartedCard } from "@/components/app/getting-started-card";
 import { PageHeader } from "@/components/app/page-header";
 import { StatStrip } from "@/components/app/stat-strip";
-import { FunnelInsight } from "@/components/charts/insight-charts";
+import { FunnelInsight, HBarInsight } from "@/components/charts/insight-charts";
 import { ActivityTimeline } from "@/components/dashboard/activity-timeline";
 import { AtlasSuggests, type Suggestion } from "@/components/dashboard/atlas-suggests";
 import { BookingsStatusPanel } from "@/components/dashboard/bookings-status-panel";
@@ -32,8 +33,10 @@ import {
   conversionRate,
   countBy,
   growthPct,
+  headlineTotal,
   monthlyBuckets,
   num,
+  sumByCurrency,
   topN,
 } from "@/lib/analytics";
 import { db } from "@/lib/db";
@@ -145,6 +148,51 @@ export default async function DashboardPage() {
   );
 
   const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  // --- Operational "act-today" counts (cheap agency-scoped COUNT(*)s) -------
+  // Proposals awaiting a client response (product.status = "sent") and clients
+  // created in the current calendar month. Same RBAC as the rest of the page:
+  // agents see only records they created, full-visibility roles the whole agency.
+  const [proposalsSentCount, newClientsThisMonth] = await Promise.all([
+    db.$count(
+      product,
+      and(
+        eq(product.agencyId, user.agencyId),
+        eq(product.status, "sent"),
+        canSeeAll ? undefined : eq(product.createdById, user.id)
+      )
+    ),
+    db.$count(
+      clientTable,
+      and(
+        eq(clientTable.agencyId, user.agencyId),
+        gte(clientTable.createdAt, monthStart),
+        canSeeAll ? undefined : eq(clientTable.createdById, user.id)
+      )
+    ),
+  ]);
+
+  // Departures in the next 7 days — non-cancelled bookings departing in
+  // [today, today+7] (derived from the already-loaded rows).
+  const in7Days = new Date(now.getTime() + 7 * 86_400_000);
+  const departuresNext7 = active.filter((b) => {
+    if (!b.departDate) return false;
+    const d = new Date(b.departDate);
+    return !Number.isNaN(d.getTime()) && d >= now && d <= in7Days;
+  }).length;
+
+  // Overdue receivables — DZD headline Σ of positive balances on bookings whose
+  // departure has already passed (mirrors the finance/receivables logic).
+  const overdueByCurrency = sumByCurrency(
+    active.filter((b) => b.departDate && new Date(b.departDate) < now),
+    (b) => {
+      const { balance } = paymentSummary(b.payments, num(b.totalAmount));
+      return balance > 0 ? balance : 0;
+    },
+    (b) => b.currency || "DZD"
+  );
+  const overdueTotal = headlineTotal(overdueByCurrency);
 
   // --- Hero KPI derivations (DZD-only money, no FX) ------------------------
   // Revenue this month + MoM delta — confirmed & paid bookings, DZD, by createdAt.
@@ -232,10 +280,27 @@ export default async function DashboardPage() {
       .reduce((sum, o) => sum + num(o.value), 0),
   }));
 
+  // --- Forward-looking: "Closing this month" (DZD, currency-safe) ----------
+  // Open-stage opportunities whose expected close date lands in the current
+  // calendar month — the top deals by value, plus the month's open total. DZD
+  // only (no FX); non-DZD deals are excluded rather than mis-summed.
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const closingThisMonth = dzdOpps.filter((o) => {
+    if (!isOpenStage(o.stage) || !o.expectedCloseDate) return false;
+    const c = new Date(o.expectedCloseDate);
+    return !Number.isNaN(c.getTime()) && c >= monthStart && c < monthEnd;
+  });
+  const closingRows = topN(
+    closingThisMonth,
+    (o) => o.title,
+    (o) => num(o.value),
+    6
+  );
+  const closingTotal = closingThisMonth.reduce((s, o) => s + num(o.value), 0);
+
   // --- Top destinations by revenue THIS MONTH (DZD, currency-safe) --------
   // Confirmed & paid DZD bookings created this calendar month, grouped by the
   // destination country. Currency-safe: only the DZD series is summed.
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const countryOf = (raw: string | null | undefined) =>
     raw
       ? raw.includes(",")
@@ -578,6 +643,29 @@ export default async function DashboardPage() {
         ]}
       />
 
+      {/* Operational "act-today" band — what needs doing right now */}
+      <StatStrip
+        items={[
+          {
+            label: "Departures next 7 days",
+            value: departuresNext7,
+          },
+          {
+            label: "Proposals awaiting response",
+            value: proposalsSentCount,
+          },
+          {
+            label: "Overdue",
+            value: formatMoneyCompact(overdueTotal),
+            ...(overdueTotal > 0 ? { tone: "text-warning" } : {}),
+          },
+          {
+            label: "New clients this month",
+            value: newClientsThisMonth,
+          },
+        ]}
+      />
+
       {/* Row 1 — Revenue evolution (2fr) + Bookings by status (1fr) */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <SectionCard
@@ -677,6 +765,33 @@ export default async function DashboardPage() {
           )}
         </SectionCard>
       </div>
+
+      {/* Forward-looking — deals expected to close in the current month (DZD) */}
+      <SectionCard
+        icon={CalendarClock}
+        title="Closing this month"
+        subtitle={
+          closingThisMonth.length
+            ? `${formatMoney(closingTotal)} across ${closingThisMonth.length} open deal${
+                closingThisMonth.length === 1 ? "" : "s"
+              }`
+            : "No deals expected to close this month"
+        }
+        actionHref="/opportunities"
+        actionLabel="View pipeline"
+      >
+        {closingRows.length === 0 ? (
+          <p className="text-muted-foreground py-2 text-sm">
+            No open opportunities with an expected close date this month.{" "}
+            <Link href="/opportunities/new" className="underline">
+              Add an opportunity
+            </Link>
+            .
+          </p>
+        ) : (
+          <HBarInsight data={closingRows} format="currency" color="var(--chart-4)" />
+        )}
+      </SectionCard>
 
       {/* Row 3 — Recent activity (2fr) + Atlas suggests / Top destinations stack */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">

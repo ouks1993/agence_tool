@@ -1,11 +1,8 @@
 import { eq } from "drizzle-orm";
 import {
   BarChart3,
-  Briefcase,
-  TrendingUp,
   Users,
   Tag,
-  MapPin,
   Globe,
 } from "lucide-react";
 import { getTranslations } from "next-intl/server";
@@ -13,26 +10,22 @@ import { StatStrip, StatStripSkeleton } from "@/components/app/stat-strip";
 import {
   BarInsight,
   DonutInsight,
-  AreaInsight,
   HBarInsight,
 } from "@/components/charts/insight-charts";
 import { SectionCard } from "@/components/dashboard/section-card";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  conversionRate,
-  countBy,
   growthPct,
+  countBy,
   monthlyBuckets,
   num,
   topN,
 } from "@/lib/analytics";
 import { db } from "@/lib/db";
 import {
-  BOOKING_STATUS_META,
   DEFAULT_CURRENCY,
   LEAD_SOURCE_LABEL,
-  type BookingStatus,
   type LeadSource,
 } from "@/lib/domain";
 import { formatMoneyCompact } from "@/lib/format";
@@ -71,22 +64,8 @@ export async function DashboardInsights({
   // agency currency). No FX, so any non-DZD booking is excluded from money
   // charts rather than mis-summed.
   const dzdActive = active.filter((b) => (b.currency || "DZD") === "DZD");
-  // "Country" label from "Marrakech, Morocco" → "Morocco" (heuristic until
-  // destinations are structured in Phase 3).
-  const countryOf = (raw: string | null | undefined) =>
-    raw
-      ? raw.includes(",")
-        ? raw.slice(raw.lastIndexOf(",") + 1).trim() || raw
-        : raw
-      : "Unknown";
 
-  // 1) Top destinations by REVENUE (was: count).
-  const byDestination = topN(dzdActive, (b) => countryOf(b.destination), (b) => num(b.totalAmount), 8);
-
-  // 2) Bookings by status — count donut (currency-agnostic).
-  const byStatus = countBy(bookings, (b) => BOOKING_STATUS_META[b.status as BookingStatus]?.label ?? b.status, 8);
-
-  // 3) Revenue per agent (was: booking count). Map createdById → first name.
+  // Revenue per agent (was: booking count). Map createdById → first name.
   const members = await db
     .select({ id: userTable.id, name: userTable.name })
     .from(userTable)
@@ -99,13 +78,13 @@ export async function DashboardInsights({
     8
   );
 
-  // 4) Revenue evolution — last 6 months by createdAt, DZD (was: count).
-  const revenueMonthly = monthlyBuckets(dzdActive, (b) => b.createdAt, (b) => num(b.totalAmount), 6);
+  // Revenue growth basis — last 2 months by createdAt, DZD, for the MoM KPI.
+  const revenueMonthly = monthlyBuckets(dzdActive, (b) => b.createdAt, (b) => num(b.totalAmount), 2);
 
-  // 5) Top clients by revenue.
+  // Top clients by revenue.
   const topClients = topN(dzdActive, (b) => b.client?.name, (b) => num(b.totalAmount), 8);
 
-  // 6) Lead-source breakdown (by client count). Uses free-text source today;
+  // Lead-source breakdown (by client count). Uses free-text source today;
   // becomes clean once Phase 2 makes it an enum.
   const sourceRows = await db
     .select({ source: clientTable.source, country: clientTable.country })
@@ -126,29 +105,19 @@ export async function DashboardInsights({
     .reduce((s, b) => s + num(b.totalAmount), 0);
 
   let collected = 0;
-  let outstanding = 0;
   for (const b of bookings) {
     const total = num(b.totalAmount);
-    const { paid, balance } = paymentSummary(b.payments, total);
+    const { paid } = paymentSummary(b.payments, total);
     collected += paid;
-    if (balance > 0) outstanding += balance;
   }
 
-  // Won pipeline + conversion rate (all opportunities, agency-scoped).
+  // Won pipeline (all opportunities, agency-scoped).
   const allOpps = await db
     .select({ value: opportunity.value, stage: opportunity.stage })
     .from(opportunity)
     .where(eq(opportunity.agencyId, agencyId));
   const wonOpps = allOpps.filter((o) => o.stage === "won");
   const wonPipeline = wonOpps.reduce((s, o) => s + num(o.value), 0);
-  // Conversion = won ÷ closed (won + lost) deals.
-  const closedOpps = allOpps.filter((o) => o.stage === "won" || o.stage === "lost").length;
-  const convRate = conversionRate(wonOpps.length, closedOpps);
-
-  // Average booking value (non-cancelled, DZD).
-  const avgBookingValue = dzdActive.length
-    ? Math.round(dzdActive.reduce((s, b) => s + num(b.totalAmount), 0) / dzdActive.length)
-    : 0;
 
   // MoM revenue growth from the last two month buckets.
   const lastTwo = revenueMonthly.slice(-2);
@@ -162,7 +131,9 @@ export async function DashboardInsights({
         <h2 className="text-xl font-semibold tracking-tight">{t("insights")}</h2>
       </div>
 
-      {/* Finance KPIs */}
+      {/* Finance KPIs — the analytics unique to the manager insights band
+          (the main dashboard already surfaces conversion, outstanding &
+          avg-booking-value). */}
       <StatStrip
         items={[
           {
@@ -175,24 +146,9 @@ export async function DashboardInsights({
             tone: "text-success",
           },
           {
-            label: "Outstanding",
-            value: formatMoneyCompact(outstanding, DEFAULT_CURRENCY),
-          },
-          {
             label: "Won pipeline",
             value: formatMoneyCompact(wonPipeline, DEFAULT_CURRENCY),
             tone: "text-success",
-          },
-        ]}
-      />
-
-      {/* Performance KPIs */}
-      <StatStrip
-        items={[
-          { label: "Conversion rate", value: `${convRate}%` },
-          {
-            label: "Avg booking value",
-            value: formatMoneyCompact(avgBookingValue, DEFAULT_CURRENCY),
           },
           {
             label: "Revenue growth",
@@ -204,27 +160,17 @@ export async function DashboardInsights({
         ]}
       />
 
-      {/* Charts — only shown when there is data to display */}
+      {/* Charts — only shown when there is data to display. The revenue-trend,
+          bookings-by-status and top-destinations panels live on the main
+          dashboard; this band keeps the analytics unique to managers. */}
       {bookings.length > 0 && (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <SectionCard icon={TrendingUp} title="Revenue evolution" subtitle="Last 6 months · DZD">
-            <AreaInsight data={revenueMonthly} format="currency" color="var(--chart-1)" />
-          </SectionCard>
-
-          <SectionCard icon={MapPin} title="Top destinations" subtitle="By revenue · DZD">
-            <HBarInsight data={byDestination} format="currency" />
-          </SectionCard>
-
-          <SectionCard icon={Users} title="Top clients" subtitle="By revenue · DZD">
-            <HBarInsight data={topClients} format="currency" color="var(--chart-3)" />
-          </SectionCard>
-
           <SectionCard icon={BarChart3} title="Revenue per agent" subtitle="By revenue · DZD">
             <BarInsight data={revenueByAgent} format="currency" color="var(--chart-2)" />
           </SectionCard>
 
-          <SectionCard icon={Briefcase} title="Bookings by status" subtitle="All bookings">
-            <DonutInsight data={byStatus} />
+          <SectionCard icon={Users} title="Top clients" subtitle="By revenue · DZD">
+            <HBarInsight data={topClients} format="currency" color="var(--chart-3)" />
           </SectionCard>
 
           <SectionCard icon={Tag} title="Lead sources" subtitle="By client count">
@@ -240,8 +186,8 @@ export async function DashboardInsights({
   );
 }
 
-// Skeleton shown while the insights queries resolve. Mirrors the KPI strips +
-// 2-col chart grid above so the layout doesn't jump when it streams in.
+// Skeleton shown while the insights queries resolve. Mirrors the single KPI
+// strip + 2-col chart grid above so the layout doesn't jump when it streams in.
 export function DashboardInsightsSkeleton() {
   return (
     <section className="space-y-6">
@@ -250,7 +196,6 @@ export function DashboardInsightsSkeleton() {
         <Skeleton className="h-7 w-32" />
       </div>
       <StatStripSkeleton cells={4} />
-      <StatStripSkeleton cells={3} />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {[0, 1, 2, 3].map((i) => (
           <Card key={i} className="card-elevated overflow-hidden">
