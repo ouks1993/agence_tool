@@ -291,7 +291,7 @@ Calls `getHotelbedsRates` when Hotelbeds is configured; falls back to
 ## ai.ts
 
 ### `generateItinerary(bookingId, prompt)`
-Calls OpenRouter (streamed) to generate a day-by-day itinerary.
+Calls the configured AI provider (streamed) — Gemini if configured, else OpenRouter — to generate a day-by-day itinerary.
 Returns a `ReadableStream` — consumed by the assistant UI.
 
 ### `generateQuote(opportunityId, prompt)`

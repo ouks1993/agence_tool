@@ -49,11 +49,12 @@ Maturity levels: **Production** (stable, in daily use) · **Beta** (works, harde
 > along (Beta), real Flights booking is Planned (Duffel orders). See
 > [api-integrations.md](api-integrations.md) and Open item #1.
 
-## Active initiative — UI redesign (phased)
+## UI redesign (phased) — ✅ COMPLETE
 
-Bringing the **live app** up to the marketing-grade standard set by the sales deck
-and mockups under `marketing/`. A full visual/UX upgrade of every screen, shipped
-by phase, **preserving all functionality**. See the plan at
+Brought the **live app** up to the marketing-grade standard set by the sales deck
+and mockups under `marketing/` — a full visual/UX upgrade of **every one of the 55
+routes**, shipped by phase, **preserving all functionality**. Follow-on polish added
+a unified `StatStrip` KPI band app-wide. See the plan at
 [specs/ui-redesign/PLAN.md](../specs/ui-redesign/PLAN.md) and the decision at
 [docs/decisions/0005-app-ui-redesign.md](decisions/0005-app-ui-redesign.md).
 
@@ -64,7 +65,21 @@ by phase, **preserving all functionality**. See the plan at
 | 2 | Proposal builder · Flight search · Hotel search | ✅ done |
 | 3 | Bookings & Booking details · Finance · Commissions | ✅ done |
 | 4 | Customer portal · Reports · AI assistant | ✅ done |
-| 5 | Responsive, empty/loading/error states, polish | ⬜ next |
+| 5 | Responsive, empty/loading/error states, polish | ✅ done |
+
+### Since the redesign
+- **AI → Google Gemini** (primary; OpenRouter fallback). The `/assistant` gained
+  tenant-safe read tools across **every data domain** (bookings, clients, proposals,
+  pipeline, finance, commissions), a live client/booking context rail, and
+  platform-admin "view as" scoping; provider/multi-turn/currency fixes along the way.
+  See [ai.md](ai.md).
+- **Auto-booking on proposal accept** — accepting + signing a proposal auto-creates a
+  booking (`awaiting_payment`), idempotent + tenant-safe. `product.convertedBookingId`
+  (migration `0020`). See [business-rules.md](business-rules.md) and
+  [decision 0006](decisions/0006-auto-booking-on-proposal-accept.md).
+- **Dashboard** deduped (removed 6 KPIs/panels that repeated the manager Insights) +
+  an operational "act-today" band (departures 7d, proposals awaiting response,
+  overdue, new clients) + a "closing this month" chart.
 
 Marketing assets (deck + 11 mockups + demo dataset + design guide) live under
 `marketing/` and are the visual target.
@@ -213,6 +228,13 @@ Status: ✅ done · 🟡 partial · 🔴 not started
 
 | Commit | Summary |
 |---|---|
+| `1163ab9` | **Auto-booking on proposal accept** — accepting + signing a proposal auto-creates an `awaiting_payment` booking (idempotent, tenant-safe); `product.convertedBookingId`, migration `0020`. [decision 0006](decisions/0006-auto-booking-on-proposal-accept.md) |
+| `b76c911` | **Dashboard** deduped vs manager Insights (removed 6 repeated KPIs/panels) + operational "act-today" band (departures 7d, proposals awaiting, overdue, new clients) + "closing this month" chart |
+| `3cec99d` `ea3c760` | **AI assistant → analyst**: tenant-safe read tools across every data domain (bookings, clients, proposals, pipeline, finance, commissions) + a live client/booking context rail |
+| `2f08368` | Assistant honors platform-admin **"view as"** agency scoping (empty-CRM bug) |
+| `f088abc`…`16e9b17` | **AI provider → Google Gemini** (primary; OpenRouter fallback + runtime chain); multi-turn tool-call fix, DZD (not EUR) internal figures |
+| `c7b9acc` | Unified **`StatStrip`** KPI band rolled out app-wide |
+| `f3564ec`…`b41c8c2` | **UI redesign complete** — all 55 routes to deck standard (tokens/primitives, ⌘K palette, mobile tab bar, per-screen rebuilds) |
 | `5d9ab6d` | UI redesign **deck-fidelity rebuild**: flight search, booking details, customer portal & AI assistant rebuilt to their mockups (audit found phases 2–4 were token-skinned only, fidelity 1–2/5 → now 4–5/5, zero functional regressions) |
 | `eadc1b8` | UI redesign: **Reports → analytics dashboard** (deck slide 12) — 6-KPI row, revenue trend, weighted-pipeline forecast card, "period at a glance"; CSV/Excel export preserved |
 | `ffa3dd4` | UI redesign: **deck identity adopted app-wide** — Atlas Blue primary, cool-paper canvas, white cards, dark ink sidebar, 14px cards, deck shadows/charts (globals.css + app-shell); Geist kept. See [decision 0006](decisions/0006-deck-identity-adoption.md) |

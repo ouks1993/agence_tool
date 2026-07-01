@@ -146,10 +146,12 @@ see [business-rules.md](business-rules.md)).
   links are made copyable so the flow still works.
 - Keys: `RESEND_API_KEY`, `EMAIL_FROM`.
 
-## AI — Vercel AI SDK + OpenRouter
+## AI — Vercel AI SDK + Google Gemini (primary) / OpenRouter (fallback)
 
 - Powers the assistant and inline AI features; see [ai.md](ai.md).
-- Key: `OPENROUTER_API_KEY`. AI features no-op/degrade when unset.
+- Keys: `GEMINI_API_KEY` (primary; `GEMINI_MODEL`, default `gemini-2.5-flash`) and
+  `OPENROUTER_API_KEY` (fallback; `OPENROUTER_MODEL`). Both optional — AI features
+  no-op/degrade when neither is set.
 
 ## Storage — Vercel Blob (optional)
 

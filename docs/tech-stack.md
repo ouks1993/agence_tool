@@ -16,7 +16,7 @@ version numbers from `package.json` and the reason each one is here.
 | Database | PostgreSQL (Neon) + Drizzle ORM (`postgres-js` driver) |
 | i18n | next-intl 4 (cookie-based, no URL routing) — `en` · `fr` · `ar` (RTL) |
 | Charts | recharts 3 (tokenized) |
-| AI | Vercel AI SDK + OpenRouter |
+| AI | Vercel AI SDK + Google Gemini (primary) / OpenRouter (fallback) |
 | Email | Resend (transactional: invites, verification, password reset, proposals) |
 | Billing | Stripe subscriptions (vendor → agency) + webhook |
 | Payments | Stripe Connect (traveler → agency, destination charges) |
@@ -202,16 +202,19 @@ next-intl plugin is enabled in `next.config.ts`.
 |---|---|---|
 | `ai` | `^5.0.188` | Vercel AI SDK core (`streamText`, `generateText`, `generateObject`) |
 | `@ai-sdk/react` | `^2.0.190` | React hooks (`useChat`) for the assistant UI |
-| `@openrouter/ai-sdk-provider` | `^1.5.4` | OpenRouter provider for the AI SDK |
+| `@ai-sdk/google` | `^2.0.77` | Google **Gemini** provider (primary). Must stay on the `2.x` line to match `ai@5`'s `@ai-sdk/provider@2` — `@ai-sdk/google@4` pulls `provider@4` and is incompatible |
+| `@openrouter/ai-sdk-provider` | `^1.5.4` | OpenRouter provider (fallback) |
 | `react-markdown` | `^10.1.0` | Renders assistant markdown responses |
 
-The model provider is **OpenRouter**, created with
-`createOpenRouter({ apiKey })` from `OPENROUTER_API_KEY`. The default model is
-read from `OPENROUTER_MODEL` (env default `openai/gpt-5-mini`). The chat route
-(`src/app/api/chat/route.ts`) streams responses with `streamText`; server
-actions in `src/lib/actions/ai.ts` use `generateObject` (Zod-typed structured
-output) and `generateText` for one-shot generation. AI features are disabled
-(with a startup warning) when `OPENROUTER_API_KEY` is unset. See [ai.md](ai.md).
+The primary model provider is **Google Gemini** (`createGoogleGenerativeAI` from
+`@ai-sdk/google`, `GEMINI_API_KEY`, model from `GEMINI_MODEL`, default
+`gemini-2.5-flash`), with **OpenRouter** (`OPENROUTER_API_KEY` / `OPENROUTER_MODEL`)
+as the automatic fallback. The chat route (`src/app/api/chat/route.ts`) streams
+responses with `streamText` (Gemini if configured, else OpenRouter); the inline
+server actions in `src/lib/actions/ai.ts` use `generateObject` (Zod-typed structured
+output) + `generateText` behind `withAiFallback()` — a runtime chain of Gemini models
+then OpenRouter, for free-tier-quota resilience. AI features are disabled (with a
+startup warning) only when **neither** provider key is set. See [ai.md](ai.md).
 
 ## External services & suppliers
 
