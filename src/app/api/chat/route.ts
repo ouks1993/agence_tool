@@ -13,6 +13,7 @@ import { z } from "zod";
 import { createBooking, addBookingItem, addTraveller } from "@/lib/actions/bookings";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { DEFAULT_CURRENCY } from "@/lib/domain";
 import { client as clientTable, booking as bookingTable } from "@/lib/schema";
 import {
   getFlightSupplier,
@@ -215,29 +216,41 @@ export async function POST(req: Request) {
       }),
 
       bookingsSummary: tool({
-        description: "Get a summary of bookings: counts by status and total value.",
+        description: `Get a summary of bookings: counts by status and total active value (in ${DEFAULT_CURRENCY}).`,
         inputSchema: z.object({}),
         execute: async () => {
           try {
             // Platform admins (no agency) get an empty summary — never query globally.
             if (!agencyId) {
-              return { ok: true, totalBookings: 0, byStatus: {}, activeValueEUR: 0 };
+              return { ok: true, totalBookings: 0, byStatus: {}, activeValue: 0, currency: DEFAULT_CURRENCY };
             }
             const rows = await db
-              .select({ status: bookingTable.status, total: bookingTable.totalAmount })
+              .select({
+                status: bookingTable.status,
+                total: bookingTable.totalAmount,
+                currency: bookingTable.currency,
+              })
               .from(bookingTable)
               .where(eq(bookingTable.agencyId, agencyId));
             const byStatus: Record<string, number> = {};
             let activeValue = 0;
             for (const r of rows) {
               byStatus[r.status] = (byStatus[r.status] ?? 0) + 1;
-              if (r.status !== "cancelled") activeValue += parseFloat(r.total || "0");
+              // Currency-safe: only sum the agency's base currency into one figure —
+              // never blend currencies (mirrors the finance/analytics rule).
+              if (
+                r.status !== "cancelled" &&
+                (r.currency || DEFAULT_CURRENCY) === DEFAULT_CURRENCY
+              ) {
+                activeValue += parseFloat(r.total || "0");
+              }
             }
             return {
               ok: true,
               totalBookings: rows.length,
               byStatus,
-              activeValueEUR: activeValue,
+              activeValue,
+              currency: DEFAULT_CURRENCY,
             };
           } catch (err) {
             console.error("[chat:tool:bookingsSummary]", err);
@@ -377,7 +390,7 @@ function jsonError(error: string, status: number): Response {
 function SYSTEM_PROMPT(today: string, agentName: string): string {
   return `You are the AI assistant inside Atlas, a travel agency management tool. You help travel agents (you are currently helping ${agentName}) plan trips, source flights and hotels, gather and compare prices, build itineraries, and assemble booking files.
 
-Today's date is ${today}. All prices are in EUR unless stated otherwise.
+Today's date is ${today}. Internal agency figures — bookings, revenue, pipeline, quotes — are in ${DEFAULT_CURRENCY} (Algerian Dinar); always report them in ${DEFAULT_CURRENCY}. Live flight/hotel search results carry their own currency — use the currency each result states, and never blend different currencies into one total.
 
 You can:
 - Search flights and hotels with the search tools and compare prices for the agent.

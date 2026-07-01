@@ -279,7 +279,8 @@ export type BookingsSummaryOutput = {
   ok?: boolean;
   totalBookings?: number;
   byStatus?: Record<string, number>;
-  activeValueEUR?: number;
+  activeValue?: number;
+  currency?: string;
   error?: string;
 };
 
@@ -308,7 +309,7 @@ export function BookingSummaryCard({ data }: { data: BookingsSummaryOutput }) {
             Active value
           </p>
           <p className="text-foreground mt-1 text-2xl font-semibold tabular-nums">
-            {formatMoney(data.activeValueEUR ?? 0, "EUR")}
+            {formatMoney(data.activeValue ?? 0, data.currency)}
           </p>
         </div>
       </div>

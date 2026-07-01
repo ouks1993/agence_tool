@@ -275,9 +275,9 @@ const ACTION_CHIPS: { label: string; icon: typeof Building2; prompt: string }[] 
       prompt: "Add three hotel options with nightly rates for this trip.",
     },
     {
-      label: "Estimate price in EUR",
+      label: "Estimate price in DZD",
       icon: Coins,
-      prompt: "Estimate the total price of this trip in EUR, itemised.",
+      prompt: "Estimate the total price of this trip in DZD, itemised.",
     },
     {
       label: "Add visa notes",
@@ -296,8 +296,8 @@ const SUGGESTED_ACTIONS: SuggestedAction[] = [
   {
     id: "quote",
     title: "Generate a quote",
-    description: "Price the current plan in EUR",
-    prompt: "Generate a priced quote for the trip we've been discussing, in EUR.",
+    description: "Price the current plan in DZD",
+    prompt: "Generate a priced quote for the trip we've been discussing, in DZD.",
     tone: "brand",
     icon: "quote",
   },
