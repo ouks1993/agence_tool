@@ -124,6 +124,19 @@ redesign-not-rewrite (no schema/logic changes; presentational + new-scaffold onl
 7. **Convert proposal to booking guard** — add `convertedBookingId` column (needs
    migration).
 
+### Known issues (non-blocking)
+
+- **Topbar hydration warning (dev-only).** A React 19 + Radix `useId` mismatch logs
+  on the topbar menus (`AppShell` → `Topbar` dropdowns) in the dev console. **Benign:**
+  React recovers automatically, every menu/theme/nav works, and it does not surface in
+  the production build. Root-caused as far as reasonable: the mobile `Sheet` (the only
+  `useId` consumer before the topbar) was proven *not* responsible — the mismatch is
+  byte-identical even with the Sheet absent during hydration — and the root providers
+  already set `suppressHydrationWarning`. It appears to be a React streaming/Suspense ×
+  Radix `useId` interaction; most likely resolved by a future Radix/Next minor bump.
+  **Do not** re-chase via app-code edits to the shell (already attempted; no fix, and it
+  risks the verified-working chrome). Related: `docs/decisions/0005-app-ui-redesign.md`.
+
 ## Planned modules
 
 The longer-horizon module backlog, grouped. Some already have partial foundations
