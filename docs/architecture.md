@@ -92,8 +92,20 @@ architecture (single Neon Postgres + Vercel serverless).
 `suppliers` (+ `new`, `[id]`, `[id]/edit`) (canManageTeam),
 `operations` (bookings-by-status board),
 `reports` (canViewFinance — BI export hub),
-`search`, `hotels` (+ `[code]` details), `assistant`,
-`team` (canManageTeam), `billing` (admin-only), `settings`, `profile`.
+`sourcing/flights` (live flight search), `hotels` (+ `[code]` details),
+`assistant`, `team` (canManageTeam), `billing` (admin-only), `settings`,
+`profile`.
+
+Canonical URLs moved with the UI redesign; `next.config.ts` keeps old bookmarks
+working via `rewrites()`/`redirects()`:
+- `/proposals` (+ `/proposals/*`) is the canonical URL, **rewritten** (not
+  redirected) from the `products` route files — `/products*` **redirects**
+  (permanent) to `/proposals*`.
+- `/sourcing/hotels` (+ `/sourcing/hotels/*`) is the canonical URL, **rewritten**
+  from the `hotels` route files.
+- `/search` → `/sourcing/flights` (temporary redirect, during transition).
+- `/hotels` (+ `/hotels/*`) → `/sourcing/hotels*` (temporary redirect).
+- `/operations` → `/bookings` (temporary redirect; the board-view toggle lives there).
 
 **Client portal** (`portal/`, gated by `requirePortalSession`):
 `portal` (trip list), `portal/bookings/[id]` (detail + pay),
@@ -115,7 +127,11 @@ architecture (single Neon Postgres + Vercel serverless).
 `api/export/[entity]` (BI export: CSV/XLSX per dataset + `workbook` = all sheets),
 `api/stripe/webhook` (subscription reconciliation),
 `api/stripe/connect-webhook` (Connect payment reconciliation),
-`api/portal/auth/request` · `verify` · `signout` (portal magic-link flow).
+`api/stripe/connect` (initiate Connect onboarding), `api/stripe/connect/refresh`
+· `api/stripe/connect/return` (onboarding link callbacks),
+`api/portal/auth/request` · `verify` · `signout` (portal magic-link flow),
+`api/cron/cleanup` (daily maintenance sweep — expired idempotency/portal-session/
+invite rows; see [deployment.md](deployment.md#scheduled-cleanup)).
 
 ## Module layout
 
@@ -140,8 +156,17 @@ architecture (single Neon Postgres + Vercel serverless).
 - `payments/stripe.ts` — Stripe Connect: account, onboarding link, destination
   charges.
 - `suppliers/` — `index.ts` (`getFlightSupplier`/`getHotelSupplier` +
-  `safeSearch`), `duffel.ts`, `hotelbeds.ts`, `content-cache.ts`, `amadeus.ts`
-  (legacy), `mock.ts`, `types.ts`.
+  `safeSearch`, legacy), `duffel.ts`, `hotelbeds.ts`, `content-cache.ts`,
+  `amadeus.ts` (legacy), `mock.ts`, `types.ts`, `config.ts` (single entry point
+  for supplier credential/hostname env resolution), `booking-service.ts`
+  (quote → book → cancel orchestration over the registry). `suppliers/providers/`
+  — the provider abstraction: `types.ts` (capability interfaces), `registry.ts`
+  (`providerRegistry`, capability type-guards, `PROVIDER_CATALOG`), `register.ts`
+  (`registerBuiltInProviders()`), `mock-provider.ts`, `duffel-provider.ts`,
+  `hotelbeds-provider.ts`.
+- `travel-platform/index.ts` — the Travel Platform facade: single entry point for
+  `searchFlights`, `searchHotels`, `searchAirports`, `searchHotelDestinations`
+  routed through the provider registry. See [api-integrations.md](api-integrations.md).
 - `documents/proposal-pdf.tsx` + `proposal-data.ts` — proposal PDF rendering.
 - `portal-session.ts` — `getPortalSession` / `requirePortalSession` (httpOnly
   cookie).

@@ -5,7 +5,39 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Select } from "@/components/ui/select";
 import { setBookingStatus } from "@/lib/actions/bookings";
-import { BOOKING_STATUSES, BOOKING_STATUS_META } from "@/lib/domain";
+import {
+  BOOKING_LIFECYCLE,
+  BOOKING_STATUS_META,
+  type BookingStatus,
+} from "@/lib/domain";
+
+/**
+ * Legal transitions offered from `current`. Server-side (`setBookingStatus`)
+ * remains the source of truth — this only narrows the dropdown to sensible
+ * choices so agents aren't offered illegal jumps:
+ *  - keep the current status,
+ *  - step forward exactly one lifecycle stage (each forward step is gated
+ *    server-side: items required, balance settled, ticketing supplier flow),
+ *  - move backward to any earlier lifecycle stage (reversible),
+ *  - cancel from any state.
+ * A cancelled booking can only be re-opened back to the start of the lifecycle.
+ */
+function allowedTransitions(current: string): BookingStatus[] {
+  const forward = new Set<BookingStatus>();
+  const i = BOOKING_LIFECYCLE.indexOf(current as BookingStatus);
+
+  if (i === -1) {
+    // Off-lifecycle (e.g. cancelled): allow reopening to the first stage only.
+    forward.add(BOOKING_LIFECYCLE[0]!);
+  } else {
+    for (let b = 0; b <= i; b++) forward.add(BOOKING_LIFECYCLE[b]!); // current + backward
+    const next = BOOKING_LIFECYCLE[i + 1];
+    if (next) forward.add(next); // one step forward
+  }
+
+  // Keep lifecycle order for the listed stages, then always offer cancel.
+  return [...BOOKING_LIFECYCLE.filter((s) => forward.has(s)), "cancelled"];
+}
 
 export function BookingStatusControl({
   id,
@@ -21,27 +53,28 @@ export function BookingStatusControl({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
+  const options = allowedTransitions(status);
+
   const change = (value: string) => {
+    if (value === status) return;
+    const target = value as BookingStatus;
+
     // Soft warnings — ask before applying potentially premature transitions.
-    if (value === "confirmed" && !hasItems) {
-      if (!window.confirm("This booking has no trip services yet. Confirm anyway?")) return;
+    // (The server enforces these hard; the prompts just avoid a surprise error.)
+    if ((target === "confirmed" || target === "ticketed") && !hasItems) {
+      if (!window.confirm("This booking has no trip services yet. Continue anyway?")) return;
     }
-    if (value === "paid" && hasBalance) {
-      if (!window.confirm("There is still a balance due. Mark as paid anyway?")) return;
+    if ((target === "confirmed" || target === "ticketed" || target === "completed") && hasBalance) {
+      if (!window.confirm("There is still a balance due — this will be rejected until it is settled. Continue?")) return;
     }
-    if (value === "cancelled") {
+    if (target === "cancelled") {
       if (!window.confirm("Cancel this booking? This cannot be undone easily.")) return;
     }
 
     startTransition(async () => {
-      const res = await setBookingStatus(
-        id,
-        value as "draft" | "confirmed" | "paid" | "cancelled"
-      );
+      const res = await setBookingStatus(id, target);
       if (res.ok) {
-        toast.success(
-          `Marked as ${BOOKING_STATUS_META[value as keyof typeof BOOKING_STATUS_META]?.label ?? value}`
-        );
+        toast.success(`Marked as ${BOOKING_STATUS_META[target]?.label ?? target}`);
         router.refresh();
       } else {
         toast.error(res.error);
@@ -57,7 +90,14 @@ export function BookingStatusControl({
       className="h-8 w-36"
       aria-label="Booking status"
     >
-      {BOOKING_STATUSES.map((s) => (
+      {/* When the current status is off-lifecycle (cancelled) it won't appear in
+          the option set, so render it explicitly so the Select stays controlled. */}
+      {!options.includes(status as BookingStatus) && (
+        <option value={status}>
+          {BOOKING_STATUS_META[status as BookingStatus]?.label ?? status}
+        </option>
+      )}
+      {options.map((s) => (
         <option key={s} value={s}>
           {BOOKING_STATUS_META[s].label}
         </option>

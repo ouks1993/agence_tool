@@ -61,7 +61,7 @@ export function GettingStartedCard({
           {steps.map((step, i) => (
             <li key={i} className="flex items-start gap-3">
               {step.done ? (
-                <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-green-500" />
+                <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-success" />
               ) : (
                 <Circle className="text-muted-foreground mt-0.5 size-5 shrink-0" />
               )}

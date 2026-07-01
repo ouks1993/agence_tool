@@ -152,7 +152,7 @@ export default async function OpportunityDetailPage({
                             </span>
                             <StatusBadge
                               label={meta?.label ?? p.status}
-                              tone={meta?.badgeClass}
+                              variant={statusTone("product", p.status)}
                             />
                           </span>
                         </Link>

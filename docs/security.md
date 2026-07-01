@@ -142,7 +142,7 @@ Five roles are defined in `src/lib/domain.ts` (`USER_ROLES`):
 | `seesAllData` | admin, manager, finance, support | Agency-wide visibility; **agents see only their own** rows (applied on the clients / products / opportunities / bookings / operations / dashboard list pages) |
 | `canManageTeam` | admin, manager | Team & role management (`requireManager`) |
 | `canAssignAdmin` | admin | Grant/change the **admin** role (prevents privilege escalation) |
-| `canManagePayments` / `canViewFinance` | admin, manager, finance | Payments & finance |
+| `canManagePayments` / `canViewFinance` | admin, manager, finance | Payments & finance — `recordPayment`/`deletePayment`/`createPaymentLink` require `canManagePayments`; `getCommissions`/`getCommissionsByBooking`/`getCommissionSummary` require `canViewFinance` (an agent gets an empty result, not an error) |
 | `canDeleteRecords` | admin, manager | Deleting records |
 | `canViewSupport` | admin, manager, support | Support workspace |
 
@@ -184,6 +184,7 @@ separate from Better Auth (staff) sessions. Helpers live in
 | Cookie | `portalSessionToken` — `httpOnly`, `sameSite: "lax"`, `secure` in prod | `portal-session.ts` |
 | Magic-link token | `randomBytes(32).hex`, **15-minute** TTL | `api/portal/auth/request` |
 | Session token | `randomBytes(32).hex`, **7-day** TTL | `api/portal/auth/verify` |
+| `purpose` | `'magic'` \| `'session'` (default `'session'`) | `portal_session.purpose` (migration `0021`) |
 
 Security properties of the flow:
 
@@ -194,6 +195,14 @@ Security properties of the flow:
   **rotated** into a fresh long-lived session token (the row's `token` is replaced), so
   the original link can't be replayed. Invalid/expired tokens bounce to
   `/portal/login?error=…`.
+- **Purpose-scoped tokens.** `portal_session.purpose` discriminates a short-lived
+  magic-link row (`'magic'`) from a real session row (`'session'`). `verify`
+  only accepts a row with `purpose = 'magic'`; `getPortalSession()` (the session
+  lookup used on every portal request) only accepts `purpose = 'session'`. A
+  magic token can therefore no longer double as a session bearer for its
+  15-minute window. Requesting a new magic link also retires any prior pending
+  magic-link rows for that client, so old links can't accumulate as still-valid
+  bypasses.
 - **Tenant scoping.** A portal session points at exactly one `clientId`; the client's
   `agencyId` is reached through the relation, so portal reads stay within that client's
   agency. Deleting a client cascades to its portal sessions.

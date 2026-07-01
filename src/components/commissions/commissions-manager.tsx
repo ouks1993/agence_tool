@@ -18,6 +18,7 @@ import {
   type CommissionType,
 } from "@/lib/domain";
 import { formatMoney } from "@/lib/format";
+import { statusTone } from "@/lib/status-tone";
 
 /**
  * Shape of a single commission row as returned by the commission actions.
@@ -115,7 +116,7 @@ export function CommissionsManager({
                 </div>
                 <StatusBadge
                   label={statusMeta?.label ?? c.status}
-                  tone={statusMeta?.className}
+                  variant={statusTone("commission", c.status)}
                 />
                 {actions.earn && (
                   <Button

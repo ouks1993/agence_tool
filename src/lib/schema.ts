@@ -405,6 +405,8 @@ export const product = pgTable(
     // Composite indexes for tenant-scoped list + filter / ordering queries.
     index("product_agency_status_idx").on(table.agencyId, table.status),
     index("product_agency_created_idx").on(table.agencyId, table.createdAt),
+    // Index the converted-booking FK — used by the accept → auto-booking guard.
+    index("product_converted_booking_idx").on(table.convertedBookingId),
     unique("product_agency_reference_unique").on(table.agencyId, table.reference),
   ]
 );
@@ -1100,6 +1102,13 @@ export const portalSession = pgTable(
       .notNull()
       .references(() => client.id, { onDelete: "cascade" }),
     token: text("token").notNull().unique(),
+    // Discriminates the row's lifecycle stage so a magic token can never be used
+    // as a session bearer during its 15-min window:
+    //   "magic"   — short-lived (15 min) email magic-link token, single-use.
+    //   "session" — long-lived (7 day) session token in the httpOnly cookie.
+    // On verification the row is rotated from "magic" → "session". Defaults to
+    // "session" so any pre-existing rows keep working as sessions.
+    purpose: text("purpose").default("session").notNull(),
     expiresAt: timestamp("expires_at").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
@@ -1185,7 +1194,10 @@ export const supplier = pgTable(
       onDelete: "set null",
     }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
   },
   (table) => [
     index("supplier_agency_idx").on(table.agencyId),
@@ -1222,7 +1234,10 @@ export const supplierContract = pgTable(
     status: text("status").default("active").notNull(),
     notes: text("notes"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
   },
   (table) => [
     index("supplier_contract_supplier_idx").on(table.supplierId),
@@ -1267,13 +1282,16 @@ export const commission = pgTable(
       .notNull()
       .references(() => agency.id, { onDelete: "cascade" }),
     bookingId: uuid("booking_id").references(() => booking.id, {
-      onDelete: "cascade",
+      onDelete: "set null",
     }),
     // For supplier commissions — the specific booking item this relates to.
-    // Cascade: a commission has no meaning without its booking item, so it is
-    // removed with the item rather than left orphaned.
+    // set null (not cascade): a commission row is a financial ledger entry —
+    // earned/paid money history with no soft delete. It must survive the hard
+    // deletion of its booking or booking item; we sever the link instead of
+    // destroying the record. The agencyId cascade (tenant deletion) still wipes
+    // it, which is correct — a deleted tenant takes its whole ledger with it.
     bookingItemId: uuid("booking_item_id").references(() => bookingItem.id, {
-      onDelete: "cascade",
+      onDelete: "set null",
     }),
     // For supplier commissions — the supplier who pays the commission.
     supplierId: uuid("supplier_id").references(() => supplier.id, {
@@ -1301,11 +1319,16 @@ export const commission = pgTable(
       onDelete: "set null",
     }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
   },
   (table) => [
     index("commission_agency_idx").on(table.agencyId),
     index("commission_booking_idx").on(table.bookingId),
+    index("commission_item_idx").on(table.bookingItemId),
+    index("commission_supplier_idx").on(table.supplierId),
     index("commission_type_idx").on(table.type),
     index("commission_agent_idx").on(table.agentUserId),
     index("commission_status_idx").on(table.status),

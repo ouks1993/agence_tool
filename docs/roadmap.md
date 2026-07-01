@@ -136,8 +136,6 @@ redesign-not-rewrite (no schema/logic changes; presentational + new-scaffold onl
 5. **Automated quotations** — trigger quote generation from opportunity stage
    change.
 6. **Agent performance scoring** — leaderboard from commission + booking counts.
-7. **Convert proposal to booking guard** — add `convertedBookingId` column (needs
-   migration).
 
 ### Known issues (non-blocking)
 
@@ -205,9 +203,9 @@ Status: ✅ done · 🟡 partial · 🔴 not started
 | `reference` on all entities | [database](database.md#entity-standard) | 🟡 | Only `booking` + `product`; missing on clients/opportunities/suppliers. Needs migration. |
 | Consistent `updatedAt`/`status`/`notes` on children | [database](database.md#entity-standard) | 🟡 | Present on roots, inconsistent on child tables. |
 | Page systemic-five: per-page **Export** | [ui-ux](ui-ux.md#page-requirements-checklist) | 🔴 | Endpoint exists (`/api/export`); list pages lack buttons. |
-| Page systemic-five: **Bulk actions** | [ui-ux](ui-ux.md#page-requirements-checklist) | 🔴 | No `Checkbox` primitive exists; nothing built. |
-| Page systemic-five: **Loading** states | [ui-ux](ui-ux.md#page-requirements-checklist) | 🔴 | Only `assistant`/`dashboard` have `loading.tsx`. `skeleton.tsx` exists, unused. |
-| Page systemic-five: **Error** states | [ui-ux](ui-ux.md#page-requirements-checklist) | 🔴 | Only `assistant` has `error.tsx`. |
+| Page systemic-five: **Bulk actions** | [ui-ux](ui-ux.md#page-requirements-checklist) | 🔴 | The `Checkbox` primitive exists (`src/components/ui/checkbox.tsx`, used in hotel/flight search) but no list page wires it up for row selection + bulk operations yet. |
+| Page systemic-five: **Loading** states | [ui-ux](ui-ux.md#page-requirements-checklist) | 🟡 | 24 `loading.tsx` under `src/app/(app)/` (29 repo-wide, incl. auth/portal/platform). Most list + detail pages covered; not universal. |
+| Page systemic-five: **Error** states | [ui-ux](ui-ux.md#page-requirements-checklist) | 🟡 | 8 `error.tsx` repo-wide: route-level for root, `(app)`, `assistant`, `bookings`, plus `(auth)`, `portal`, `portal/proposals`, `platform`. Most other `(app)` sub-routes still fall through to the shared `(app)/error.tsx`. |
 | Page systemic-five: **Pagination** | [ui-ux](ui-ux.md#page-requirements-checklist) | 🔴 | Hardcoded `limit` (200/500) silently truncates. |
 | Shared **DataTable** (sort, filter, column chooser, infinite scroll, sticky header, shortcuts, context menu) | [ui-ux](ui-ux.md#data-table-standard) | 🔴 | Tables are plain shadcn markup. Building this clears most of the systemic-five. |
 | Mobile-friendly tables (`overflow-x-auto`) | [ui-ux](ui-ux.md#atlas-design-principles) | 🔴 | Tables overflow on phones; only `assistant` wraps for scroll. |
@@ -237,7 +235,7 @@ Status: ✅ done · 🟡 partial · 🔴 not started
 | `f3564ec`…`b41c8c2` | **UI redesign complete** — all 55 routes to deck standard (tokens/primitives, ⌘K palette, mobile tab bar, per-screen rebuilds) |
 | `5d9ab6d` | UI redesign **deck-fidelity rebuild**: flight search, booking details, customer portal & AI assistant rebuilt to their mockups (audit found phases 2–4 were token-skinned only, fidelity 1–2/5 → now 4–5/5, zero functional regressions) |
 | `eadc1b8` | UI redesign: **Reports → analytics dashboard** (deck slide 12) — 6-KPI row, revenue trend, weighted-pipeline forecast card, "period at a glance"; CSV/Excel export preserved |
-| `ffa3dd4` | UI redesign: **deck identity adopted app-wide** — Atlas Blue primary, cool-paper canvas, white cards, dark ink sidebar, 14px cards, deck shadows/charts (globals.css + app-shell); Geist kept. See [decision 0006](decisions/0006-deck-identity-adoption.md) |
+| `ffa3dd4` | UI redesign: **deck identity adopted app-wide** — Atlas Blue primary, cool-paper canvas, white cards, dark ink sidebar, 14px cards, deck shadows/charts (globals.css + app-shell); Geist kept. See [decision 0005](decisions/0005-app-ui-redesign.md) |
 | `b48c626` | UI redesign **Phase 1**: Dashboard, CRM list + profile, Pipeline (command center) — StatCard deltas, +Tabs/Breadcrumb/Tooltip primitives |
 | `84aab5e` | UI redesign **Phase 0**: design foundation — chart palette, brand accent, elevation tokens, StatCard deltas |
 | `9b151f3` | UI redesign **Phase 4 (skin)**: AI assistant polish (brand Bot tile, role icons, shadcn Input) — later fully rebuilt in `5d9ab6d` |
@@ -282,4 +280,5 @@ Status: ✅ done · 🟡 partial · 🔴 not started
 | `1896596` | Per-role workspaces (Finance + Support) + role-based landing/nav |
 | `9e8fb4b` | Multi-tenant architecture + vendor platform console |
 
-Migrations: 19 (latest `0019`). Prod DB: `ep-misty-thunder-aixz34vy`.
+Migrations: 22 (latest `0021` — commission ledger set-null + portal session
+purpose + cleanup indexes). Prod DB: `ep-misty-thunder-aixz34vy`.

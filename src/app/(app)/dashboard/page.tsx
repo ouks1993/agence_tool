@@ -66,6 +66,7 @@ import {
   client as clientTable,
   agency,
 } from "@/lib/schema";
+import { statusTone } from "@/lib/status-tone";
 import {
   DashboardInsights,
   DashboardInsightsSkeleton,
@@ -343,7 +344,7 @@ export default async function DashboardPage() {
       title: b.client?.name ?? b.destination ?? b.reference,
       subline: [place, b.reference].filter(Boolean).join(" · "),
       statusLabel: meta?.label ?? b.status,
-      statusTone: meta?.badgeClass,
+      statusTone: statusTone("booking", b.status),
     };
   });
 

@@ -137,8 +137,8 @@ export function agingBuckets(
   const buckets = [
     { label: "Not due", value: 0 },
     { label: "0–30d", value: 0 },
-    { label: "30–60d", value: 0 },
-    { label: "60d+", value: 0 },
+    { label: "31–60d", value: 0 },
+    { label: "61d+", value: 0 },
   ];
   for (const r of rows) {
     if (r.balance <= 0.005) continue;

@@ -27,9 +27,9 @@ const DOC_META: Record<
 > = {
   voucher: { label: "Voucher", icon: ScrollText, iconClass: "text-blue-600 dark:text-blue-400" },
   ticket: { label: "E-ticket", icon: Ticket, iconClass: "text-violet-600 dark:text-violet-400" },
-  invoice: { label: "Invoice", icon: Receipt, iconClass: "text-green-600 dark:text-green-400" },
+  invoice: { label: "Invoice", icon: Receipt, iconClass: "text-success" },
   itinerary: { label: "Itinerary", icon: Plane, iconClass: "text-blue-600 dark:text-blue-400" },
-  receipt: { label: "Receipt", icon: Receipt, iconClass: "text-green-600 dark:text-green-400" },
+  receipt: { label: "Receipt", icon: Receipt, iconClass: "text-success" },
 };
 
 /**

@@ -42,7 +42,7 @@ export default async function AppLayout({
   return (
     <>
       {impersonating && (
-        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 border-b border-amber-500/30 bg-amber-500/15 px-4 py-2 text-sm text-amber-700 dark:text-amber-300">
+        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 border-b border-warning/30 bg-warning-soft px-4 py-2 text-sm text-warning">
           <span className="flex items-center gap-1.5">
             <Eye className="size-4" />
             {user.impersonating === "user" ? (

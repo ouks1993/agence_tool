@@ -10,6 +10,7 @@ import {
   Phone,
 } from "lucide-react";
 import { EmptyState } from "@/components/app/empty-state";
+import { StatusPill } from "@/components/app/status-badge";
 import {
   InfoLine,
   SectionHead,
@@ -327,9 +328,11 @@ export default async function PortalPage() {
                     </div>
                     <div className="shrink-0 text-right">
                       {meta ? (
-                        <Badge variant="secondary" className={meta.badgeClass}>
-                          {meta.label}
-                        </Badge>
+                        <StatusPill
+                          domain="booking"
+                          status={b.status}
+                          label={meta.label}
+                        />
                       ) : (
                         <Badge variant="secondary">{b.status}</Badge>
                       )}
@@ -463,9 +466,11 @@ export default async function PortalPage() {
               <InfoLine label="Booking ref">{featured.reference}</InfoLine>
               <InfoLine label="Status">
                 {featuredMeta ? (
-                  <Badge variant="secondary" className={featuredMeta.badgeClass}>
-                    {featuredMeta.label}
-                  </Badge>
+                  <StatusPill
+                    domain="booking"
+                    status={featured.status}
+                    label={featuredMeta.label}
+                  />
                 ) : (
                   <Badge variant="secondary">{featured.status}</Badge>
                 )}

@@ -21,7 +21,7 @@
  */
 
 import { createHash } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { and, eq, gt } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { bookingEvent, bookingIdempotency, bookingSupplierRef } from "@/lib/schema";
 import {
@@ -47,6 +47,41 @@ function deriveKey(bookingId: string, itemId: string, offerId: string): string {
   return createHash("sha256")
     .update(`${bookingId}:${itemId}:${offerId}`)
     .digest("hex");
+}
+
+/** A fresh, non-throwing provisional in-house reference. */
+function provisionalRef(): string {
+  return `REF-${Date.now().toString(36).toUpperCase()}`;
+}
+
+/**
+ * Register (or refresh) an idempotency key as `pending` before touching the
+ * supplier. Callers reach here only after ruling out a live success/pending row,
+ * so any PK conflict is an EXPIRED row: reset it to `pending` with a fresh TTL
+ * (clearing the stale supplierRef) so the expired key is treated as absent for
+ * this new attempt. Errors are swallowed — a failed bookkeeping write must never
+ * crash the booking flow.
+ */
+async function registerPending(
+  key: string,
+  row: { bookingId: string; bookingItemId: string; providerId: string }
+): Promise<void> {
+  const pending = {
+    status: "pending" as const,
+    supplierRef: null,
+    expiresAt: new Date(Date.now() + IDEMPOTENCY_TTL_MS),
+  };
+  try {
+    await db
+      .insert(bookingIdempotency)
+      .values({ key, ...row, ...pending })
+      .onConflictDoUpdate({
+        target: bookingIdempotency.key,
+        set: { providerId: row.providerId, ...pending },
+      });
+  } catch (err) {
+    console.error("[booking-service] bookingIdempotency insert failed:", err);
+  }
 }
 
 /**
@@ -122,12 +157,28 @@ export async function serviceBookFlight(
 ): Promise<ServiceBookingResult> {
   const { bookingId, bookingItemId, agencyId, offer, passengers, ctx } = params;
 
-  const offerId = offer.rawOfferId ?? offer.id;
+  // --- Guard: an item with no usable offer can't be booked with a supplier. --
+  // Proposal-converted items carry no `details`, so `offer` is null here. Fall
+  // back to a provisional reference rather than crashing on `offer.rawOfferId`.
+  const offerId = offer?.rawOfferId ?? offer?.id;
+  if (!offerId) {
+    return {
+      confirmed: false,
+      confirmationNumber: provisionalRef(),
+      reason: "No supplier offer attached to this item",
+    };
+  }
   const idempotencyKey = deriveKey(bookingId, bookingItemId, offerId);
 
-  // --- Replay: return the cached result when a prior attempt succeeded. -----
+  // --- Replay: return the cached result when a prior attempt succeeded and the
+  // key has not expired. A `pending` row means a prior invocation touched the
+  // supplier and never recorded a result (e.g. serverless timeout) — treat it
+  // as in-flight and DO NOT re-call the provider, to avoid a double PNR/charge.
   const existing = await db.query.bookingIdempotency.findFirst({
-    where: eq(bookingIdempotency.key, idempotencyKey),
+    where: and(
+      eq(bookingIdempotency.key, idempotencyKey),
+      gt(bookingIdempotency.expiresAt, new Date())
+    ),
   });
   if (existing?.status === "success" && existing.supplierRef) {
     return {
@@ -136,33 +187,34 @@ export async function serviceBookFlight(
       providerId: existing.providerId,
     };
   }
+  if (existing?.status === "pending") {
+    return {
+      confirmed: false,
+      confirmationNumber: provisionalRef(),
+      reason:
+        "A prior booking attempt is still in flight — reconcile with the supplier before retrying",
+    };
+  }
 
   // --- Resolve provider. ----------------------------------------------------
   const provider = providerRegistry.pick("flights", "book");
   if (!provider || !canBookFlights(provider)) {
     return {
       confirmed: false,
-      confirmationNumber: `REF-${Date.now().toString(36).toUpperCase()}`,
+      confirmationNumber: provisionalRef(),
       reason: "No configured flight booking provider",
     };
   }
 
   // --- Register idempotency key as pending before touching the supplier. ----
-  try {
-    await db
-      .insert(bookingIdempotency)
-      .values({
-        key: idempotencyKey,
-        bookingId,
-        bookingItemId,
-        providerId: provider.id,
-        status: "pending",
-        expiresAt: new Date(Date.now() + IDEMPOTENCY_TTL_MS),
-      })
-      .onConflictDoNothing();
-  } catch (err) {
-    console.error("[booking-service] bookingIdempotency insert failed:", err);
-  }
+  // An existing row can only be an EXPIRED one here (a live success/pending row
+  // short-circuited above), so on PK conflict we refresh it back to pending with
+  // a new TTL rather than skipping — an expired key is treated as absent.
+  await registerPending(idempotencyKey, {
+    bookingId,
+    bookingItemId,
+    providerId: provider.id,
+  });
 
   // --- Quote (price revalidation). -----------------------------------------
   // A failed quote is non-fatal: we proceed to book and let the supplier
@@ -255,7 +307,7 @@ export async function serviceBookFlight(
 
     return {
       confirmed: false,
-      confirmationNumber: `REF-${Date.now().toString(36).toUpperCase()}`,
+      confirmationNumber: provisionalRef(),
       reason,
     };
   }
@@ -277,12 +329,26 @@ export async function serviceBookHotel(
 ): Promise<ServiceBookingResult> {
   const { bookingId, bookingItemId, agencyId, offer, guests, ctx } = params;
 
-  const offerId = offer.rateKey ?? offer.id;
+  // --- Guard: an item with no usable offer can't be booked with a supplier. --
+  // Proposal-converted items carry no `details`, so `offer` is null here. Fall
+  // back to a provisional reference rather than crashing on `offer.rateKey`.
+  const offerId = offer?.rateKey ?? offer?.id;
+  if (!offerId) {
+    return {
+      confirmed: false,
+      confirmationNumber: provisionalRef(),
+      reason: "No supplier offer attached to this item",
+    };
+  }
   const idempotencyKey = deriveKey(bookingId, bookingItemId, offerId);
 
-  // --- Replay. --------------------------------------------------------------
+  // --- Replay: cached success (unexpired) short-circuits; an in-flight
+  // `pending` row is NOT re-called (avoids a double reservation/charge). ------
   const existing = await db.query.bookingIdempotency.findFirst({
-    where: eq(bookingIdempotency.key, idempotencyKey),
+    where: and(
+      eq(bookingIdempotency.key, idempotencyKey),
+      gt(bookingIdempotency.expiresAt, new Date())
+    ),
   });
   if (existing?.status === "success" && existing.supplierRef) {
     return {
@@ -291,33 +357,31 @@ export async function serviceBookHotel(
       providerId: existing.providerId,
     };
   }
+  if (existing?.status === "pending") {
+    return {
+      confirmed: false,
+      confirmationNumber: provisionalRef(),
+      reason:
+        "A prior booking attempt is still in flight — reconcile with the supplier before retrying",
+    };
+  }
 
   // --- Resolve provider. ----------------------------------------------------
   const provider = providerRegistry.pick("hotels", "book");
   if (!provider || !canBookHotels(provider)) {
     return {
       confirmed: false,
-      confirmationNumber: `REF-${Date.now().toString(36).toUpperCase()}`,
+      confirmationNumber: provisionalRef(),
       reason: "No configured hotel booking provider",
     };
   }
 
-  // --- Register idempotency key. -------------------------------------------
-  try {
-    await db
-      .insert(bookingIdempotency)
-      .values({
-        key: idempotencyKey,
-        bookingId,
-        bookingItemId,
-        providerId: provider.id,
-        status: "pending",
-        expiresAt: new Date(Date.now() + IDEMPOTENCY_TTL_MS),
-      })
-      .onConflictDoNothing();
-  } catch (err) {
-    console.error("[booking-service] bookingIdempotency insert failed:", err);
-  }
+  // --- Register idempotency key (refreshing an expired row). ----------------
+  await registerPending(idempotencyKey, {
+    bookingId,
+    bookingItemId,
+    providerId: provider.id,
+  });
 
   // --- Quote (CheckRate re-price). -----------------------------------------
   let priceChanged = false;
@@ -409,7 +473,7 @@ export async function serviceBookHotel(
 
     return {
       confirmed: false,
-      confirmationNumber: `REF-${Date.now().toString(36).toUpperCase()}`,
+      confirmationNumber: provisionalRef(),
       reason,
     };
   }

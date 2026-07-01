@@ -2,5 +2,6 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "buildCommand": "npm run db:migrate && npm run build:ci",
-  "installCommand": "npm install --legacy-peer-deps"
+  "installCommand": "npm install --legacy-peer-deps",
+  "crons": [{ "path": "/api/cron/cleanup", "schedule": "0 3 * * *" }]
 }

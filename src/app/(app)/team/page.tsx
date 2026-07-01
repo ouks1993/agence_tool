@@ -23,6 +23,7 @@ import {
   OPEN_STAGES,
   USER_ROLES,
   USER_ROLE_META,
+  USER_ROLE_TONE,
 } from "@/lib/domain";
 import type { UserRole } from "@/lib/domain";
 import {
@@ -198,7 +199,7 @@ export default async function TeamPage() {
                         <TableCell>
                           <StatusBadge
                             label={USER_ROLE_META[inv.role as UserRole].label}
-                            tone={USER_ROLE_META[inv.role as UserRole].badgeClass}
+                            variant={USER_ROLE_TONE[inv.role as UserRole]}
                           />
                         </TableCell>
                         <TableCell>
@@ -267,7 +268,7 @@ export default async function TeamPage() {
                           <div className="mt-1">
                             <StatusBadge
                               label={USER_ROLE_META[m.role as UserRole].label}
-                              tone={USER_ROLE_META[m.role as UserRole].badgeClass}
+                              variant={USER_ROLE_TONE[m.role as UserRole]}
                             />
                           </div>
                         </div>

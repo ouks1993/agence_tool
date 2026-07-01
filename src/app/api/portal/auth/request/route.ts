@@ -9,7 +9,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { sendEmail } from "@/lib/notifications/email";
 import { portalMagicLinkEmail } from "@/lib/notifications/templates";
@@ -43,9 +43,22 @@ export async function POST(req: NextRequest) {
       const token = crypto.randomBytes(32).toString("hex");
       const expiresAt = new Date(Date.now() + MAGIC_LINK_TTL_MS);
 
+      // Invalidate any prior pending magic links for this client so only the
+      // newest link is usable (requesting a fresh link retires the old one).
+      // Never touch "session" rows — those are the client's live logins.
+      await db
+        .delete(portalSession)
+        .where(
+          and(
+            eq(portalSession.clientId, found.id),
+            eq(portalSession.purpose, "magic")
+          )
+        );
+
       await db.insert(portalSession).values({
         clientId: found.id,
         token,
+        purpose: "magic",
         expiresAt,
       });
 

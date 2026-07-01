@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { createBookingFromAcceptedProposal } from "@/lib/actions/bookings";
 import type { ActionResult } from "@/lib/actions/types";
 import { logActivity } from "@/lib/activity";
@@ -55,7 +55,12 @@ export async function acceptProposalFromPortal(
   const now = new Date();
 
   try {
-    await db
+    // First-writer-wins: the WHERE re-asserts the not-yet-accepted / not-declined
+    // guard atomically with the write, so two near-simultaneous accepts can't both
+    // pass the pre-read above and clobber each other's signer identity. Only the
+    // first UPDATE matches these predicates; `.returning()` gives the winner a row
+    // and the loser an empty array.
+    const [claimed] = await db
       .update(product)
       .set({
         status: "accepted",
@@ -66,7 +71,20 @@ export async function acceptProposalFromPortal(
         signerIp: ip,
         signerUserAgent: userAgent,
       })
-      .where(eq(product.id, p.id));
+      .where(
+        and(
+          eq(product.id, p.id),
+          isNull(product.acceptedAt),
+          isNull(product.declinedAt)
+        )
+      )
+      .returning({ id: product.id });
+
+    // Lost the race: take the same path as the "already accepted" early-return —
+    // do NOT run the side effects.
+    if (!claimed) {
+      return { ok: false, error: "This proposal has already been accepted." };
+    }
 
     // Close the linked opportunity as won.
     if (p.opportunityId) {
@@ -151,7 +169,10 @@ export async function declineProposalFromPortal(productId: string): Promise<Acti
   const { ip, userAgent } = await signerMeta();
 
   try {
-    await db
+    // First-writer-wins: same conditional-write pattern as acceptance. A decline
+    // that races an accept (or another decline) only commits when the proposal is
+    // still un-actioned; the loser falls through to the "already accepted" shape.
+    const [claimed] = await db
       .update(product)
       .set({
         status: "rejected",
@@ -159,7 +180,18 @@ export async function declineProposalFromPortal(productId: string): Promise<Acti
         signerIp: ip,
         signerUserAgent: userAgent,
       })
-      .where(eq(product.id, p.id));
+      .where(
+        and(
+          eq(product.id, p.id),
+          isNull(product.acceptedAt),
+          isNull(product.declinedAt)
+        )
+      )
+      .returning({ id: product.id });
+
+    if (!claimed) {
+      return { ok: false, error: "This proposal has already been accepted." };
+    }
 
     await logActivity({
       agencyId: p.agencyId,

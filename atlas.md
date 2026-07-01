@@ -61,7 +61,8 @@ Multi-tenant SaaS with live travel sourcing, billing, client portal,
 supplier/commission management, and AI throughout. Real supplier search and
 booking (Duffel + Hotelbeds) fully wired behind a provider-agnostic Travel Platform
 facade — activate with production credentials. Adding a new provider requires zero
-consumer changes. Migrations: 20 (latest `0020` — proposal→booking link).
+consumer changes. Migrations: 22 (latest `0021` — commission ledger set-null +
+portal session purpose + cleanup indexes).
 
 **Shipped since:**
 - **UI redesign — complete.** Every one of the 55 routes brought to the sales-deck

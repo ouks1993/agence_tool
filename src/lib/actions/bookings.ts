@@ -8,6 +8,7 @@ import type { ActionResult } from "@/lib/actions/types";
 import { logActivity } from "@/lib/activity";
 import { db } from "@/lib/db";
 import {
+  type BookingStatus,
   canDeleteRecords,
   GENDERS,
   nextBookingStatus,
@@ -35,6 +36,16 @@ function toDate(value?: string | null): Date | null {
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+/**
+ * Finite-guarded numeric coercion (same semantics as `num` in analytics.ts):
+ * a malformed/`NaN` amount coerces to 0 so it can never poison a persisted
+ * total with the string "NaN".
+ */
+function num(v: string | number | null | undefined): number {
+  const n = typeof v === "string" ? parseFloat(v) : (v ?? 0);
+  return Number.isFinite(n) ? (n as number) : 0;
 }
 
 /** True when a DB error is a Postgres unique-constraint violation (code 23505). */
@@ -81,7 +92,7 @@ async function recalcTotal(
       and(eq(bookingItem.bookingId, bookingId), eq(booking.agencyId, agencyId))
     );
   const total = items.reduce(
-    (s, i) => s + parseFloat(i.amount || "0") * i.quantity,
+    (s, i) => s + num(i.amount) * i.quantity,
     0
   );
   await db
@@ -249,25 +260,40 @@ export async function updateBooking(
   return { ok: true };
 }
 
-export async function setBookingStatus(
-  id: string,
-  status: "draft" | "confirmed" | "paid" | "cancelled"
-): Promise<ActionResult> {
-  const user = await requireAgencyUser();
-  const existing = await db.query.booking.findFirst({
-    where: and(eq(booking.id, id), eq(booking.agencyId, user.agencyId)),
-    with: { items: true },
-  });
-  if (!existing) return { ok: false, error: "Booking not found" };
+/**
+ * A booking row loaded with its items — the shape the lifecycle guards operate
+ * on. Both `setBookingStatus` and `advanceStatus` pass their loaded row here.
+ */
+type BookingWithItems = typeof booking.$inferSelect & {
+  items: (typeof bookingItem.$inferSelect)[];
+};
 
-  // Hard prerequisite: a booking cannot be confirmed without trip services.
-  if (status === "confirmed" && existing.items.length === 0) {
-    return { ok: false, error: "Add at least one trip service before confirming." };
-  }
+/** Forward lifecycle steps that require the booking to have at least one item. */
+const ITEMS_REQUIRED_STATUSES: BookingStatus[] = [
+  "confirmed",
+  "ticketed",
+  "completed",
+];
 
-  // Hard prerequisite: confirming or marking paid requires a settled balance
-  // (>0.01 tolerates floating-point drift).
-  if (status === "confirmed" || status === "paid") {
+/**
+ * Enforce the per-target lifecycle prerequisites shared by `setBookingStatus`
+ * and `advanceStatus`. Returns an error `ActionResult` to short-circuit on, or
+ * `null` when the transition to `target` is permitted so far.
+ *
+ * - `cancelled` and backward moves (e.g. → draft) are always permitted (no
+ *   prerequisites): a booking must be cancellable/reversible from any state.
+ * - Reaching `confirmed`/`ticketed`/`completed` requires at least one trip
+ *   service and a fully settled balance (>0.01 tolerates float drift) — the
+ *   same gates `advanceStatus` has always enforced for `confirmed`.
+ */
+async function checkStatusPrerequisites(
+  existing: BookingWithItems,
+  target: BookingStatus
+): Promise<{ ok: false; error: string } | null> {
+  if (ITEMS_REQUIRED_STATUSES.includes(target)) {
+    if (existing.items.length === 0) {
+      return { ok: false, error: "Add at least one trip service before confirming." };
+    }
     const balance = await bookingBalance(existing.id, existing.totalAmount);
     if (balance > 0.01) {
       return {
@@ -276,13 +302,94 @@ export async function setBookingStatus(
       };
     }
   }
+  return null;
+}
+
+/**
+ * Ticketing supplier-confirmation flow, shared by `setBookingStatus` and
+ * `advanceStatus`. Ensures every item has a REAL provider confirmation before a
+ * booking is ticketed. A provider failure stores its provisional reference but
+ * keeps that line "pending" and returns an error result so the caller aborts —
+ * a booking is never ticketed off a fabricated confirmation.
+ *
+ * Returns `null` on success (all items confirmed) or an error `ActionResult`.
+ */
+async function runTicketingConfirmation(
+  existing: BookingWithItems,
+  agencyId: string,
+  userId: string | null
+): Promise<{ ok: false; error: string } | null> {
+  const passengers = await buildFlightPassengers(existing.id);
+  const failures: string[] = [];
+  for (const item of existing.items) {
+    if (item.confirmationNumber) continue;
+    const result = await confirmItemBooking(item, passengers, agencyId, existing.reference);
+    await db
+      .update(bookingItem)
+      .set({
+        confirmationNumber: result.confirmationNumber,
+        itemStatus: result.confirmed ? "ticketed" : "pending",
+      })
+      .where(eq(bookingItem.id, item.id));
+    if (!result.confirmed) {
+      failures.push(`${item.title}: ${result.reason}`);
+    }
+  }
+  if (failures.length > 0) {
+    await logActivity({
+      agencyId,
+      userId,
+      action: "updated",
+      entityType: "booking",
+      entityId: existing.id,
+      entityLabel: existing.reference,
+      metadata: { ticketingFailed: failures },
+    });
+    revalidatePath(`/bookings/${existing.id}`);
+    return {
+      ok: false,
+      error: `Could not ticket every service: ${failures.join("; ")}`,
+    };
+  }
+  return null;
+}
+
+/**
+ * Set a booking to an explicit status. Unlike `advanceStatus` (which only steps
+ * to the immediate next lifecycle status) this can jump to any status, so it
+ * MUST enforce the same server-side guards for every forward target — the
+ * dropdown offers all statuses and cannot be trusted. Backward moves and
+ * `cancelled` remain reachable from any state.
+ */
+export async function setBookingStatus(
+  id: string,
+  status: BookingStatus
+): Promise<ActionResult> {
+  const user = await requireAgencyUser();
+  const existing = await db.query.booking.findFirst({
+    where: and(eq(booking.id, id), eq(booking.agencyId, user.agencyId)),
+    with: { items: true },
+  });
+  if (!existing) return { ok: false, error: "Booking not found" };
+
+  // Same items-required + zero-balance gates advanceStatus enforces.
+  const prereq = await checkStatusPrerequisites(existing, status);
+  if (prereq) return prereq;
+
+  // Ticketing runs the same supplier-confirmation flow as advanceStatus and
+  // aborts if any provider fails — no booking is ticketed off a fabricated ref.
+  if (status === "ticketed") {
+    const ticketing = await runTicketingConfirmation(existing, user.agencyId, user.id);
+    if (ticketing) return ticketing;
+  }
 
   await db
     .update(booking)
     .set({ status })
     .where(and(eq(booking.id, id), eq(booking.agencyId, user.agencyId)));
 
-  if (status === "confirmed") {
+  // Commissions are generated when a booking first enters confirmed/ticketed.
+  if (status === "confirmed" || status === "ticketed") {
     await autoGenerateCommissions(id, user.agencyId);
   }
 
@@ -293,10 +400,11 @@ export async function setBookingStatus(
     entityType: "booking",
     entityId: id,
     entityLabel: existing.reference,
-    metadata: { to: status },
+    metadata: { from: existing.status, to: status },
   });
 
   revalidatePath("/bookings");
+  revalidatePath("/operations");
   revalidatePath(`/bookings/${id}`);
   return { ok: true };
 }
@@ -521,60 +629,15 @@ export async function advanceStatus(
   const next = nextBookingStatus(existing.status);
   if (!next) return { ok: false, error: "Booking is already at the final status" };
 
-  // Hard prerequisite: a booking cannot be confirmed without trip services.
-  if (next === "confirmed" && existing.items.length === 0) {
-    return { ok: false, error: "Add at least one trip service before confirming." };
-  }
+  // Same items-required + zero-balance gates setBookingStatus enforces.
+  const prereq = await checkStatusPrerequisites(existing, next);
+  if (prereq) return prereq;
 
-  // Hard prerequisite: confirming clears the booking out of awaiting_payment,
-  // so the balance must be fully settled first (>0.01 tolerates float drift).
-  if (next === "confirmed") {
-    const balance = await bookingBalance(existing.id, existing.totalAmount);
-    if (balance > 0.01) {
-      return {
-        ok: false,
-        error: `Balance of ${formatMoney(balance, existing.currency)} is still due.`,
-      };
-    }
-  }
-
-  // When ticketing, ensure every item has a REAL provider confirmation. If a
-  // provider fails, we store its provisional reference but keep that line
-  // "pending" and abort the advance — a booking is never ticketed off a
-  // fabricated confirmation.
+  // When ticketing, ensure every item has a REAL provider confirmation before
+  // advancing — a provider failure aborts the advance (see helper).
   if (next === "ticketed") {
-    const passengers = await buildFlightPassengers(existing.id);
-    const failures: string[] = [];
-    for (const item of existing.items) {
-      if (item.confirmationNumber) continue;
-      const result = await confirmItemBooking(item, passengers, user.agencyId, existing.reference);
-      await db
-        .update(bookingItem)
-        .set({
-          confirmationNumber: result.confirmationNumber,
-          itemStatus: result.confirmed ? "ticketed" : "pending",
-        })
-        .where(eq(bookingItem.id, item.id));
-      if (!result.confirmed) {
-        failures.push(`${item.title}: ${result.reason}`);
-      }
-    }
-    if (failures.length > 0) {
-      await logActivity({
-        agencyId: user.agencyId,
-        userId: user.id,
-        action: "updated",
-        entityType: "booking",
-        entityId: id,
-        entityLabel: existing.reference,
-        metadata: { ticketingFailed: failures },
-      });
-      revalidatePath(`/bookings/${id}`);
-      return {
-        ok: false,
-        error: `Could not ticket every service: ${failures.join("; ")}`,
-      };
-    }
+    const ticketing = await runTicketingConfirmation(existing, user.agencyId, user.id);
+    if (ticketing) return ticketing;
   }
 
   await db

@@ -314,10 +314,16 @@ sha256(`${bookingId}:${bookingItemId}:${offerId}`)
 ```
 
 - `offerId` is the supplier's offer/rate identifier (e.g. Duffel offer id,
-  Hotelbeds `rateKey`).
+  Hotelbeds `rateKey`). A proposal-converted booking item carries no supplier
+  offer (`details` is null) — `offerId` is then `undefined`, and the booking
+  service short-circuits to a provisional `REF-…` reference before ever
+  deriving a key, rather than deref'ing a null offer.
 - The same triple always produces the same 64-hex-char key.
-- Keys are written with `ON CONFLICT DO NOTHING`, so two concurrent requests
-  for the same booking item cannot both insert a "pending" row.
+- Keys are registered with `onConflictDoUpdate` (`registerPending()`): callers
+  only reach the insert/upsert after ruling out a live (unexpired)
+  success/pending row (see 5.3), so any PK conflict at that point can only be an
+  **expired** row — it is reset to `pending` with a fresh TTL rather than left
+  alone, so an expired key is treated as absent for the new attempt.
 
 ### 5.2 Lifecycle states
 
@@ -329,22 +335,34 @@ sha256(`${bookingId}:${bookingItemId}:${offerId}`)
 
 ### 5.3 Replay semantics
 
-- On success (`status = "success"`): return `supplierRef` immediately — no
-  supplier call. This handles browser re-submits, network retries, and
-  serverless double-invocations.
-- On pending (`status = "pending"`): the prior call is still in flight (or
-  crashed mid-flight). `ON CONFLICT DO NOTHING` means the new attempt skips
-  the insert and proceeds to quote/book. The supplier's own idempotency key
-  prevents double-booking at the supplier level.
+Every read is scoped to **unexpired** rows only (`WHERE key = … AND expiresAt >
+now()`) — an expired row is invisible to this check regardless of its status,
+so it falls through to a fresh attempt (see 5.1).
+
+- On success (`status = "success"`, unexpired): return `supplierRef`
+  immediately — no supplier call. This handles browser re-submits, network
+  retries, and serverless double-invocations.
+- On pending (`status = "pending"`, unexpired): the prior call is still in
+  flight (or crashed mid-flight without recording a result). This is treated as
+  **in-flight, not safe to retry** — the provider is **not** called again;
+  the service returns a provisional `REF-…` reference with a reason asking to
+  reconcile with the supplier before retrying. This is a deliberate change from
+  an earlier version that let a pending row fall through to a fresh book call,
+  which could double-book/double-charge on a slow-but-eventually-successful
+  first attempt.
 - On failed (`status = "failed"`): the key represents a bad offer; the agent
   should select a fresh offer (which will have a different `offerId`) and book
   again with a new key.
 
 ### 5.4 TTL
 
-Keys expire after **24 hours** (`expiresAt` column). A future cron job can
-clean up expired rows. Expired rows do not block new bookings — expiry is
-advisory.
+Keys expire after **24 hours** (`expiresAt` column). Expiry is enforced on
+every read (5.3), not merely advisory: an expired row can never be replayed as
+a cache hit, and registering a new attempt against an expired key refreshes it
+to `pending` in place. Expired rows (along with expired `portal_session` and
+stale-pending `agency_invite` rows) are swept daily by
+`GET /api/cron/cleanup`, scheduled via `vercel.json`'s `crons` — see
+[deployment.md](deployment.md#scheduled-cleanup).
 
 ---
 

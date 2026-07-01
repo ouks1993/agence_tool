@@ -74,6 +74,60 @@ export function canAutocomplete(
   return typeof (p as Partial<AutocompleteCapable>).searchAirports === "function";
 }
 
+// --- Capability → runtime-guard resolution ----------------------------------
+
+/**
+ * Maps a (vertical, capability) pair to the runtime type-guard that proves the
+ * provider actually implements the underlying method. `search`/`book` resolve to
+ * different guards per vertical; `quote` shares the vertical's booking guard
+ * (quote lives on the `*BookingCapable` interface alongside `book`). Returns
+ * `null` when a capability has no method to probe at runtime.
+ */
+function runtimeGuardFor(
+  vertical: ProviderVertical,
+  capability: ProviderCapability
+): ((p: BookingProvider) => boolean) | null {
+  switch (capability) {
+    case "search":
+      return vertical === "flights" ? canSearchFlights : canSearchHotels;
+    case "book":
+    case "quote":
+      return vertical === "flights" ? canBookFlights : canBookHotels;
+    case "cancel":
+      return canCancel;
+    case "content":
+      return canProvideContent;
+    case "autocomplete":
+      return canAutocomplete;
+    default:
+      return null;
+  }
+}
+
+/**
+ * Fails loudly in development when a provider's DECLARED capabilities don't match
+ * its actual implementation — e.g. it advertises "book" for hotels but has no
+ * `bookHotel` method. Catching the mismatch at register() time (instead of
+ * silently at selection time) turns a latent "provisional ref" degradation into
+ * an obvious dev-time console error. Never throws in production.
+ */
+function assertCatalogParity(provider: BookingProvider): void {
+  if (process.env.NODE_ENV === "production") return;
+
+  for (const vertical of provider.verticals) {
+    for (const capability of provider.capabilities) {
+      const guard = runtimeGuardFor(vertical, capability);
+      if (guard && !guard(provider)) {
+        console.error(
+          `[providerRegistry] "${provider.id}" declares "${capability}" for ` +
+            `"${vertical}" but does not implement the matching method. It will ` +
+            `be skipped for that capability at selection time.`
+        );
+      }
+    }
+  }
+}
+
 // --- Registry ---------------------------------------------------------------
 
 export interface ProviderRegistry {
@@ -105,15 +159,24 @@ export function createProviderRegistry(): ProviderRegistry {
 
   const forVertical: ProviderRegistry["forVertical"] = (vertical, opts) => {
     const { capability, configuredOnly = false } = opts ?? {};
+    // When filtering by capability, require BOTH the declared capability AND the
+    // runtime method it implies. A provider that declares "book" but never
+    // implements bookHotel/bookFlight would otherwise be picked and then degrade
+    // to a provisional ref with no signal — so gate on the type-guard too.
+    const guard = capability ? runtimeGuardFor(vertical, capability) : null;
     return [...byIdMap.values()]
       .filter((p) => p.verticals.includes(vertical))
       .filter((p) => (capability ? p.capabilities.includes(capability) : true))
+      .filter((p) => (guard ? guard(p) : true))
       .filter((p) => (configuredOnly ? p.isConfigured() : true))
       .sort((a, b) => b.priority - a.priority);
   };
 
   return {
-    register: (provider) => void byIdMap.set(provider.id, provider),
+    register: (provider) => {
+      assertCatalogParity(provider);
+      byIdMap.set(provider.id, provider);
+    },
     all: () => [...byIdMap.values()],
     byId: (id) => byIdMap.get(id),
     forVertical,

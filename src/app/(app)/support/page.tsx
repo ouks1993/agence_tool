@@ -12,7 +12,7 @@ import { getTranslations } from "next-intl/server";
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
 import { StatStrip } from "@/components/app/stat-strip";
-import { StatusBadge } from "@/components/app/status-badge";
+import { StatusPill } from "@/components/app/status-badge";
 import { NeedsTag } from "@/components/support/needs-tag";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -256,9 +256,10 @@ export default async function SupportPage() {
                           {formatDate(row.departDate)}
                         </TableCell>
                         <TableCell>
-                          <StatusBadge
+                          <StatusPill
+                            domain="booking"
+                            status={row.status}
                             label={meta?.label ?? row.status}
-                            tone={meta?.badgeClass}
                           />
                         </TableCell>
                         <TableCell>
@@ -391,7 +392,7 @@ export default async function SupportPage() {
                           </span>
                         </span>
                         <span className="text-muted-foreground flex items-center gap-2 text-xs">
-                          <StatusBadge label={meta?.label ?? trip.status} tone={meta?.badgeClass} />
+                          <StatusPill domain="booking" status={trip.status} label={meta?.label ?? trip.status} />
                           {trip.leadTraveller ?? "No lead traveller"}
                         </span>
                       </Link>

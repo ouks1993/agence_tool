@@ -50,6 +50,9 @@ const serverEnvSchema = z.object({
   HOTELBEDS_SECRET: z.string().optional(),
   HOTELBEDS_HOSTNAME: z.string().optional(),
 
+  // Scheduled jobs (Vercel Cron sends this as a Bearer token to /api/cron/*)
+  CRON_SECRET: z.string().optional(),
+
   // App
   NODE_ENV: z
     .enum(["development", "production", "test"])
@@ -150,6 +153,10 @@ export function checkEnv(): void {
 
   if (!process.env.HOTELBEDS_API_KEY || !process.env.HOTELBEDS_SECRET) {
     warnings.push("Hotelbeds keys are not set. Hotel search uses sample data.");
+  }
+
+  if (!process.env.CRON_SECRET) {
+    warnings.push("CRON_SECRET is not set. The scheduled cleanup job (/api/cron/cleanup) will return 503.");
   }
 
   // Log warnings in development

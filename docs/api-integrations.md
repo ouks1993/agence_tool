@@ -22,7 +22,13 @@ config; no other file reads `process.env` for supplier credentials directly.
 - **Full booking lifecycle** — `search → quote (re-validate price/rate) → book
   (idempotent) → cancel`. Real bedbank/GDS rates expire, so `quoteHotel`/
   `quoteFlight` re-price immediately before `book*`; book requests carry an
-  `idempotencyKey` so replays never double-book.
+  `idempotencyKey` so replays never double-book. The idempotency cache read is
+  gated on `expiresAt` (24 h TTL) — an **expired** row is treated as absent (the
+  row is refreshed to `pending` on the next attempt), and a still-live `pending`
+  row (a prior call that touched the supplier and never recorded a result, e.g. a
+  serverless timeout) is treated as **in-flight**: the provider is never
+  re-called, and a provisional needs-manual-reconciliation result is returned
+  instead — this is what prevents a double PNR/charge on retry.
 - **Normalized errors** — every provider throws `ProviderError` with a stable
   `code` (`rate_expired`, `sold_out`, `rate_limited`, `provider_unavailable`, …)
   and a `retryable` flag, so callers branch on the code, not provider strings.
@@ -33,7 +39,15 @@ config; no other file reads `process.env` for supplier credentials directly.
   callers resolve by vertical + capability + priority
   (`providerRegistry.pick("hotels", "search")`) with capability type-guards
   (`canSearchHotels`, `canBookFlights`, …). Replaces the hardcoded
-  `getFlightSupplier()/getHotelSupplier()` if/else.
+  `getFlightSupplier()/getHotelSupplier()` if/else. Selection (`forVertical`/
+  `pick`) applies the runtime type-guard for the requested capability, not just
+  the provider's declared `capabilities` array — a provider that *claims* a
+  capability but doesn't implement the matching method is filtered out of
+  selection rather than silently degrading bookings to provisional refs.
+  `register()` also asserts catalog↔implementation parity at registration time
+  (`assertCatalogParity`): a mismatch between a provider's declared
+  capabilities and its actual methods logs a loud `console.error` in
+  non-production so the gap is caught at startup, not at booking time.
 - **Registration** (`register.ts`, Wave 2) — `registerBuiltInProviders()` wires
   the three shipped adapters into the registry: `MockBookingProvider` (both
   verticals, priority 0, always configured — the fallback),

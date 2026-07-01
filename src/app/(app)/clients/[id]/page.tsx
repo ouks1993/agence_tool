@@ -15,7 +15,7 @@ import {
   User as UserIcon,
 } from "lucide-react";
 import { getTranslations } from "next-intl/server";
-import { StatusBadge } from "@/components/app/status-badge";
+import { StatusPill } from "@/components/app/status-badge";
 import { SparkLine } from "@/components/charts/insight-charts";
 import { ClientAvatar } from "@/components/clients/client-avatar";
 import {
@@ -66,6 +66,7 @@ import {
   opportunity,
   product,
 } from "@/lib/schema";
+import { statusTone } from "@/lib/status-tone";
 import { cn } from "@/lib/utils";
 
 export default async function ClientDetailPage({
@@ -267,7 +268,7 @@ export default async function ClientDetailPage({
       dates,
       amount: formatMoney(b.totalAmount, b.currency),
       statusLabel: meta?.label ?? b.status,
-      statusTone: meta?.badgeClass,
+      statusTone: statusTone("booking", b.status),
     };
   });
 
@@ -279,7 +280,7 @@ export default async function ClientDetailPage({
       title: o.title,
       amount: formatMoney(o.value, o.currency),
       statusLabel: meta?.label ?? o.stage,
-      statusTone: meta?.badgeClass,
+      statusTone: statusTone("opportunity", o.stage),
     };
   });
 
@@ -292,7 +293,7 @@ export default async function ClientDetailPage({
       reference: pr.reference,
       amount: formatMoney(pr.totalPrice, pr.currency),
       statusLabel: meta?.label ?? pr.status,
-      statusTone: meta?.badgeClass,
+      statusTone: statusTone("product", pr.status),
     };
   });
 
@@ -349,9 +350,10 @@ export default async function ClientDetailPage({
                 {t("profile.clientSince")} {c.createdAt.getFullYear()}
               </p>
               <div className="mt-2">
-                <StatusBadge
+                <StatusPill
+                  domain="client"
+                  status={c.status}
                   label={statusMeta?.label ?? c.status}
-                  tone={statusMeta?.badgeClass}
                 />
               </div>
               {location && (

@@ -46,12 +46,12 @@ export function Topbar({
       >
         <Search className="size-4 shrink-0" />
         <span className="truncate">{tSearch("commandPlaceholder")}</span>
-        <kbd className="border-border bg-background text-muted-foreground ml-auto hidden rounded-sm border px-1.5 py-0.5 font-mono text-[11px] font-medium sm:inline-block">
+        <kbd className="border-border bg-background text-muted-foreground ms-auto hidden rounded-sm border px-1.5 py-0.5 font-mono text-[11px] font-medium sm:inline-block">
           ⌘K
         </kbd>
       </button>
 
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ms-auto flex items-center gap-2">
         <ModeToggle />
 
         <DropdownMenu>

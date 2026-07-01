@@ -206,7 +206,12 @@ loaded/mutated through it.
 - **Supplier aggregate** — `supplier` → `supplier_contract` → `supplier_rate`.
   `supplier_contract` denormalizes `agencyId` for efficient agency-scoped queries;
   `supplier_rate` inherits tenancy through its contract. `commission` rows link a
-  booking item back to the earning supplier/agent.
+  booking item back to the earning supplier/agent — but are **not** part of the
+  booking aggregate's cascade: `commission.bookingId`/`bookingItemId` are
+  `onDelete: set null` (migration `0021`), so the ledger survives a booking or
+  item being deleted (financial history is never silently destroyed by a
+  cascade). Its `agencyId` FK still cascades with the tenant. See
+  [decision 0007](decisions/0007-commission-ledger-survives-booking-deletion.md).
 - **Reference data** — `hotel_content` is **global** (not tenant-scoped): its PK is
   the Hotelbeds hotel code (a string), and it is shared vendor reference data like a
   currency list. ISO countries/controlled vocabularies are canonical lookups in

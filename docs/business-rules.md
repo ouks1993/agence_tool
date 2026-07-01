@@ -111,12 +111,32 @@ in [architecture.md](architecture.md#roles--permissions). Key rules:
 
 ## Booking lifecycle
 
-States: `draft → awaiting_payment → confirmed → ticketed → completed`. A visual
-stepper drives it with an "Advance to [next]" button. **Hard prerequisites are
-enforced server-side:**
+States: `draft → awaiting_payment → confirmed → ticketed → completed`. Two entry
+points can change status: a visual stepper's "Advance to [next]" button
+(`advanceStatus` — steps to the immediate next stage only) and a status dropdown
+that can jump to any status (`setBookingStatus`). **Both share the same
+server-side guards** — the dropdown is not a way around the stepper's rules:
 
-- `confirmed` requires trip items **and** zero outstanding balance.
-- `ticketed` requires trip items.
+- `confirmed`, `ticketed`, and `completed` all require at least one trip item.
+- `confirmed` **and every stage beyond it** (`ticketed`, `completed`) additionally
+  require a zero outstanding balance — not just the `confirmed` transition
+  itself, since none of those later states are meaningful with money still owed.
+- Reaching `ticketed` runs the supplier-confirmation flow for every item
+  (`runTicketingConfirmation`): each item without an existing confirmation is
+  booked via the provider registry; if any provider call fails, the whole
+  transition **aborts** with an error — a booking is never ticketed off a
+  fabricated confirmation. A proposal-converted item with no supplier offer
+  attached (`details` is null) does not crash this flow: it falls back to a
+  provisional `REF-…` reference with reason "No supplier offer attached to this
+  item" and is left `pending`.
+- Entering `confirmed` or `ticketed` (from either entry point) triggers
+  `autoGenerateCommissions`.
+- Backward moves and `cancelled` have no prerequisites — a booking must be
+  reversible/cancellable from any state. The status dropdown only *offers*
+  legal forward moves (current stage, one step forward, any backward stage, and
+  always `cancelled`); a cancelled booking can only be reopened back to `draft`.
+  The stale `paid` status option no longer appears — it was never a real
+  lifecycle stage.
 - Vouchers/invoices are **blocked** when a booking has no trip services.
 
 ## Proposals & e-signature
@@ -125,6 +145,17 @@ enforced server-side:**
   in-portal signing.
 - E-sign stamps signer name/email/IP/UA, flips the linked opportunity to
   **won**, and **auto-creates a booking** (status `awaiting_payment`).
+- **Accept/decline race safety** — both accept paths
+  (`acceptProposalByToken`, `acceptProposalFromPortal`) and their decline
+  counterparts perform an **atomic, conditional UPDATE**:
+  `WHERE accepted_at IS NULL AND declined_at IS NULL`, using `.returning()` to
+  detect whether the caller's write actually matched a row. Only the
+  first writer's UPDATE matches; a concurrent/racing second call sees zero
+  rows returned, so it never overwrites the first signer's stamped
+  name/email/IP/signature — it is simply handed the already-recorded response
+  instead, and runs no side effects (no second opportunity flip, no second
+  auto-booking attempt). The recorded signer identity always reflects the true
+  first signer, even under a race.
 - **Auto-booking on accept** — both accept paths (in-portal
   `acceptProposalFromPortal` and public-token `acceptProposalByToken`) call the
   shared `createBookingFromAcceptedProposal` helper right after marking the

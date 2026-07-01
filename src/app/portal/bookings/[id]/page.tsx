@@ -11,6 +11,7 @@ import {
   Phone,
 } from "lucide-react";
 import { EmptyState } from "@/components/app/empty-state";
+import { StatusPill } from "@/components/app/status-badge";
 import { PayNowButton } from "@/components/portal/pay-now-button";
 import {
   InfoLine,
@@ -572,9 +573,11 @@ export default async function PortalBookingPage({
               <InfoLine label="Booking ref">{b.reference}</InfoLine>
               <InfoLine label="Status">
                 {statusMeta ? (
-                  <Badge variant="secondary" className={statusMeta.badgeClass}>
-                    {statusMeta.label}
-                  </Badge>
+                  <StatusPill
+                    domain="booking"
+                    status={b.status}
+                    label={statusMeta.label}
+                  />
                 ) : (
                   <Badge variant="secondary">{b.status}</Badge>
                 )}

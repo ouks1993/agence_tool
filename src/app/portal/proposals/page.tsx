@@ -2,6 +2,7 @@ import Link from "next/link";
 import { and, desc, eq } from "drizzle-orm";
 import { ArrowRight, FileSignature, FileText, MapPin } from "lucide-react";
 import { EmptyState } from "@/components/app/empty-state";
+import { StatusPill } from "@/components/app/status-badge";
 import { SectionHead } from "@/components/portal/portal-bits";
 import { db } from "@/lib/db";
 import { PRODUCT_STATUS_META, type ProductStatus } from "@/lib/domain";
@@ -84,12 +85,12 @@ export default async function PortalProposalsPage() {
                 >
                   {/* Eyebrow: status dot pill + booking reference */}
                   <div className="flex items-center justify-between gap-2">
-                    <span
-                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${meta?.badgeClass ?? "bg-secondary text-secondary-foreground"}`}
-                    >
-                      <span className="size-1.5 rounded-full bg-current" />
-                      {meta?.label ?? p.status}
-                    </span>
+                    <StatusPill
+                      domain="product"
+                      status={p.status}
+                      label={meta?.label ?? p.status}
+                      dot
+                    />
                     <span className="text-muted-foreground/70 font-mono text-xs">
                       {p.reference}
                     </span>

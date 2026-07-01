@@ -98,7 +98,7 @@ export function AppShell({
         <Icon className="size-[17px] shrink-0" />
         <span className="min-w-0 flex-1 truncate">{tNav(item.labelKey)}</span>
         {count !== undefined && count > 0 && (
-          <span className="bg-sidebar-accent text-sidebar-foreground ml-auto rounded-full px-1.5 py-px text-[10.5px] font-semibold tabular-nums">
+          <span className="bg-sidebar-accent text-sidebar-foreground ms-auto rounded-full px-1.5 py-px text-[10.5px] font-semibold tabular-nums">
             {count}
           </span>
         )}

@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/table";
 import { viewAsAgency, viewAsUser } from "@/lib/actions/platform";
 import { db } from "@/lib/db";
-import { USER_ROLE_META, type UserRole } from "@/lib/domain";
+import { USER_ROLE_META, USER_ROLE_TONE, type UserRole } from "@/lib/domain";
 import { formatDate } from "@/lib/format";
 import { requirePlatformAdmin } from "@/lib/permissions";
 import { agency, agencyInvite, user } from "@/lib/schema";
@@ -195,7 +195,7 @@ export default async function AgencyDetailPage({
                     <TableCell>
                       <StatusBadge
                         label={USER_ROLE_META[m.role as UserRole].label}
-                        tone={USER_ROLE_META[m.role as UserRole].badgeClass}
+                        variant={USER_ROLE_TONE[m.role as UserRole]}
                       />
                     </TableCell>
                     <TableCell>
@@ -248,7 +248,7 @@ export default async function AgencyDetailPage({
                     <TableCell>
                       <StatusBadge
                         label={USER_ROLE_META[inv.role as UserRole].label}
-                        tone={USER_ROLE_META[inv.role as UserRole].badgeClass}
+                        variant={USER_ROLE_TONE[inv.role as UserRole]}
                       />
                     </TableCell>
                     <TableCell className="text-muted-foreground">

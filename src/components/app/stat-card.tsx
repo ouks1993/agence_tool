@@ -51,7 +51,7 @@ export function StatCard({
                   className={cn(
                     "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 font-semibold tabular-nums",
                     up
-                      ? "bg-green-500/10 text-green-600 dark:text-green-400"
+                      ? "bg-success-soft text-success"
                       : "bg-destructive/10 text-destructive"
                   )}
                 >

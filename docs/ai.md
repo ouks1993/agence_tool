@@ -113,29 +113,55 @@ calling the inline actions directly.
    structured JSON error (HTTP 502).
 
 The system prompt is built by `SYSTEM_PROMPT(today, agentName)` in the same file. It
-addresses the agent by name, sets today's date and EUR as the default currency,
-tells the model to infer IATA codes but state them, to disclose when figures come
-from sample data, and — as the hard rule — **never to invent supplier confirmations
-or PNRs and to create a booking only when explicitly asked**.
+addresses the agent by name, sets today's date, and states that internal agency
+figures (bookings, revenue, pipeline, quotes) are reported in **DZD** — live
+flight/hotel search results keep their own supplier-quoted currency and are never
+blended into a DZD total. It tells the model to infer IATA codes but state them,
+to disclose when figures come from sample data, and — as the hard rule — **never
+to invent supplier confirmations or PNRs and to create a booking only when
+explicitly asked**.
 
 ### Assistant tools
 
-All five tools are defined inline in the route and are agency-scoped wrappers over
-existing server actions / suppliers, so the AI cannot bypass
-[security.md](security.md) tenant isolation. Tool inputs are Zod-validated.
+**14 tools** are wired into the route: 5 defined inline (sourcing, CRM lookup,
+booking summary, the one mutation) plus 9 read tools spread in from four
+per-domain factory files. All are agency-scoped wrappers over existing server
+actions / DB queries, so the AI cannot bypass [security.md](security.md) tenant
+isolation. Tool inputs are Zod-validated.
+
+**Inline (defined directly in `route.ts`):**
 
 | Tool | Kind | What it does | Scope / notes |
 |---|---|---|---|
 | `searchFlights` | read | Flight search by IATA codes + dates via `safeSearch(getFlightSupplier, …)`; returns up to 5 cheapest offers, currency forced to EUR | Returns `source` + `degraded`; `degraded:true` means mock/sample prices, forwarded so the assistant can disclose it |
 | `searchHotels` | read | Hotel search by city + dates via `safeSearch(getHotelSupplier, …)`; returns up to 6 offers with star ratings, EUR | Same `source`/`degraded` disclosure |
 | `findClients` | read | Looks up clients in the agency CRM by name (or lists recent) | Always ANDs `eq(client.agencyId, agencyId)`; platform admin (no agency) gets `[]`; limit 10 |
-| `bookingsSummary` | read | Counts bookings by status and sums active (non-cancelled) value in EUR | Filtered to `booking.agencyId`; platform admin gets an empty summary |
+| `bookingsSummary` | read | Counts bookings by status and sums active (non-cancelled) value in DZD | Filtered to `booking.agencyId`; platform admin gets an empty summary |
 | `createBooking` | **write** | Creates a **draft** booking from items (flight/hotel/transfer/excursion/insurance/fee/other) + optional travellers; returns a `/bookings/{id}` link | Only mutating tool. Rejects when no agency context; a supplied `clientId` is verified to belong to the agency before use; per-row traveller/item failures are collected and reported (`failedTravellers`/`failedItems`), not swallowed |
 
 `createBooking` delegates to `createBooking`, `addTraveller`, and `addBookingItem`
 from `src/lib/actions/bookings.ts`. Flight/hotel search goes through
 `safeSearch` in `src/lib/suppliers` (real provider first, mock fallback tagged
 `degraded:true`) — see [api-integrations.md](api-integrations.md).
+
+**Factory read tools** — `src/lib/assistant/tools/{bookings,clients,sales,finance}.ts`,
+each a `make<Domain>Tools({ agencyId })` factory spread into the route's `tools`
+object only when an agency is in scope (a platform admin not viewing any agency
+gets none of them, so it can never read cross-tenant):
+
+| Tool | File | What it does | Scope / notes |
+|---|---|---|---|
+| `listBookings` | `tools/bookings.ts` | Filter bookings by status, client name, destination, or departure-date window — answers "which were cancelled", "what departs next week" | Returns reference, client, status, destination, dates, pax count, total + currency (never summed across currencies) |
+| `getBookingDetails` | `tools/bookings.ts` | Open one booking's full file by reference (e.g. `BKG-1042`) or id — client, status, dates, travellers, items, payment summary | Answers "what's the balance due", "who's travelling on…" |
+| `getClientDetails` | `tools/clients.ts` | Full profile of one client by id or name: contact details, owner, source, status, derived lifetime value + open balance (DZD), recent bookings/proposals/opportunities | Resolves by name when no id is known; returns disambiguation options on multiple matches |
+| `listProposals` | `tools/sales.ts` | Filter proposals/quotes by status (`draft`/`sent`/`accepted`/`rejected`/`expired`) and/or client name | — |
+| `pipelineOverview` | `tools/sales.ts` | Pipeline breakdown by stage (count + DZD value) plus the biggest open deals; optional stage filter | Stages: `lead`/`qualified`/`proposal`/`booked`/`won`/`lost` |
+| `financeOverview` | `tools/finance.ts` | Confirmed revenue, cash collected, outstanding balance, overdue amount + count, all in DZD | Non-DZD amounts listed separately, never blended in |
+| `commissionsOverview` | `tools/finance.ts` | Commission ledger grouped by status (pending/earned/invoiced/paid) with count + DZD amount; optional top-earning-agents list | `includeTopAgents` input flag |
+
+`findClients` is the inline lookup used to resolve a client before mutating
+(`createBooking`); `getClientDetails` (factory) is the read-only deep profile.
+Every query in every factory file is hard-scoped to `ctx.agencyId`.
 
 ## Inline features
 

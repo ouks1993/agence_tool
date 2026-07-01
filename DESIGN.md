@@ -558,10 +558,20 @@ supplier · contract · commission · subscription · generic`. Unknown codes fa
 
 `dot` / `dotClassName` behave exactly as on `Badge`.
 
-**Legacy `tone` escape hatch.** The original `tone?: string` prop (a raw Tailwind colour
-string like `"bg-green-100 text-green-700"`) still works for backward compatibility with
-existing callers; it overrides `variant` when both are set. Do not use it in new code —
-existing callers are being migrated to `variant` / `StatusPill`.
+**No raw `tone` escape hatch.** The legacy `tone?: string` prop (a raw Tailwind
+colour string like `"bg-green-100 text-green-700"`) has been **removed entirely**
+from `StatusBadge`/`StatusPill` — `variant` (or `statusTone()`/`StatusPill`'s
+`domain`) is the only way to colour a status pill now. `src/lib/domain.ts` no
+longer carries any colour metadata either: its `*_META` maps are label-only, so
+every status pill in the app is derived through `statusTone()` at render time,
+not stored alongside the status code.
+
+**Role badges — `USER_ROLE_TONE`.** Roles are categorical, not a status
+lifecycle, so they get their own fixed mapping in `src/lib/domain.ts` rather
+than running through `statusTone()`: `admin`/`manager` → `info`, `finance` →
+`success`, `support` → `warning`, `agent` → `neutral`. Use
+`<StatusBadge variant={USER_ROLE_TONE[role]} label={USER_ROLE_META[role].label} />`
+for role pills (team list, user profile) instead of a bespoke colour.
 
 ### Dialog
 

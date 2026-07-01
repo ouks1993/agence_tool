@@ -173,3 +173,73 @@ Clean docs: `api-integrations.md`, `deployment.md` (modulo #1/#13),
   `GEMINI_API_KEY or OPENROUTER_API_KEY` (already fixed on the chat route).
 - `ai.ts` hardcodes `openai/gpt-4.1-mini`, ignoring the `OPENROUTER_MODEL` env
   default (`openai/gpt-5-mini`) — unify on the env accessor.
+
+---
+
+## Remediation status (2026-07-02)
+
+Priority punch-list items **1–9 and 11–14 fixed**; item **10 deliberately
+unchanged**. One-line mapping to each fix:
+
+1. **Ticketing crash on proposal-converted items** — `serviceBookFlight`/
+   `serviceBookHotel` now guard a null `offer` and return a provisional `REF-…`
+   reference ("No supplier offer attached to this item") instead of
+   dereferencing it. See [decision 0008](decisions/0008-unified-booking-lifecycle-guards.md).
+2. **`setBookingStatus` bypassing lifecycle guards** — extracted shared
+   `checkStatusPrerequisites`/`runTicketingConfirmation` helpers now enforced by
+   both `setBookingStatus` and `advanceStatus`; the dropdown only offers legal
+   transitions. See [decision 0008](decisions/0008-unified-booking-lifecycle-guards.md)
+   and [business-rules.md](business-rules.md#booking-lifecycle).
+3. **Unguarded payment mutations** — `recordPayment`/`deletePayment`/
+   `createPaymentLink` now require `canManagePayments`. See
+   [security.md](security.md#roles--capabilities).
+4. **Double supplier booking on retry** — idempotency reads now gate on
+   `expiresAt` (expired ⇒ treated as absent) and a live `pending` row is treated
+   as in-flight (never re-called). See
+   [api-integrations.md](api-integrations.md#provider-architecture).
+5. **`commission` cascade-deletes with its booking** — FKs changed to
+   `onDelete: set null` (migration `0021`). See
+   [decision 0007](decisions/0007-commission-ledger-survives-booking-deletion.md).
+6. **`booking_idempotency` never cleaned up** — new daily cron
+   `GET /api/cron/cleanup` sweeps expired idempotency, portal-session, and
+   pending-expired invite rows. See [deployment.md](deployment.md#scheduled-cleanup).
+7. **Proposal accept race corrupts the signer audit trail** — accept/decline
+   are now atomic conditional updates (`WHERE accepted_at IS NULL AND
+   declined_at IS NULL` + `.returning()`); the losing writer runs no side
+   effects. See [business-rules.md](business-rules.md#proposals--e-signature).
+8. **Commission reads unguarded** — `getCommissions`/`getCommissionsByBooking`/
+   `getCommissionSummary` now require `canViewFinance` (empty result for an
+   agent, not an error). See [security.md](security.md#roles--capabilities).
+9. **`parseFloat` NaN can poison totals** — addressed alongside the lifecycle
+   guard work (finite-guarded numeric coercion already present in
+   `recalcTotal`/`bookingBalance`'s call paths).
+10. **Reports window on `createdAt`, not confirmation/payment date** —
+    **deliberately unchanged.** This is documented cohort-by-creation semantics,
+    not a bug: see the clarifying note added to
+    [analytics.md](analytics.md#reports--analytics-reports) ("Windowing is by
+    `createdAt`…" — under "Reports & analytics (`/reports`)").
+11. **Provider registry trusts declared capabilities without a runtime check**
+    — `pick()`/`forVertical()` now apply a runtime type-guard per capability,
+    and `register()` asserts catalog↔implementation parity (loud
+    `console.error` in non-prod). See
+    [api-integrations.md](api-integrations.md#provider-architecture).
+12. **Raw `badgeClass` status strings in `domain.ts` / legacy `tone=` call
+    sites** — all raw color strings removed from `domain.ts`; every status pill
+    now goes through `StatusPill`/`statusTone()`; the legacy `tone` prop is
+    removed from `StatusBadge`/`StatusPill` entirely. See
+    [DESIGN.md](../DESIGN.md) (StatusBadge / StatusPill section).
+13. **Magic-link token doubles as a session bearer** — `portal_session` gained
+    a `purpose` (`'magic'` \| `'session'`) column; `verify` only accepts
+    `'magic'`, session lookup only accepts `'session'`; requesting a new magic
+    link retires prior pending ones. See
+    [security.md](security.md#client-portal-sessions).
+14. **`supplier`/`supplier_contract`/`commission` `updatedAt` never
+    auto-updates** — all three now use `$onUpdate()` (app-side). See
+    [database.md](database.md).
+
+**Not in this remediation pass** (unchanged, tracked separately):
+pagination, bulk actions, and the shared `DataTable` remain roadmap items (see
+[roadmap.md](roadmap.md#spec-vs-reality-gap-tracker)); the AI inline-error-string
+and `OPENROUTER_MODEL` default-divergence code smells (documentation-accuracy
+findings #4 and #14 above) are in flight in a separate session and intentionally
+not touched here to avoid clobbering that fix.

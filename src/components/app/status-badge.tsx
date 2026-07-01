@@ -4,18 +4,11 @@ import { cn } from "@/lib/utils";
 /**
  * A small pill for stages/statuses.
  *
- * Two ways to colour it, in order of preference:
- *
- * 1. **Semantic (preferred)** — pass `variant` (one of
- *    `neutral | success | warning | info | danger`). Each maps to the Wave-1
- *    functional tokens (soft tint background + solid token text), so the pill
- *    stays on-brand and theme-aware automatically. Use the shared
- *    `statusTone(domain, status)` helper (or `<StatusPill>`) to derive it.
- *
- * 2. **Raw tone (legacy / escape hatch)** — pass `tone` with a Tailwind colour
- *    string (`"bg-green-100 text-green-700"`). Kept for backward-compat with the
- *    existing callers; new code should use `variant` instead. When both are
- *    given, `tone` wins so migrations can be done incrementally.
+ * Colour it semantically: pass `variant` (one of
+ * `neutral | success | warning | info | danger`). Each maps to the Wave-1
+ * functional tokens (soft tint background + solid token text), so the pill stays
+ * on-brand and theme-aware automatically. Use the shared `statusTone(domain,
+ * status)` helper — or the `<StatusPill>` convenience wrapper — to derive it.
  *
  * Optionally render a small leading status dot with `dot`.
  */
@@ -32,28 +25,22 @@ export type StatusBadgeVariant = StatusTone;
 export function StatusBadge({
   label,
   variant,
-  tone,
   dot = false,
   dotClassName,
   className,
 }: {
   label: string;
-  /** Semantic tone → Wave-1 functional tokens. Preferred over `tone`. */
+  /** Semantic tone → Wave-1 functional tokens. */
   variant?: StatusBadgeVariant;
-  /**
-   * Legacy raw Tailwind colour string (e.g. `"bg-green-100 text-green-700"`).
-   * Backward-compatible escape hatch; overrides `variant` when both are set.
-   */
-  tone?: string;
   /** Render a small leading status dot coloured from the current text token. */
   dot?: boolean;
   /** Class overrides for the leading status dot. */
   dotClassName?: string | undefined;
   className?: string | undefined;
 }) {
-  // Precedence: explicit legacy `tone` → semantic `variant` → neutral default.
-  const colorClass =
-    tone ?? (variant ? STATUS_BADGE_TONES[variant] : STATUS_BADGE_TONES.neutral);
+  const colorClass = variant
+    ? STATUS_BADGE_TONES[variant]
+    : STATUS_BADGE_TONES.neutral;
 
   return (
     <span

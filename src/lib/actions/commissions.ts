@@ -8,6 +8,7 @@ import { logActivity } from "@/lib/activity";
 import { db } from "@/lib/db";
 import {
   canManagePayments,
+  canViewFinance,
   COMMISSION_BASES,
   COMMISSION_STATUSES,
   COMMISSION_TYPES,
@@ -301,6 +302,10 @@ function toFilterDate(value: string | Date): Date | null {
 export async function getCommissions(filters?: CommissionFilters): Promise<CommissionWithLabels[]> {
   const user = await requireAgencyUser();
 
+  // The commission ledger is finance-only; agents cannot read the agency-wide
+  // ledger by calling this action directly.
+  if (!canViewFinance(user.role)) return [];
+
   const conditions: SQL[] = [eq(commission.agencyId, user.agencyId)];
   if (filters?.type) conditions.push(eq(commission.type, filters.type));
   if (filters?.status) conditions.push(eq(commission.status, filters.status));
@@ -344,6 +349,11 @@ export async function getCommissions(filters?: CommissionFilters): Promise<Commi
 export async function getCommissionsByBooking(bookingId: string): Promise<CommissionWithLabels[]> {
   const user = await requireAgencyUser();
 
+  // Finance-only: booking-detail commissions are shown only to finance-capable
+  // roles (the booking page already gates on this, but guard here too so a
+  // direct action call can't leak the booking's commission lines).
+  if (!canViewFinance(user.role)) return [];
+
   // Verify the booking belongs to this agency before exposing its commissions.
   const parent = await db.query.booking.findFirst({
     where: and(eq(booking.id, bookingId), eq(booking.agencyId, user.agencyId)),
@@ -383,6 +393,9 @@ export type CommissionSummaryRow = {
 
 export async function getCommissionSummary(): Promise<CommissionSummaryRow[]> {
   const user = await requireAgencyUser();
+
+  // Finance-only aggregate: agents cannot read the agency's commission totals.
+  if (!canViewFinance(user.role)) return [];
 
   // Aggregate the ledger by type + currency, splitting the amount across the
   // three buckets the finance page cares about. "earned" rolls up everything

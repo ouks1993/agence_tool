@@ -6,6 +6,7 @@ import { z } from "zod";
 import type { ActionResult } from "@/lib/actions/types";
 import { logActivity } from "@/lib/activity";
 import { db } from "@/lib/db";
+import { canManagePayments } from "@/lib/domain";
 import { getServerEnv } from "@/lib/env";
 import {
   createConnectAccount,
@@ -33,6 +34,11 @@ export async function recordPayment(
   input: PaymentInput
 ): Promise<ActionResult> {
   const user = await requireAgencyUser();
+
+  if (!canManagePayments(user.role)) {
+    return { ok: false, error: "You don't have permission to manage payments" };
+  }
+
   const parsed = paymentInput.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid payment" };
@@ -74,6 +80,11 @@ export async function deletePayment(
   bookingId: string
 ): Promise<ActionResult> {
   const user = await requireAgencyUser();
+
+  if (!canManagePayments(user.role)) {
+    return { ok: false, error: "You don't have permission to manage payments" };
+  }
+
   // Verify the parent booking belongs to this agency before deleting its payment.
   const b = await db.query.booking.findFirst({
     where: and(eq(booking.id, bookingId), eq(booking.agencyId, user.agencyId)),
@@ -93,6 +104,11 @@ export async function createPaymentLink(
   amount: number
 ): Promise<ActionResult<{ url: string }>> {
   const user = await requireAgencyUser();
+
+  if (!canManagePayments(user.role)) {
+    return { ok: false, error: "You don't have permission to manage payments" };
+  }
+
   if (!isStripeConfigured()) {
     return { ok: false, error: "Stripe is not configured. Add STRIPE_SECRET_KEY to .env." };
   }

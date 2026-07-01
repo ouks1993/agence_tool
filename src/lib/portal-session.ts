@@ -33,6 +33,10 @@ export async function getPortalSession() {
   const row = await db.query.portalSession.findFirst({
     where: and(
       eq(portalSession.token, token),
+      // Only "session" rows are valid bearers — a "magic" row is a pending
+      // magic-link token and must never authenticate a portal request, even
+      // inside its 15-min window.
+      eq(portalSession.purpose, "session"),
       gt(portalSession.expiresAt, new Date())
     ),
     with: {

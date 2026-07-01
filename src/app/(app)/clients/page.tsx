@@ -23,7 +23,7 @@ import {
 import { getTranslations } from "next-intl/server";
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
-import { StatusBadge } from "@/components/app/status-badge";
+import { StatusPill } from "@/components/app/status-badge";
 import { ClientAvatar } from "@/components/clients/client-avatar";
 import { flagFor } from "@/components/clients/country-flag";
 import { Button } from "@/components/ui/button";
@@ -233,7 +233,7 @@ export default async function ClientsPage({
                 const meta = CLIENT_STATUS_META[s];
                 return (
                   <div key={s} className="flex items-center gap-2">
-                    <StatusBadge label={meta.label} tone={meta.badgeClass} />
+                    <StatusPill domain="client" status={s} label={meta.label} />
                     <span className="text-sm font-semibold tabular-nums">
                       {statusCounts[s] ?? 0}
                     </span>
@@ -368,9 +368,10 @@ export default async function ClientsPage({
                         </span>
                       </TableCell>
                       <TableCell>
-                        <StatusBadge
+                        <StatusPill
+                          domain="client"
+                          status={c.status}
                           label={statusMeta?.label ?? c.status}
-                          tone={statusMeta?.badgeClass}
                         />
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">

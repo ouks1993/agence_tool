@@ -20,7 +20,7 @@ import {
 import { getTranslations } from "next-intl/server";
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
-import { StatusBadge } from "@/components/app/status-badge";
+import { StatusPill } from "@/components/app/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -232,7 +232,7 @@ export default async function ProductsPage({
                 const meta = PRODUCT_STATUS_META[s];
                 return (
                   <div key={s} className="flex items-center gap-2">
-                    <StatusBadge label={meta.label} tone={meta.badgeClass} />
+                    <StatusPill domain="product" status={s} label={meta.label} />
                     <span className="text-sm font-semibold tabular-nums">
                       {statusCounts[s] ?? 0}
                     </span>
@@ -349,9 +349,10 @@ export default async function ProductsPage({
                         {p.clientName ?? "—"}
                       </TableCell>
                       <TableCell>
-                        <StatusBadge
+                        <StatusPill
+                          domain="product"
+                          status={p.status}
                           label={meta?.label ?? p.status}
-                          tone={meta?.badgeClass}
                         />
                       </TableCell>
                       <TableCell numeric className="font-medium tabular-nums">

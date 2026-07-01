@@ -4,6 +4,8 @@
  * give them labels, ordering and colours for the UI.
  */
 
+import { type StatusTone } from "@/lib/status-tone";
+
 export const USER_ROLES = [
   "admin",
   "manager",
@@ -15,33 +17,44 @@ export type UserRole = (typeof USER_ROLES)[number];
 
 export const USER_ROLE_META: Record<
   UserRole,
-  { label: string; description: string; badgeClass: string }
+  { label: string; description: string }
 > = {
   admin: {
     label: "Admin",
     description: "Full access including user & role management",
-    badgeClass: "bg-violet-500/15 text-violet-600 dark:text-violet-400",
   },
   manager: {
     label: "Manager",
     description: "Oversees the whole team, bookings and operations",
-    badgeClass: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
   },
   finance: {
     label: "Finance",
     description: "Payments, invoices and financials",
-    badgeClass: "bg-green-500/15 text-green-600 dark:text-green-400",
   },
   support: {
     label: "Customer Support",
     description: "Client requests and bookings",
-    badgeClass: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
   },
   agent: {
     label: "Agent",
     description: "Sells trips and manages their own bookings",
-    badgeClass: "bg-slate-500/15 text-slate-600 dark:text-slate-300",
   },
+};
+
+/**
+ * Roles are *categorical*, not statuses — they don't map cleanly onto the five
+ * semantic status tones. This helper picks a sensible on-brand tone per role so
+ * role badges stay in the functional-token system instead of raw palette
+ * classes. It preserves the intent of the old per-role colours: finance reads
+ * as "money/positive" (success), support as "attention" (warning), agents as
+ * "neutral", and the elevated admin/manager roles as "info" (Atlas-Blue).
+ */
+export const USER_ROLE_TONE: Record<UserRole, StatusTone> = {
+  admin: "info",
+  manager: "info",
+  finance: "success",
+  support: "warning",
+  agent: "neutral",
 };
 
 // --- Capabilities (simple role-based access control) ------------------------
@@ -108,42 +121,36 @@ export type OpportunityStage = (typeof OPPORTUNITY_STAGES)[number];
 
 export const OPPORTUNITY_STAGE_META: Record<
   OpportunityStage,
-  { label: string; description: string; badgeClass: string; defaultProbability: number }
+  { label: string; description: string; defaultProbability: number }
 > = {
   lead: {
     label: "Lead",
     description: "New enquiry, not yet qualified",
-    badgeClass: "bg-slate-500/15 text-slate-600 dark:text-slate-300",
     defaultProbability: 10,
   },
   qualified: {
     label: "Qualified",
     description: "Budget & dates confirmed",
-    badgeClass: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
     defaultProbability: 30,
   },
   proposal: {
     label: "Proposal sent",
     description: "Quote delivered to the client",
-    badgeClass: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
     defaultProbability: 60,
   },
   booked: {
     label: "Booked",
     description: "Client accepted, booking in progress",
-    badgeClass: "bg-violet-500/15 text-violet-600 dark:text-violet-400",
     defaultProbability: 90,
   },
   won: {
     label: "Won",
     description: "Trip confirmed & paid",
-    badgeClass: "bg-green-500/15 text-green-600 dark:text-green-400",
     defaultProbability: 100,
   },
   lost: {
     label: "Lost",
     description: "Did not convert",
-    badgeClass: "bg-red-500/15 text-red-600 dark:text-red-400",
     defaultProbability: 0,
   },
 };
@@ -164,13 +171,10 @@ export type ClientType = (typeof CLIENT_TYPES)[number];
 export const CLIENT_STATUSES = ["lead", "active", "inactive"] as const;
 export type ClientStatus = (typeof CLIENT_STATUSES)[number];
 
-export const CLIENT_STATUS_META: Record<
-  ClientStatus,
-  { label: string; badgeClass: string }
-> = {
-  lead: { label: "Lead", badgeClass: "bg-amber-500/15 text-amber-600 dark:text-amber-400" },
-  active: { label: "Active", badgeClass: "bg-green-500/15 text-green-600 dark:text-green-400" },
-  inactive: { label: "Inactive", badgeClass: "bg-slate-500/15 text-slate-600 dark:text-slate-300" },
+export const CLIENT_STATUS_META: Record<ClientStatus, { label: string }> = {
+  lead: { label: "Lead" },
+  active: { label: "Active" },
+  inactive: { label: "Inactive" },
 };
 
 // --- Products / proposals ---------------------------------------------------
@@ -184,15 +188,12 @@ export const PRODUCT_STATUSES = [
 ] as const;
 export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
 
-export const PRODUCT_STATUS_META: Record<
-  ProductStatus,
-  { label: string; badgeClass: string }
-> = {
-  draft: { label: "Draft", badgeClass: "bg-slate-500/15 text-slate-600 dark:text-slate-300" },
-  sent: { label: "Sent", badgeClass: "bg-blue-500/15 text-blue-600 dark:text-blue-400" },
-  accepted: { label: "Accepted", badgeClass: "bg-green-500/15 text-green-600 dark:text-green-400" },
-  rejected: { label: "Rejected", badgeClass: "bg-red-500/15 text-red-600 dark:text-red-400" },
-  expired: { label: "Expired", badgeClass: "bg-amber-500/15 text-amber-600 dark:text-amber-400" },
+export const PRODUCT_STATUS_META: Record<ProductStatus, { label: string }> = {
+  draft: { label: "Draft" },
+  sent: { label: "Sent" },
+  accepted: { label: "Accepted" },
+  rejected: { label: "Rejected" },
+  expired: { label: "Expired" },
 };
 
 export const PRODUCT_ITEM_TYPES = [
@@ -229,19 +230,13 @@ export const BOOKING_STATUSES = [
 ] as const;
 export type BookingStatus = (typeof BOOKING_STATUSES)[number];
 
-export const BOOKING_STATUS_META: Record<
-  BookingStatus,
-  { label: string; badgeClass: string }
-> = {
-  draft: { label: "Draft", badgeClass: "bg-slate-500/15 text-slate-600 dark:text-slate-300" },
-  awaiting_payment: {
-    label: "Awaiting payment",
-    badgeClass: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
-  },
-  confirmed: { label: "Confirmed", badgeClass: "bg-blue-500/15 text-blue-600 dark:text-blue-400" },
-  ticketed: { label: "Ticketed", badgeClass: "bg-violet-500/15 text-violet-600 dark:text-violet-400" },
-  completed: { label: "Completed", badgeClass: "bg-green-500/15 text-green-600 dark:text-green-400" },
-  cancelled: { label: "Cancelled", badgeClass: "bg-red-500/15 text-red-600 dark:text-red-400" },
+export const BOOKING_STATUS_META: Record<BookingStatus, { label: string }> = {
+  draft: { label: "Draft" },
+  awaiting_payment: { label: "Awaiting payment" },
+  confirmed: { label: "Confirmed" },
+  ticketed: { label: "Ticketed" },
+  completed: { label: "Completed" },
+  cancelled: { label: "Cancelled" },
 };
 
 /** Ordered operational lifecycle (excludes cancelled). */
@@ -451,12 +446,9 @@ export const SUPPLIER_TYPE_META: Record<
 export const SUPPLIER_STATUSES = ["active", "inactive"] as const;
 export type SupplierStatus = (typeof SUPPLIER_STATUSES)[number];
 
-export const SUPPLIER_STATUS_META: Record<
-  SupplierStatus,
-  { label: string; className: string }
-> = {
-  active: { label: "Active", className: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" },
-  inactive: { label: "Inactive", className: "bg-muted text-muted-foreground" },
+export const SUPPLIER_STATUS_META: Record<SupplierStatus, { label: string }> = {
+  active: { label: "Active" },
+  inactive: { label: "Inactive" },
 };
 
 export const CONTRACT_BASES = ["percent", "fixed", "net"] as const;
@@ -471,13 +463,10 @@ export const CONTRACT_BASIS_LABEL: Record<ContractBasis, string> = {
 export const CONTRACT_STATUSES = ["active", "expired", "draft"] as const;
 export type ContractStatus = (typeof CONTRACT_STATUSES)[number];
 
-export const CONTRACT_STATUS_META: Record<
-  ContractStatus,
-  { label: string; className: string }
-> = {
-  active: { label: "Active", className: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" },
-  expired: { label: "Expired", className: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400" },
-  draft: { label: "Draft", className: "bg-muted text-muted-foreground" },
+export const CONTRACT_STATUS_META: Record<ContractStatus, { label: string }> = {
+  active: { label: "Active" },
+  expired: { label: "Expired" },
+  draft: { label: "Draft" },
 };
 
 // --- Commissions ------------------------------------------------------------
@@ -496,13 +485,10 @@ export type CommissionBasis = (typeof COMMISSION_BASES)[number];
 export const COMMISSION_STATUSES = ["pending", "earned", "invoiced", "paid", "void"] as const;
 export type CommissionStatus = (typeof COMMISSION_STATUSES)[number];
 
-export const COMMISSION_STATUS_META: Record<
-  CommissionStatus,
-  { label: string; className: string }
-> = {
-  pending:  { label: "Pending",  className: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400" },
-  earned:   { label: "Earned",   className: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" },
-  invoiced: { label: "Invoiced", className: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" },
-  paid:     { label: "Paid",     className: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" },
-  void:     { label: "Void",     className: "bg-muted text-muted-foreground" },
+export const COMMISSION_STATUS_META: Record<CommissionStatus, { label: string }> = {
+  pending:  { label: "Pending" },
+  earned:   { label: "Earned" },
+  invoiced: { label: "Invoiced" },
+  paid:     { label: "Paid" },
+  void:     { label: "Void" },
 };

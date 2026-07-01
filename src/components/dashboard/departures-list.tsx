@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { StatusBadge } from "@/components/app/status-badge";
+import { type StatusTone } from "@/lib/status-tone";
 
 export type DepartureRow = {
   id: string;
@@ -12,7 +13,7 @@ export type DepartureRow = {
   /** Subline, e.g. "Dubai · BKG-2026-001". */
   subline: string;
   statusLabel: string;
-  statusTone?: string;
+  statusTone?: StatusTone;
 };
 
 /**
@@ -44,7 +45,7 @@ export function DeparturesList({ rows }: { rows: DepartureRow[] }) {
             </span>
             <StatusBadge
               label={r.statusLabel}
-              {...(r.statusTone ? { tone: r.statusTone } : {})}
+              {...(r.statusTone ? { variant: r.statusTone } : {})}
             />
           </Link>
         </li>

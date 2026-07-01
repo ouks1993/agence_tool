@@ -503,8 +503,8 @@ Two-ledger earnings record. Auto-generated on booking confirm/ticket.
 |---|---|---|
 | `id` | `uuid` | PK |
 | `agency_id` | `uuid` | FK → `agency` CASCADE |
-| `booking_id` | `uuid` | FK → `booking` CASCADE |
-| `booking_item_id` | `uuid` | FK → `booking_item` (nullable) |
+| `booking_id` | `uuid` | FK → `booking` SET NULL (nullable) — ledger survives booking deletion (migration `0021`) |
+| `booking_item_id` | `uuid` | FK → `booking_item` SET NULL (nullable) — same rationale as `booking_id` |
 | `supplier_id` | `uuid` | FK → `supplier` SET NULL |
 | `agent_user_id` | `text` | FK → `user` SET NULL |
 | `ledger` | `text` | `"supplier_to_agency" \| "agency_to_agent"` |
@@ -530,11 +530,16 @@ separate from the Better Auth staff session system.
 | `id` | `uuid` | PK |
 | `client_id` | `uuid` | FK → `client` CASCADE NOT NULL |
 | `token` | `text` | NOT NULL UNIQUE — magic-link token (15 min) → session token (7 days) |
+| `purpose` | `text` | NOT NULL, default `'session'` — `'magic'` \| `'session'` (migration `0021`) |
 | `expires_at` | `timestamp` | NOT NULL |
 | `created_at` | `timestamp` | NOT NULL |
 
 Magic-link flow: token is short-lived (15 min); on verification the row is
-updated with a rotated long-lived (7-day) token stored in an httpOnly cookie.
+updated with a rotated long-lived (7-day) token **and** `purpose` flips from
+`'magic'` to `'session'`, stored in an httpOnly cookie. `purpose` discriminates
+the two so a magic-link row can never authenticate a normal portal request —
+only `purpose = 'session'` rows are accepted as session bearers, and only
+`purpose = 'magic'` rows are accepted by the verify step.
 
 ---
 
@@ -603,5 +608,7 @@ Records every meaningful action for manager oversight.
 | `0015` | `commission`; `user.commission_rate_percent` |
 | `0016` | `agency.onboarding_dismissed_at` |
 | `0017` | Controlled-vocab columns (additive, nullable): `client.industry`, `opportunity.travel_purpose`, `booking.travel_purpose`/`trip_type`, `booking_traveller.title`/`gender` |
-| `0018` | (see git log) |
+| `0018` | `commission.booking_item_id` FK re-pointed at `booking_item`; agency/status/created perf indexes across `booking`, `client`, `commission`, `notification`, `opportunity`, `product`, plus `booking_item.supplier_id`, `product_item.supplier_id`, `verification.identifier` |
 | `0019` | Sprint 1: `booking_supplier_ref`, `booking_event`, `booking_document`, `booking_idempotency`; `booking_traveller.email` + `.phone` |
+| `0020` | `product.converted_booking_id` (FK → `booking`, `set null`) — proposal→booking idempotency latch |
+| `0021` | `commission.booking_id` + `.booking_item_id` FKs `cascade` → `set null` (ledger survives booking/item deletion); `commission_item_idx`, `commission_supplier_idx`, `product_converted_booking_idx`; `portal_session.purpose` (`'magic'` \| `'session'`, default `'session'`) |

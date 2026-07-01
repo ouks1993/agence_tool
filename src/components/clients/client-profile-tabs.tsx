@@ -35,6 +35,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { type StatusTone } from "@/lib/status-tone";
 import { cn } from "@/lib/utils";
 
 export type TripRow = {
@@ -45,7 +46,7 @@ export type TripRow = {
   dates: string;
   amount: string;
   statusLabel: string;
-  statusTone: string | undefined;
+  statusTone: StatusTone | undefined;
 };
 
 export type DealRow = {
@@ -55,7 +56,7 @@ export type DealRow = {
   reference?: string | undefined;
   amount: string;
   statusLabel: string;
-  statusTone: string | undefined;
+  statusTone: StatusTone | undefined;
 };
 
 type SpendPoint = { label: string; value: number };
@@ -353,7 +354,7 @@ function TripsTable({
                 <TableCell>
                   <StatusBadge
                     label={row.statusLabel}
-                    {...(row.statusTone ? { tone: row.statusTone } : {})}
+                    {...(row.statusTone ? { variant: row.statusTone } : {})}
                   />
                 </TableCell>
                 <TableCell numeric className="font-medium">
@@ -420,7 +421,7 @@ function DealList({
               </span>
               <StatusBadge
                 label={r.statusLabel}
-                {...(r.statusTone ? { tone: r.statusTone } : {})}
+                {...(r.statusTone ? { variant: r.statusTone } : {})}
               />
             </span>
           </Link>

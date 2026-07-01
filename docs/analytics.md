@@ -74,6 +74,14 @@ resolve. Below it sits the **Export data** hub (`#export` anchor).
 | Avg margin | Gross profit ÷ proposal revenue | Only shown when a cost basis exists; delta in pp |
 | Repeat rate | Clients with ≥2 bookings ÷ clients with ≥1, in-window | `—` when no clients booked |
 
+> **Windowing is by `createdAt` (cohort semantics), not cash-recognition.**
+> Revenue/funnel KPIs window on when a booking or opportunity was *created*, not
+> when it was confirmed or paid — a booking created in one period but confirmed/
+> paid later is counted in its creation-period cohort, not the period money
+> actually moved. This is a deliberate, documented choice (cohort-by-creation),
+> not a bug; a long sales-cycle booking can be "invisible" in the period it's
+> actually settled if you're expecting cash-basis reporting.
+
 **Revenue trend:** trailing 12-month area chart of confirmed DZD revenue, plus a
 4-up mini-stat strip (Peak month, 12-mo total, Avg/month, Best route by revenue).
 
@@ -135,7 +143,7 @@ straight to the (client) chart primitives.
 | `monthlyBuckets(rows, dateFn, valueFn, monthsBack?, anchor?)` | Time-series bucketing over the last N calendar months; empty months render at 0 so trends never gap |
 | `topN(rows, keyFn, valueFn, n?, fallbackLabel?)` | Top-N aggregation by string key, summed and sorted desc (zero-value entries dropped) |
 | `countBy(rows, keyFn, n?, fallbackLabel?)` | `topN` with a unit value — tallies rows by key |
-| `agingBuckets(rows, anchor?)` | AR aging into `Not due` / `0–30d` / `30–60d` / `60d+` by days past a reference (departure) date |
+| `agingBuckets(rows, anchor?)` | AR aging into `Not due` / `0–30d` / `31–60d` / `61d+` by days past a reference (departure) date |
 
 `monthlyBuckets` and `agingBuckets` accept an `anchor` "now" so they can be
 tested against a fixed date. `paymentSummary` (`src/lib/payments/summary.ts`)

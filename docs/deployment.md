@@ -29,7 +29,8 @@ environment, migration-on-deploy behaviour, and the demo/seed accounts.
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "buildCommand": "npm run db:migrate && npm run build:ci",
-  "installCommand": "npm install --legacy-peer-deps"
+  "installCommand": "npm install --legacy-peer-deps",
+  "crons": [{ "path": "/api/cron/cleanup", "schedule": "0 3 * * *" }]
 }
 ```
 
@@ -38,6 +39,8 @@ environment, migration-on-deploy behaviour, and the demo/seed accounts.
   dependency tree don't fail the install.
 - Migrations run automatically on every deploy — no manual step needed for schema
   changes (see [Migrations on prod](#migrations-on-prod)).
+- **Cron:** `crons` schedules a daily `GET /api/cron/cleanup` at 03:00 UTC — see
+  [Scheduled cleanup](#scheduled-cleanup) below.
 
 ### Build pipeline
 
@@ -105,6 +108,7 @@ in development for each missing optional group).
 | Variable | Purpose |
 |---|---|
 | `PROTECTED_DB_HOSTS` | Comma-separated host substrings that destructive scripts refuse to touch. Set to `ep-misty-thunder-aixz34vy` (prod host) in Vercel; never in local `.env`. |
+| `CRON_SECRET` | Optional bearer secret Vercel injects into the `Authorization` header when calling scheduled cron routes. Without it, `GET /api/cron/cleanup` returns `503` (see below). |
 
 ### Integrations (optional)
 
@@ -146,18 +150,12 @@ guarded so a stray local script can never wipe it.
 
 | Branch | Neon endpoint | Used by |
 |---|---|---|
-| dev | `ep-dawn-voice-ai8d6q3o` | Local development, throwaway data |
+| dev | `ep-wandering-sunset-aitlty78` | Local development, throwaway data |
 | prod | `ep-misty-thunder-aixz34vy` | Vercel production deploy |
 
 Each environment points `POSTGRES_URL` at its own branch. The production host
 substring is also set as `PROTECTED_DB_HOSTS` in Vercel so the destructive-script
 guard (below) refuses to run against it.
-
-> **Note:** [database.md](database.md) records the dev branch as
-> `ep-wandering-sunset-aitlty78`. The two docs disagree on the current dev
-> endpoint — verify against the live Neon project before relying on either. Only
-> the prod host (`ep-misty-thunder-aixz34vy`) is corroborated by the codebase
-> (it is the value set as `PROTECTED_DB_HOSTS`).
 
 The DB connection is created in `src/lib/db.ts` via `drizzle(postgres(POSTGRES_URL))`
 using the postgres-js driver, with the schema imported from `src/lib/schema.ts`.
@@ -201,6 +199,18 @@ Override an intentional run with `ALLOW_PROD=1`. This is why
 be set in local `.env`. See [security.md](security.md) and
 [database.md](database.md).
 
+## Scheduled cleanup
+
+`GET /api/cron/cleanup` (`src/app/api/cron/cleanup/route.ts`, `runtime = "nodejs"`)
+runs daily at 03:00 UTC via the `crons` entry in `vercel.json`. It deletes rows
+that grow unbounded and have no value once expired: `booking_idempotency` rows
+past `expiresAt`, `portal_session` rows past `expiresAt`, and `agency_invite`
+rows that are still `pending` **and** expired (accepted/revoked invites are left
+as audit history). Auth is a shared-secret bearer check against `CRON_SECRET`
+(Vercel injects `Authorization: Bearer ${CRON_SECRET}` automatically for cron
+invocations): the route returns `503` when `CRON_SECRET` is unset and `401` on a
+missing/incorrect bearer token.
+
 ## Deploy checklist
 
 1. Confirm required env vars (`POSTGRES_URL`, `BETTER_AUTH_SECRET`) and any
@@ -225,6 +235,8 @@ Throwaway accounts on the **Demo Agency** (`agencyId`
 | Agent | `karim@demo.test` | `Agent!2026` |
 | Agent | `lina@demo.test` | `Agent!2026` |
 | Agent | `omar@demo.test` | `Agent!2026` |
+| Agent | `yacine@demo.test` | `Agent!2026` |
+| Agent | `nour@demo.test` | `Agent!2026` |
 
 The platform admin is provisioned by promoting an existing account with
 `scripts/make-platform-admin.ts <email>` (sets `isPlatformAdmin = true`,

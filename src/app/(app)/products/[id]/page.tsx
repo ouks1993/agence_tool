@@ -11,7 +11,7 @@ import {
   Users,
 } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
-import { StatusBadge } from "@/components/app/status-badge";
+import { StatusPill } from "@/components/app/status-badge";
 import { ConvertToBookingButton } from "@/components/products/convert-to-booking-button";
 import { DeleteProductButton } from "@/components/products/delete-product-button";
 import { ItemsManager } from "@/components/products/items-manager";
@@ -92,7 +92,7 @@ export default async function ProductDetailPage({
       </PageHeader>
 
       <div className="flex flex-wrap items-center gap-2">
-        <StatusBadge label={meta?.label ?? p.status} tone={meta?.badgeClass} />
+        <StatusPill domain="product" status={p.status} label={meta?.label ?? p.status} />
         {p.client && (
           <Link
             href={`/clients/${p.client.id}`}

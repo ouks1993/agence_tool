@@ -30,6 +30,9 @@ export async function GET(req: NextRequest) {
   const row = await db.query.portalSession.findFirst({
     where: and(
       eq(portalSession.token, token),
+      // Only a pending "magic" token can be consumed here — a "session" token
+      // is not a magic link and must not be re-verifiable.
+      eq(portalSession.purpose, "magic"),
       gt(portalSession.expiresAt, new Date())
     ),
     columns: { id: true, clientId: true },
@@ -48,7 +51,7 @@ export async function GET(req: NextRequest) {
 
   await db
     .update(portalSession)
-    .set({ token: newToken, expiresAt: newExpiry })
+    .set({ token: newToken, purpose: "session", expiresAt: newExpiry })
     .where(eq(portalSession.id, row.id));
 
   const jar = await cookies();
