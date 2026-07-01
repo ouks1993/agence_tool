@@ -7,7 +7,6 @@ import {
   Calendar,
   Users,
   ShieldAlert,
-  StickyNote,
   Wallet,
   FileText,
   Receipt,
@@ -18,15 +17,20 @@ import {
 } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/app/page-header";
-import { StatCard } from "@/components/app/stat-card";
 import { StatusBadge } from "@/components/app/status-badge";
+import { AssignedAgentCard } from "@/components/bookings/assigned-agent-card";
+import { BookingActivity } from "@/components/bookings/booking-activity";
+import { BookingDocuments } from "@/components/bookings/booking-documents";
 import { BookingItemsManager } from "@/components/bookings/booking-items-manager";
 import { BookingLifecycleStepper } from "@/components/bookings/booking-lifecycle-stepper";
+import { BookingNotesCard } from "@/components/bookings/booking-notes-card";
 import { BookingStatusControl } from "@/components/bookings/booking-status-control";
 import { CommunicationsManager } from "@/components/bookings/communications-manager";
 import { DeleteBookingButton } from "@/components/bookings/delete-booking-button";
 import { PaymentsManager } from "@/components/bookings/payments-manager";
+import { PaymentSummaryCard } from "@/components/bookings/payment-summary-card";
 import { SearchSheet } from "@/components/bookings/search-sheet";
+import { SupplierRefsCard } from "@/components/bookings/supplier-refs-card";
 import { TravellersManager } from "@/components/bookings/travellers-manager";
 import { VisaAssistant } from "@/components/bookings/visa-assistant";
 import { PortalInviteButton } from "@/components/clients/portal-invite-button";
@@ -50,7 +54,7 @@ import {
   seesAllData,
   type BookingStatus,
 } from "@/lib/domain";
-import { formatDate, formatMoney, passportExpiryStatus } from "@/lib/format";
+import { formatDate, passportExpiryStatus } from "@/lib/format";
 import { isEmailConfigured } from "@/lib/notifications/email";
 import { isStripeConfigured } from "@/lib/payments/stripe";
 import { paymentSummary } from "@/lib/payments/summary";
@@ -83,10 +87,17 @@ export default async function BookingWorkspace({
       ),
       with: {
         client: { columns: { id: true, name: true, email: true } },
+        // Assigned-agent panel: created-by identity (real, nullable FK).
+        createdBy: { columns: { name: true, email: true, image: true } },
         travellers: { orderBy: (t) => [asc(t.sortOrder)] },
         items: { orderBy: (t) => [asc(t.sortOrder)] },
         payments: { orderBy: (t) => [desc(t.createdAt)] },
         notifications: { orderBy: (t) => [desc(t.createdAt)] },
+        // Sprint-1 lifecycle tables — power the supplier-refs, documents and
+        // activity panels. All optional: each panel omits itself when empty.
+        supplierRefs: { orderBy: (t) => [asc(t.createdAt)] },
+        documents: { orderBy: (t) => [desc(t.createdAt)] },
+        events: { orderBy: (t) => [desc(t.createdAt)], limit: 12 },
       },
     }),
     getSuppliersForPicker(),
@@ -118,9 +129,9 @@ export default async function BookingWorkspace({
     .filter((x) => x.status.level === "warning" || x.status.level === "expired");
 
   // Presentational derivations from already-loaded data (no new queries):
-  // paidPct drives the Finance progress bar + Paid KPI hint; clamped 0-100.
+  // paidPct drives the payment progress bar; clamped 0-100.
   const paidPct = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0;
-  // nights drives an optional Nights KPI/Detail row — omitted when either date is absent.
+  // nights drives an optional Nights detail row — omitted when either date is absent.
   const nights =
     b.departDate && b.returnDate
       ? Math.max(
@@ -147,7 +158,8 @@ export default async function BookingWorkspace({
         </BreadcrumbList>
       </Breadcrumb>
 
-      <PageHeader title={b.client?.name ?? b.destination ?? "Booking"} description={b.reference}>
+      {/* ===== Hero header: ref + status badges + actions ===== */}
+      <PageHeader title={b.reference}>
         <BookingStatusControl
           id={b.id}
           status={b.status}
@@ -187,35 +199,54 @@ export default async function BookingWorkspace({
         <DeleteBookingButton id={b.id} label={b.reference} />
       </PageHeader>
 
-      <div className="flex flex-wrap items-center gap-2">
+      {/* Sub-line: status + client + trip facts (real columns only). */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
         <StatusBadge label={meta?.label ?? b.status} tone={meta?.badgeClass} />
         {b.client && (
-          <Link href={`/clients/${b.client.id}`} className="text-muted-foreground text-sm hover:underline">
+          <Link
+            href={`/clients/${b.client.id}`}
+            className="font-medium hover:underline"
+          >
             {b.client.name}
           </Link>
         )}
+        {b.destination && (
+          <>
+            <span className="text-muted-foreground/40" aria-hidden>
+              ·
+            </span>
+            <span className="text-muted-foreground inline-flex items-center gap-1">
+              <MapPin className="size-3.5" />
+              {b.destination}
+            </span>
+          </>
+        )}
+        {(b.departDate || b.returnDate) && (
+          <>
+            <span className="text-muted-foreground/40" aria-hidden>
+              ·
+            </span>
+            <span className="text-muted-foreground inline-flex items-center gap-1">
+              <Calendar className="size-3.5" />
+              {formatDate(b.departDate)} → {formatDate(b.returnDate)}
+              {nights !== null && ` · ${nights} nights`}
+            </span>
+          </>
+        )}
+        {b.travellers.length > 0 && (
+          <>
+            <span className="text-muted-foreground/40" aria-hidden>
+              ·
+            </span>
+            <span className="text-muted-foreground inline-flex items-center gap-1">
+              <Users className="size-3.5" />
+              {b.travellers.length} travellers
+            </span>
+          </>
+        )}
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Total" value={formatMoney(total, b.currency)} icon={Wallet} />
-        <StatCard
-          label="Paid"
-          value={formatMoney(paid, b.currency)}
-          hint={`${paidPct}%`}
-          icon={Receipt}
-        />
-        <StatCard
-          label="Balance due"
-          value={formatMoney(balance, b.currency)}
-          icon={Wallet}
-        />
-        <StatCard
-          label={t("travellersTitle")}
-          value={String(b.travellers.length)}
-          icon={Users}
-        />
-      </div>
-
+      {/* ===== Lifecycle stepper (preserved control) ===== */}
       <BookingLifecycleStepper
         bookingId={b.id}
         status={b.status}
@@ -239,6 +270,7 @@ export default async function BookingWorkspace({
         </div>
       )}
 
+      {/* ===== Two-column: main workspace + compact right rail ===== */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <Card className="card-elevated">
@@ -324,7 +356,27 @@ export default async function BookingWorkspace({
             </CardContent>
           </Card>
 
-          <Card className="card-elevated">
+          <BookingDocuments
+            documents={b.documents.map((d) => ({
+              id: d.id,
+              type: d.type,
+              providerId: d.providerId,
+              url: d.url,
+              generatedAt: d.generatedAt,
+              createdAt: d.createdAt,
+            }))}
+          />
+
+          <BookingActivity
+            events={b.events.map((e) => ({
+              id: e.id,
+              event: e.event,
+              providerId: e.providerId,
+              createdAt: e.createdAt,
+            }))}
+          />
+
+          <Card id="payments" className="card-elevated scroll-mt-6">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Wallet className="size-4" /> Payments
@@ -389,50 +441,26 @@ export default async function BookingWorkspace({
           </Card>
         </div>
 
+        {/* ===== Right rail ===== */}
         <div className="space-y-6">
-          <Card className="card-elevated">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Wallet className="size-4" /> Finance
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Total</span>
-                <span>{formatMoney(total, b.currency)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Paid</span>
-                <span className="text-green-600 dark:text-green-400">
-                  {formatMoney(paid, b.currency)}
-                </span>
-              </div>
-              {/* Derived payment progress — purely presentational from paid/total. */}
-              <div className="space-y-1 pt-1">
-                <div className="h-2 rounded-full bg-muted">
-                  <div
-                    style={{ width: `${paidPct}%` }}
-                    className="h-2 rounded-full bg-primary"
-                  />
-                </div>
-                <p className="text-muted-foreground text-right text-xs">
-                  {paidPct}%
-                </p>
-              </div>
-              <div className="flex items-center justify-between border-t pt-2">
-                <span className="font-semibold">Balance due</span>
-                <span
-                  className={
-                    balance > 0
-                      ? "text-2xl font-bold text-amber-600 dark:text-amber-400"
-                      : "text-2xl font-bold text-green-600 dark:text-green-400"
-                  }
-                >
-                  {formatMoney(balance, b.currency)}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
+          <PaymentSummaryCard
+            currency={b.currency}
+            total={total}
+            paid={paid}
+            balance={balance}
+            paidPct={paidPct}
+            balanceDueDate={b.departDate}
+          />
+
+          <SupplierRefsCard
+            refs={b.supplierRefs.map((r) => ({
+              id: r.id,
+              providerId: r.providerId,
+              confirmationNumber: r.confirmationNumber,
+              pnr: r.pnr,
+              supplierOrderId: r.supplierOrderId,
+            }))}
+          />
 
           <Card className="card-elevated">
             <CardHeader>
@@ -456,20 +484,20 @@ export default async function BookingWorkspace({
             </CardContent>
           </Card>
 
+          <AssignedAgentCard
+            agent={b.createdBy ?? null}
+            createdAt={b.createdAt}
+            updatedAt={b.updatedAt}
+          />
+
           <VisaAssistant bookingId={b.id} />
 
-          {b.notes && (
-            <Card className="card-elevated">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <StickyNote className="size-4" /> Notes
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm whitespace-pre-wrap">{b.notes}</p>
-              </CardContent>
-            </Card>
-          )}
+          <BookingNotesCard
+            notes={b.notes}
+            currency={b.currency}
+            balance={balance}
+            departDate={b.departDate}
+          />
         </div>
       </div>
     </div>

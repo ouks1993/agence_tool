@@ -29,6 +29,7 @@ export function AddToBookingDialog({
   clients,
   defaultDestination,
   defaultBookingId,
+  trigger,
 }: {
   item: BookingItemInput;
   itemSummary: string;
@@ -36,6 +37,8 @@ export function AddToBookingDialog({
   clients: ClientOption[];
   defaultDestination?: string | undefined;
   defaultBookingId?: string | undefined;
+  /** Optional custom trigger. Defaults to the standard "Add to booking" button. */
+  trigger?: React.ReactNode;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -78,10 +81,12 @@ export function AddToBookingDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="secondary">
-          <Plus className="mr-1 size-4" />
-          Add to booking
-        </Button>
+        {trigger ?? (
+          <Button size="sm" variant="secondary">
+            <Plus className="mr-1 size-4" />
+            Add to booking
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>

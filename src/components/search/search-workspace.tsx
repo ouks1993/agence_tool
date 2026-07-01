@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plane, BedDouble, Search, Loader2, Star, ArrowRight, MapPin, Building2 } from "lucide-react";
+import { Plane, BedDouble, Search, Loader2, Star, MapPin, Building2, ArrowLeftRight } from "lucide-react";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/app/empty-state";
 import {
@@ -10,6 +10,7 @@ import {
   type ClientOption,
 } from "@/components/search/add-to-booking-dialog";
 import { AirportInput } from "@/components/search/airport-input";
+import { FlightResults } from "@/components/search/flight-results";
 import { HotelDestinationInput } from "@/components/search/hotel-destination-input";
 import { HotelDetailsDialog } from "@/components/search/hotel-details-dialog";
 import { Button } from "@/components/ui/button";
@@ -21,7 +22,7 @@ import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { BookingItemInput } from "@/lib/actions/bookings";
 import { searchFlightsAction, searchHotelsAction } from "@/lib/actions/search";
-import { formatMoney, formatDuration, formatTime, formatDate } from "@/lib/format";
+import { formatMoney, formatDuration, formatDate } from "@/lib/format";
 import type { FlightOffer, HotelOffer } from "@/lib/suppliers";
 import { cn } from "@/lib/utils";
 
@@ -177,44 +178,78 @@ function FlightSearch({
     details: o,
   });
 
+  const swap = () =>
+    setForm((f) => ({ ...f, origin: f.destination, destination: f.origin }));
+
   return (
     <div className="space-y-6">
+      {/* Trip-type tabs */}
+      <div className="bg-muted flex w-fit items-center gap-0.5 rounded-md border p-0.5">
+        <button
+          type="button"
+          onClick={() => setForm((f) => ({ ...f, tripType: "round" }))}
+          className={cn(
+            "rounded-sm px-3.5 py-1.5 text-sm font-medium transition-colors",
+            !oneWay
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          Round trip
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            setForm((f) => ({ ...f, tripType: "oneway", returnDate: "" }))
+          }
+          className={cn(
+            "rounded-sm px-3.5 py-1.5 text-sm font-medium transition-colors",
+            oneWay
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          One-way
+        </button>
+      </div>
+
+      {/* Segmented search bar */}
       <Card className="card-elevated">
-        <CardContent className="p-5">
-          <div className="mb-4 flex gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant={!oneWay ? "default" : "outline"}
-              onClick={() => setForm((f) => ({ ...f, tripType: "round" }))}
-            >
-              Round trip
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={oneWay ? "default" : "outline"}
-              onClick={() => setForm((f) => ({ ...f, tripType: "oneway", returnDate: "" }))}
-            >
-              One-way
-            </Button>
-          </div>
-          <form onSubmit={run} className="grid grid-cols-2 gap-3 md:grid-cols-7">
-            <Field label="From" className="col-span-1">
+        <form onSubmit={run}>
+          <div className="flex flex-col gap-4 p-4 lg:flex-row lg:items-end lg:gap-0">
+            <SearchSeg label="From" className="lg:flex-1">
               <AirportInput
                 value={form.origin}
                 onChange={(v) => setForm((f) => ({ ...f, origin: v }))}
                 placeholder="City or airport"
               />
-            </Field>
-            <Field label="To" className="col-span-1">
+            </SearchSeg>
+
+            <div className="hidden shrink-0 items-end justify-center px-1 pb-1 lg:flex">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="size-8 rounded-full"
+                onClick={swap}
+                aria-label="Swap origin and destination"
+              >
+                <ArrowLeftRight className="size-4" />
+              </Button>
+            </div>
+
+            <SearchSeg label="To" className="lg:flex-1 lg:border-l lg:pl-4">
               <AirportInput
                 value={form.destination}
                 onChange={(v) => setForm((f) => ({ ...f, destination: v }))}
                 placeholder="City or airport"
               />
-            </Field>
-            <Field label="Dates" className="col-span-2 md:col-span-2">
+            </SearchSeg>
+
+            <SearchSeg
+              label={oneWay ? "Depart" : "Dates"}
+              className="lg:flex-1 lg:border-l lg:pl-4"
+            >
               <DateRangePicker
                 startDate={form.departDate}
                 endDate={oneWay ? "" : form.returnDate}
@@ -224,38 +259,50 @@ function FlightSearch({
                 startLabel="Depart"
                 endLabel={oneWay ? undefined : "Return"}
               />
-            </Field>
-            <Field label="Pax" className="col-span-1">
+            </SearchSeg>
+
+            <SearchSeg label="Pax" className="lg:w-[84px] lg:border-l lg:pl-4">
               <Input
                 type="number"
                 min="1"
                 max="9"
                 value={form.adults}
-                onChange={(e) => setForm((f) => ({ ...f, adults: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, adults: e.target.value }))
+                }
               />
-            </Field>
-            <Field label="Cabin" className="col-span-1">
+            </SearchSeg>
+
+            <SearchSeg label="Cabin" className="lg:w-[130px] lg:border-l lg:pl-4">
               <Select
                 value={form.cabin}
-                onChange={(e) => setForm((f) => ({ ...f, cabin: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, cabin: e.target.value }))
+                }
               >
                 <option value="economy">Economy</option>
                 <option value="premium">Premium</option>
                 <option value="business">Business</option>
                 <option value="first">First</option>
               </Select>
-            </Field>
-            <div className="col-span-2 flex items-end md:col-span-1">
-              <Button type="submit" className="w-full" disabled={loading}>
+            </SearchSeg>
+
+            <div className="lg:pl-4">
+              <Button
+                type="submit"
+                disabled={loading}
+                className="w-full lg:w-auto"
+              >
                 {loading ? (
                   <Loader2 className="size-4 animate-spin" />
                 ) : (
                   <Search className="size-4" />
                 )}
+                <span className="lg:sr-only">Search</span>
               </Button>
             </div>
-          </form>
-        </CardContent>
+          </div>
+        </form>
       </Card>
 
       {note && <p className="text-muted-foreground text-sm">{note}</p>}
@@ -264,7 +311,7 @@ function FlightSearch({
         <div className="space-y-3">
           {[0, 1, 2].map((i) => (
             <Card key={i}>
-              <CardContent className="flex items-center justify-between gap-4 p-4">
+              <CardContent className="flex items-center justify-between gap-4 p-5">
                 <div className="flex items-center gap-3">
                   <Skeleton className="size-10 rounded-md" />
                   <div className="space-y-2">
@@ -272,7 +319,7 @@ function FlightSearch({
                     <Skeleton className="h-3 w-56" />
                   </div>
                 </div>
-                <Skeleton className="h-9 w-24" />
+                <Skeleton className="h-9 w-28" />
               </CardContent>
             </Card>
           ))}
@@ -280,76 +327,35 @@ function FlightSearch({
       )}
 
       {!loading && results && (
-        <div className="space-y-3">
-          {results.length === 0 ? (
-            <EmptyState
-              icon={Plane}
-              title="No flights found"
-              description="Try different dates, nearby airports, or another cabin class."
-            />
-          ) : (
-            results.map((o, idx) => (
-              <Card key={o.id} className="card-interactive">
-                <CardContent className="flex flex-wrap items-center justify-between gap-4 p-4">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-brand/10 text-xs font-bold text-brand">
-                      {o.airlineName.slice(0, 2).toUpperCase()}
-                    </div>
-                    <div className="min-w-0 space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-semibold">{o.airlineName}</span>
-                      <span className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 font-mono text-xs">
-                        {o.segments.map((s) => s.flightNumber).join(" · ")}
-                      </span>
-                      {idx === 0 && (
-                        <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-xs font-semibold text-green-600 dark:text-green-400">
-                          Cheapest
-                        </span>
-                      )}
-                      <span className="text-muted-foreground text-xs capitalize">
-                        {o.cabin}
-                      </span>
-                    </div>
-                    <div className="text-muted-foreground flex items-center gap-2 text-sm">
-                      <span>{formatTime(o.segments[0]?.departAt)}</span>
-                      <span className="font-medium">{o.segments[0]?.from}</span>
-                      <ArrowRight className="size-3" />
-                      <span className="font-medium">{o.segments.at(-1)?.to}</span>
-                      <span>{formatTime(o.segments.at(-1)?.arriveAt)}</span>
-                      <span className="text-xs">
-                        · {formatDuration(o.durationMinutes)} ·{" "}
-                        {o.stops === 0
-                          ? "Direct"
-                          : `${o.stops} stop${o.stops > 1 ? "s" : ""} via ${o.segments
-                              .slice(1)
-                              .map((s) => s.from)
-                              .join(", ")}`}
-                      </span>
-                    </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <p className="text-lg font-bold tabular-nums">
-                        {formatMoney(o.priceTotal, o.currency)}
-                      </p>
-                      <p className="text-muted-foreground text-xs">total</p>
-                    </div>
-                    <AddToBookingDialog
-                      item={toItem(o)}
-                      itemSummary={`${o.airlineName} · ${formatMoney(o.priceTotal, o.currency)}`}
-                      bookings={bookings}
-                      clients={clients}
-                      defaultBookingId={defaultBookingId}
-                      defaultDestination={`${form.origin.toUpperCase()} → ${form.destination.toUpperCase()}`}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          )}
-        </div>
+        <FlightResults
+          results={results}
+          route={{ origin: form.origin, destination: form.destination }}
+          adults={Number(form.adults) || 0}
+          bookings={bookings}
+          clients={clients}
+          defaultBookingId={defaultBookingId}
+          toItem={toItem}
+        />
       )}
+    </div>
+  );
+}
+
+function SearchSeg({
+  label,
+  className,
+  children,
+}: {
+  label: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={cn("flex min-w-0 flex-col gap-1.5", className)}>
+      <span className="text-muted-foreground text-[11px] font-semibold uppercase tracking-wide">
+        {label}
+      </span>
+      {children}
     </div>
   );
 }

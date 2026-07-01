@@ -11,51 +11,61 @@ import { APP_NAME } from "@/lib/config";
 export default function PortalLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
-      <header className="border-b">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between gap-4">
+      <header className="border-b bg-card sticky top-0 z-30">
+        <div className="mx-auto flex h-16 w-full max-w-5xl items-center gap-4 px-4 sm:px-6">
           <Link
             href="/portal"
-            className="flex items-center gap-2 text-lg font-semibold"
+            className="flex items-center gap-2.5 font-semibold"
           >
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-              <Plane className="h-4 w-4 text-primary" />
+            <span className="from-primary flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br to-primary/70 text-primary-foreground">
+              <Plane className="h-4 w-4" />
             </span>
-            My Trips
+            <span className="leading-tight">
+              {APP_NAME}
+              <span className="text-muted-foreground block text-[11px] font-medium">
+                Guest portal
+              </span>
+            </span>
           </Link>
-          <nav className="flex items-center gap-4 text-sm">
+          <nav className="ml-6 hidden items-center gap-1 text-sm sm:flex">
             <Link
               href="/portal"
-              className="text-muted-foreground hover:text-foreground transition-colors"
+              className="text-muted-foreground hover:text-foreground hover:bg-accent rounded-md px-3 py-1.5 font-medium transition-colors"
             >
-              My Trips
+              My trips
             </Link>
             <Link
               href="/portal/proposals"
-              className="text-muted-foreground hover:text-foreground transition-colors"
+              className="text-muted-foreground hover:text-foreground hover:bg-accent rounded-md px-3 py-1.5 font-medium transition-colors"
             >
-              My Proposals
+              Proposals
             </Link>
-            {/*
-              Sign out is a POST form (not an <a> GET) to prevent CSRF
-              forced-logout — a state-changing GET is exploitable via
-              `<img src=".../signout">` (CWE-352). Styled to match the
-              sibling nav links exactly.
-            */}
-            <form method="POST" action="/api/portal/auth/signout">
-              <button
-                type="submit"
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Sign out
-              </button>
-            </form>
           </nav>
+          {/*
+            Sign out is a POST form (not an <a> GET) to prevent CSRF
+            forced-logout — a state-changing GET is exploitable via
+            `<img src=".../signout">` (CWE-352).
+          */}
+          <form
+            method="POST"
+            action="/api/portal/auth/signout"
+            className="ml-auto"
+          >
+            <button
+              type="submit"
+              className="text-muted-foreground hover:text-foreground rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
+            >
+              Sign out
+            </button>
+          </form>
         </div>
       </header>
-      <main className="flex-1 container mx-auto px-4 py-8">{children}</main>
-      <footer className="border-t">
-        <div className="container mx-auto px-4 py-6 text-xs text-muted-foreground">
-          Powered by {APP_NAME}.
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-6">
+        {children}
+      </main>
+      <footer className="border-t bg-card">
+        <div className="text-muted-foreground mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-4 py-5 text-xs sm:px-6">
+          <span>Powered by {APP_NAME}.</span>
         </div>
       </footer>
     </div>
