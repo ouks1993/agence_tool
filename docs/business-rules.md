@@ -14,13 +14,15 @@ follow-up action:
 |---|---|---|
 | Client created | Send welcome email | ❌ not implemented (Resend only sends invites/reset/proposal/portal) |
 | Opportunity won | Generate proposal | ❌ manual (new proposal + AI quote builder) |
-| Proposal accepted | Generate booking | ⚠️ one-click *convert proposal → booking*, not automatic |
+| Proposal accepted | Generate booking | ✅ **automatic** — accepting + e-signing a proposal (client portal *or* public token link) auto-creates an `awaiting_payment` booking (best-effort, idempotent); the one-click *convert proposal → booking* remains for the agent path |
 | Booking confirmed | Generate invoice | ❌ invoices are on-demand PDFs, not auto-generated |
 | Payment received / booking confirmed | Update accounting | ⚠️ partial — `autoGenerateCommissions` fires on confirm/ticket ([bookings.ts](../src/lib/actions/bookings.ts)); no full accounting |
 | Travel completed | Request review | ❌ not implemented |
 
-> **Current state:** the only true event-driven automation today is commission
-> generation on booking confirm/ticket (idempotent). The rest are manual or
+> **Current state:** two event-driven automations run today: commission
+> generation on booking confirm/ticket, and **auto-booking on proposal accept**
+> (accept → e-sign spawns an `awaiting_payment` booking) — both idempotent. The
+> rest are manual or
 > on-demand. Building this trigger layer is the heart of the "Automation" pillar in
 > the [vision](vision.md) and the automated-quotation item in the
 > [roadmap](roadmap.md).
@@ -61,8 +63,8 @@ Supplier reservation → Payment → Ticketing → Travel → Feedback → Repea
 | **Client** | `client` (+ contacts) | the spine; all records hang off it |
 | **Opportunity** | `opportunity` (pipeline stage, value, `travel_purpose`) | shown on the Pipeline board |
 | **Proposal** | `product` (PDF + e-sign) | shareable `/p/[token]` or in-portal |
-| **Customer accepts** | e-sign stamps signer + flips opportunity to **won** | also acceptable in the client portal |
-| **Booking** | `booking`, one-click **convert proposal → booking** | lifecycle starts at `draft` |
+| **Customer accepts** | e-sign stamps signer + flips opportunity to **won** + **auto-creates the booking** | also acceptable in the client portal |
+| **Booking** | `booking` — auto-created on accept (status `awaiting_payment`); agent one-click **convert proposal → booking** is the idempotent fallback | auto path starts at `awaiting_payment`, agent-drafted bookings at `draft` |
 | **Supplier reservation** | `booking_item` + `supplier` picker + `booking_service.ts` | live Duffel/Hotelbeds search; real booking wired via provider registry (quote → book → idempotency → event log); activate with production credentials |
 | **Payment** | `payment` (deposit/installments, Stripe Connect) | `confirmed` requires zero balance |
 | **Ticketing** | lifecycle `ticketed` | requires trip items; auto-generates commissions |
@@ -121,10 +123,24 @@ enforced server-side:**
 
 - Server-rendered PDF; shareable via public tokenized `/p/[token]` (no login) and
   in-portal signing.
-- E-sign stamps signer name/email/IP/UA and flips the linked opportunity to
-  **won**.
-- **Convert accepted proposal → booking** in one click. (A `convertedBookingId`
-  guard column is a pending open item — see [roadmap.md](roadmap.md).)
+- E-sign stamps signer name/email/IP/UA, flips the linked opportunity to
+  **won**, and **auto-creates a booking** (status `awaiting_payment`).
+- **Auto-booking on accept** — both accept paths (in-portal
+  `acceptProposalFromPortal` and public-token `acceptProposalByToken`) call the
+  shared `createBookingFromAcceptedProposal` helper right after marking the
+  proposal accepted. This is **best-effort**: the auto-booking is wrapped in
+  try/catch so a booking error never fails the client's acceptance (the agent can
+  convert manually later).
+- **Idempotency** — `product.convertedBookingId` latches the created booking.
+  The helper no-ops (returns the existing booking id) when it is already set, so
+  re-accepting, double-submits, and the manual convert button can never spawn a
+  second booking.
+- **Tenant safety** — the helper runs on the unauthenticated client path, so it
+  scopes every read/insert to the proposal's own `product.agencyId` (never a
+  caller-supplied agency); the booking + items inherit that agency.
+- **Convert accepted proposal → booking** in one click on the agent side
+  (`convertProposalToBooking`) keeps `requireAgencyUser` as the guard and
+  delegates to the same idempotent helper.
 
 ## Commissions
 

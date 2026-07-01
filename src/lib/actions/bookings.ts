@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { autoGenerateCommissions } from "@/lib/actions/commissions";
 import type { ActionResult } from "@/lib/actions/types";
@@ -944,56 +944,160 @@ function productItemTypeToBookingItemType(
 }
 
 /**
- * Converts an accepted proposal into a new booking, pre-filled with the
- * proposal's client, destination and line items. Only accepted proposals can
- * be converted.
+ * Core proposal → booking conversion. **Tenant-safe & auth-agnostic.**
+ *
+ * This is the single source of truth for turning an accepted proposal into a
+ * booking. It deliberately does NOT call `requireAgencyUser`, because it must
+ * run on the **public client path** too (portal accept / public-token accept),
+ * where there is no authenticated agent session.
+ *
+ * Tenant safety: everything is scoped to the PROPOSAL's own `product.agencyId`,
+ * derived from the loaded row — never from a caller-supplied agency. The new
+ * booking and its items inherit that agency.
+ *
+ * Idempotency: a proposal never spawns two bookings. If `product.convertedBookingId`
+ * is already set, this returns that booking id as a no-op. Re-accepting, double
+ * submits and the manual convert button are therefore all safe.
+ *
+ * @param productId The proposal (product) id.
+ * @param opts.actorUserId The agent who owns/triggers the conversion, or null
+ *   (system) on the unauthenticated client path. Becomes `booking.createdById`
+ *   and the activity actor.
+ * @param opts.requireAccepted When true (agent path), refuses to convert a
+ *   proposal whose status is not "accepted".
  */
-export async function convertProposalToBooking(
-  productId: string
+export async function createBookingFromAcceptedProposal(
+  productId: string,
+  opts: { actorUserId?: string | null; requireAccepted?: boolean } = {}
 ): Promise<ActionResult<{ id: string }>> {
-  const user = await requireAgencyUser();
+  const actorUserId = opts.actorUserId ?? null;
 
+  // Load the proposal + items with NO agency filter here — we derive the tenant
+  // from the row itself. (The public callers have no agencyId to pass; the agent
+  // caller has already validated ownership before delegating.)
   const p = await db.query.product.findFirst({
-    where: and(eq(product.id, productId), eq(product.agencyId, user.agencyId)),
+    where: eq(product.id, productId),
     with: { items: true },
   });
   if (!p) return { ok: false, error: "Proposal not found" };
-  if (p.status !== "accepted") {
+
+  if (opts.requireAccepted && p.status !== "accepted") {
     return { ok: false, error: "Only accepted proposals can be converted" };
   }
 
-  const created = await createBooking({
-    clientId: p.clientId ?? undefined,
-    destination: p.destination ?? undefined,
-    currency: p.currency,
-    notes: p.summary ?? undefined,
-  });
-  if (!created.ok || !created.data) {
-    return {
-      ok: false,
-      error: created.ok ? "Failed to create booking" : created.error,
-    };
-  }
-  const bookingId = created.data.id;
+  const agencyId = p.agencyId; // the ONLY trusted tenant scope from here on.
 
-  // Carry each proposal line item over to the booking. The client price
-  // (unitPrice) becomes the booking item amount.
-  for (const item of p.items) {
-    const res = await addBookingItem(bookingId, {
-      type: productItemTypeToBookingItemType(item.type),
-      title: item.title,
-      supplier: item.supplier ?? undefined,
-      quantity: item.quantity,
-      amount: item.unitPrice,
-      currency: item.currency,
-      description: item.description ?? undefined,
+  // Idempotency guard: if this proposal already spawned a booking, return it.
+  if (p.convertedBookingId) {
+    return { ok: true, data: { id: p.convertedBookingId } };
+  }
+
+  // Validate the linked client belongs to the proposal's agency before carrying
+  // it onto the booking (defensive — proposals are agency-scoped already).
+  let clientId: string | null = null;
+  if (p.clientId) {
+    const c = await db.query.client.findFirst({
+      where: and(eq(client.id, p.clientId), eq(client.agencyId, agencyId)),
     });
-    if (!res.ok) return { ok: false, error: res.error };
+    clientId = c ? c.id : null;
+  }
+
+  // Total charged to the client = Σ(unitPrice × quantity) across line items.
+  const totalAmount = round2(
+    p.items.reduce(
+      (s, it) => s + parseFloat(it.unitPrice || "0") * it.quantity,
+      0
+    )
+  );
+
+  // Generate a per-agency reference the same way createBooking does, retrying on
+  // the rare concurrent-insert collision.
+  let reference = "";
+  let bookingRow: { id: string } | undefined;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    reference = await nextReference(agencyId);
+    try {
+      [bookingRow] = await db
+        .insert(booking)
+        .values({
+          agencyId,
+          reference,
+          clientId,
+          destination: p.destination ?? null,
+          currency: p.currency,
+          notes: p.summary ?? null,
+          status: "awaiting_payment",
+          totalAmount: String(totalAmount),
+          createdById: actorUserId,
+        })
+        .returning({ id: booking.id });
+      break;
+    } catch (e) {
+      if (isUniqueViolation(e) && attempt < 4) continue;
+      throw e;
+    }
+  }
+  if (!bookingRow) return { ok: false, error: "Failed to create booking" };
+  const bookingId = bookingRow.id;
+
+  // Carry each proposal line item over to a booking item. The client price
+  // (unitPrice) becomes the booking item amount. All rows inherit the proposal's
+  // agency via the parent booking.
+  if (p.items.length > 0) {
+    await db.insert(bookingItem).values(
+      p.items.map((it, i) => ({
+        bookingId,
+        type: productItemTypeToBookingItemType(it.type),
+        title: it.title,
+        description: it.description ?? null,
+        supplierId: it.supplierId ?? null,
+        supplier: it.supplier ?? null,
+        quantity: it.quantity,
+        amount: it.unitPrice,
+        currency: it.currency,
+        sortOrder: i,
+      }))
+    );
+  }
+
+  // Link the proposal to its booking — this is the idempotency latch. The update
+  // is guarded on convertedBookingId still being NULL, so a racing second call
+  // (concurrent double-accept/double-submit, where both passed the early NULL
+  // check and both inserted a booking) can win the latch for only ONE of them.
+  // The loser's WHERE matches 0 rows; we then delete its now-orphaned booking and
+  // return the winning booking id, so the proposal never keeps two live bookings.
+  const [latched] = await db
+    .update(product)
+    .set({ convertedBookingId: bookingId })
+    .where(
+      and(
+        eq(product.id, p.id),
+        eq(product.agencyId, agencyId),
+        isNull(product.convertedBookingId)
+      )
+    )
+    .returning({ convertedBookingId: product.convertedBookingId });
+
+  if (!latched) {
+    // Someone else latched first. Roll back our orphaned booking + its items and
+    // return whichever booking actually won the latch. Scope the delete to this
+    // agency's booking (defensive; the id is one we just created).
+    await db
+      .delete(booking)
+      .where(and(eq(booking.id, bookingId), eq(booking.agencyId, agencyId)));
+    const winner = await db.query.product.findFirst({
+      where: and(eq(product.id, p.id), eq(product.agencyId, agencyId)),
+      columns: { convertedBookingId: true },
+    });
+    if (winner?.convertedBookingId) {
+      return { ok: true, data: { id: winner.convertedBookingId } };
+    }
+    return { ok: false, error: "Failed to link booking" };
   }
 
   await logActivity({
-    agencyId: user.agencyId,
-    userId: user.id,
+    agencyId,
+    userId: actorUserId,
     action: "created",
     entityType: "booking",
     entityId: bookingId,
@@ -1001,7 +1105,38 @@ export async function convertProposalToBooking(
     metadata: { convertedFromProposal: p.reference },
   });
 
-  revalidatePath("/bookings");
-  revalidatePath(`/proposals/${productId}`); revalidatePath(`/products/${productId}`);
   return { ok: true, data: { id: bookingId } };
+}
+
+/**
+ * Converts an accepted proposal into a new booking, pre-filled with the
+ * proposal's client, destination and line items. Only accepted proposals can
+ * be converted. Agent entry point — enforces the agency guard, then delegates
+ * to the shared, idempotent core helper.
+ */
+export async function convertProposalToBooking(
+  productId: string
+): Promise<ActionResult<{ id: string }>> {
+  const user = await requireAgencyUser();
+
+  // Agency guard: the proposal must belong to the caller's agency.
+  const p = await db.query.product.findFirst({
+    where: and(eq(product.id, productId), eq(product.agencyId, user.agencyId)),
+    columns: { id: true, status: true },
+  });
+  if (!p) return { ok: false, error: "Proposal not found" };
+  if (p.status !== "accepted") {
+    return { ok: false, error: "Only accepted proposals can be converted" };
+  }
+
+  const result = await createBookingFromAcceptedProposal(productId, {
+    actorUserId: user.id,
+    requireAccepted: true,
+  });
+  if (!result.ok) return result;
+
+  revalidatePath("/bookings");
+  revalidatePath(`/proposals/${productId}`);
+  revalidatePath(`/products/${productId}`);
+  return result;
 }

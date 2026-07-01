@@ -10,6 +10,7 @@ import {
   integer,
   jsonb,
   unique,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 
 // IMPORTANT! ID fields should ALWAYS use UUID types, EXCEPT the BetterAuth tables.
@@ -380,6 +381,13 @@ export const product = pgTable(
     signatureData: text("signature_data"),
     signerIp: text("signer_ip"),
     signerUserAgent: text("signer_user_agent"),
+    // Set once this proposal has been converted into a booking (idempotency
+    // guard for the accept → auto-booking flow). Nullable; onDelete set null so
+    // deleting the booking clears the link rather than orphaning the product.
+    convertedBookingId: uuid("converted_booking_id").references(
+      (): AnyPgColumn => booking.id,
+      { onDelete: "set null" }
+    ),
     createdById: text("created_by_id").references(() => user.id, {
       onDelete: "set null",
     }),
@@ -936,6 +944,11 @@ export const productRelations = relations(product, ({ one, many }) => ({
   createdBy: one(user, {
     fields: [product.createdById],
     references: [user.id],
+  }),
+  // The booking this proposal was converted into (set once accepted → booked).
+  convertedBooking: one(booking, {
+    fields: [product.convertedBookingId],
+    references: [booking.id],
   }),
   items: many(productItem),
 }));

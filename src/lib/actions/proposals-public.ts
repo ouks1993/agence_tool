@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
+import { createBookingFromAcceptedProposal } from "@/lib/actions/bookings";
 import type { ActionResult } from "@/lib/actions/types";
 import { logActivity } from "@/lib/activity";
 import { APP_NAME } from "@/lib/config";
@@ -107,6 +108,24 @@ export async function acceptProposalByToken(
       entityLabel: `${p.reference} · ${p.title}`,
       metadata: { acceptedBy: d.signerName, via: "public_link" },
     });
+
+    // Best-effort auto-booking: the client has committed by signing, so spawn
+    // the booking. This must NEVER fail the client's acceptance — on any error
+    // we log and still return success (the agent can convert manually later).
+    // The helper is idempotent and derives the tenant from the proposal's own
+    // agencyId.
+    try {
+      const booked = await createBookingFromAcceptedProposal(p.id, {
+        actorUserId: p.createdById ?? null,
+      });
+      if (!booked.ok) {
+        console.error("[acceptProposalByToken] auto-booking:", booked.error);
+      } else {
+        revalidatePath("/bookings");
+      }
+    } catch (bookErr) {
+      console.error("[acceptProposalByToken] auto-booking threw:", bookErr);
+    }
 
     revalidatePath(`/p/${d.token}`);
     return { ok: true };

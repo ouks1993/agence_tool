@@ -26,7 +26,7 @@ first-class entities — see [Where the chain is aspirational](#where-the-chain-
 | **Lead** | `client` (status `lead`, `source` code) | ✅ | becomes a Client; no separate table |
 | **Client** | `client` (+ `client_contact`) | ✅ | root; owns opportunities, proposals, bookings, portal sessions |
 | **Opportunity** | `opportunity` | ✅ | belongs to a client; `assignedToId`; links to a proposal |
-| **Proposal** | `product` (+ `product_item`) | ✅ | belongs to client + opportunity; e-sign; converts → Booking |
+| **Proposal** | `product` (+ `product_item`) | ✅ | belongs to client + opportunity; e-sign; **auto-converts → Booking** on accept (`convertedBookingId` idempotency latch) |
 | **Booking** | `booking` (+ `booking_traveller`, `booking_item`, `booking_day`, `payment`, `booking_supplier_ref`, `booking_event`, `booking_document`, `booking_idempotency`) | ✅ | belongs to client; lifecycle states; items reference suppliers; Sprint 1 tables power real booking, audit log, and idempotency |
 | **Supplier** | `supplier` (+ `supplier_contract`, `supplier_rate`) | ✅ | referenced by `booking_item.supplierId` + `product_item.supplierId` |
 | **Invoice** | — (on-demand PDF at `/booking-docs/[id]/invoice`) | 🟡 | no managed invoice entity yet (planned module) |
@@ -83,9 +83,21 @@ at the public route `/p/[token]`. On accept/decline the row captures `acceptedAt
 or `declinedAt` plus non-repudiation fields: `signerName`, `signerEmail`,
 `signatureData` (typed-name or drawn signature), `signerIp`, `signerUserAgent`.
 
+**`convertedBookingId`.** A nullable `uuid` FK to `booking(id)`
+(`onDelete: set null`) that latches the booking a proposal was converted into.
+It is the **idempotency guard** for the accept → auto-booking flow: once set, the
+shared `createBookingFromAcceptedProposal` helper returns the existing booking id
+as a no-op, so a proposal can never spawn two bookings (re-accept, double-submit,
+or the manual convert button are all safe). The `productRelations.convertedBooking`
+relation exposes the link.
+
 ### Proposal → Booking
 
-A `booking` is the booking file for one trip. `clientId` is `onDelete: set null`
+A `booking` is the booking file for one trip. On proposal accept + e-sign it is
+**auto-created** at status `awaiting_payment` (best-effort, tenant-scoped to the
+proposal's `product.agencyId`, idempotent via `product.convertedBookingId`); the
+agent `convertProposalToBooking` action is the one-click fallback that delegates
+to the same helper. `clientId` is `onDelete: set null`
 (the file survives client deletion). The **operational lifecycle** is
 `BOOKING_LIFECYCLE` from `src/lib/domain.ts`:
 

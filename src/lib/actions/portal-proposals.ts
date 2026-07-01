@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { and, eq } from "drizzle-orm";
+import { createBookingFromAcceptedProposal } from "@/lib/actions/bookings";
 import type { ActionResult } from "@/lib/actions/types";
 import { logActivity } from "@/lib/activity";
 import { APP_NAME } from "@/lib/config";
@@ -103,6 +104,23 @@ export async function acceptProposalFromPortal(
       entityLabel: `${p.reference} · ${p.title}`,
       metadata: { acceptedBy: session.client.name, via: "client_portal" },
     });
+
+    // Best-effort auto-booking: the client has committed, so spawn the booking.
+    // This must NEVER fail the client's acceptance — on any error we log and
+    // still return success (the agent can convert manually later). The helper is
+    // idempotent and derives the tenant from the proposal's own agencyId.
+    try {
+      const booked = await createBookingFromAcceptedProposal(p.id, {
+        actorUserId: p.createdById ?? null,
+      });
+      if (!booked.ok) {
+        console.error("[acceptProposalFromPortal] auto-booking:", booked.error);
+      } else {
+        revalidatePath("/bookings");
+      }
+    } catch (bookErr) {
+      console.error("[acceptProposalFromPortal] auto-booking threw:", bookErr);
+    }
 
     revalidatePath(`/portal/proposals/${productId}`);
     revalidatePath("/portal/proposals");
