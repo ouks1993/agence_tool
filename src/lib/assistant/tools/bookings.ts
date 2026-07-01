@@ -1,7 +1,6 @@
 import { tool } from "ai";
 import { and, asc, desc, eq, gte, ilike, inArray, lte, sql } from "drizzle-orm";
 import { z } from "zod";
-import { paymentSummary } from "@/lib/payments/summary";
 import { db } from "@/lib/db";
 import {
   BOOKING_STATUSES,
@@ -9,6 +8,7 @@ import {
   DEFAULT_CURRENCY,
   type BookingStatus,
 } from "@/lib/domain";
+import { paymentSummary } from "@/lib/payments/summary";
 import {
   booking as bookingTable,
   bookingTraveller,
@@ -236,6 +236,7 @@ export function makeBookingTools(ctx: { agencyId: string }) {
           return {
             ok: true,
             booking: {
+              id: b.id,
               reference: b.reference,
               status: b.status,
               statusLabel:

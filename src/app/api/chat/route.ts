@@ -11,14 +11,14 @@ import {
 import { and, desc, eq, ilike } from "drizzle-orm";
 import { z } from "zod";
 import { createBooking, addBookingItem, addTraveller } from "@/lib/actions/bookings";
-import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { DEFAULT_CURRENCY } from "@/lib/domain";
-import { resolveEffectiveAgencyId } from "@/lib/permissions";
 import { makeBookingTools } from "@/lib/assistant/tools/bookings";
 import { makeClientTools } from "@/lib/assistant/tools/clients";
 import { makeFinanceTools } from "@/lib/assistant/tools/finance";
 import { makeSalesTools } from "@/lib/assistant/tools/sales";
+import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { DEFAULT_CURRENCY } from "@/lib/domain";
+import { resolveEffectiveAgencyId } from "@/lib/permissions";
 import { client as clientTable, booking as bookingTable } from "@/lib/schema";
 import {
   getFlightSupplier,

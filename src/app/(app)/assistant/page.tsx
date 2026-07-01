@@ -5,6 +5,7 @@ import {
   useEffect,
   useRef,
   useCallback,
+  useMemo,
   type ReactNode,
 } from "react";
 import { useChat } from "@ai-sdk/react";
@@ -29,6 +30,8 @@ import { ToolArtifact } from "@/components/assistant/artifact-cards";
 import {
   ContextRail,
   type SuggestedAction,
+  type RailClient,
+  type RailBooking,
 } from "@/components/assistant/context-rail";
 import { TypingIndicator } from "@/components/assistant/typing-indicator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -405,6 +408,103 @@ export default function ChatPage() {
     });
   }, []);
 
+  // Live context rail: derive the most-recent client / booking the assistant has
+  // surfaced via its tools. Only real, resolved tool output — never fabricated.
+  const { railClient, railBooking } = useMemo(() => {
+    let railClient: RailClient | null = null;
+    let railBooking: RailBooking | null = null;
+    for (const message of messages) {
+      for (const p of getParts(message as MaybePartsMessage)) {
+        if (p?.state !== "output-available" || p.output === undefined) continue;
+        const toolName =
+          p.toolName ??
+          (typeof p.type === "string" && p.type.startsWith("tool-")
+            ? p.type.slice("tool-".length)
+            : "");
+        const out = p.output as {
+          ok?: boolean;
+          client?: {
+            id: string;
+            name: string;
+            type?: string | null;
+            status?: string | null;
+            email?: string | null;
+            city?: string | null;
+            country?: string | null;
+          };
+          stats?: {
+            lifetimeValue?: { value: number; currency: string };
+            openBalance?: { value: number; currency: string };
+            bookingsCount?: number;
+          };
+          clients?: { id: string; name: string; email?: string | null }[];
+          booking?: {
+            id?: string;
+            reference?: string;
+            status?: string;
+            statusLabel?: string;
+            client?: { name?: string } | null;
+            destination?: string;
+            startDate?: string;
+            endDate?: string;
+            payment?: { balance: number; currency: string };
+          };
+          bookingId?: string;
+        };
+        if (out?.ok !== true) continue;
+
+        if (toolName === "getClientDetails" && out.client) {
+          const c = out.client;
+          const s = out.stats ?? {};
+          railClient = {
+            id: c.id,
+            name: c.name,
+            type: c.type ?? null,
+            status: c.status ?? null,
+            email: c.email ?? null,
+            city: c.city ?? null,
+            country: c.country ?? null,
+            lifetimeValue: s.lifetimeValue ?? null,
+            openBalance: s.openBalance ?? null,
+            bookingsCount:
+              typeof s.bookingsCount === "number" ? s.bookingsCount : null,
+          };
+        } else if (
+          toolName === "findClients" &&
+          Array.isArray(out.clients) &&
+          out.clients.length === 1
+        ) {
+          const c = out.clients[0]!;
+          railClient = { id: c.id, name: c.name, email: c.email ?? null };
+        }
+
+        if (toolName === "getBookingDetails" && out.booking) {
+          const b = out.booking;
+          railBooking = {
+            id: b.id ?? null,
+            reference: b.reference ?? null,
+            status: b.status ?? null,
+            statusLabel: b.statusLabel ?? null,
+            clientName: b.client?.name ?? null,
+            destination: b.destination ?? null,
+            startDate: b.startDate ?? null,
+            endDate: b.endDate ?? null,
+            balance: b.payment
+              ? { value: b.payment.balance, currency: b.payment.currency }
+              : null,
+          };
+        } else if (toolName === "createBooking" && out.bookingId) {
+          railBooking = {
+            id: out.bookingId,
+            reference: null,
+            statusLabel: "Draft created",
+          };
+        }
+      }
+    }
+    return { railClient, railBooking };
+  }, [messages]);
+
   if (isPending) {
     return (
       <div className="flex h-[60vh] items-center justify-center">
@@ -721,6 +821,8 @@ export default function ChatPage() {
         agentName={agentName}
         actions={SUGGESTED_ACTIONS}
         onAction={seedComposer}
+        client={railClient}
+        booking={railBooking}
       />
     </div>
   );

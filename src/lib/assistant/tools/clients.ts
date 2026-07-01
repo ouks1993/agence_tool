@@ -1,6 +1,11 @@
 import { tool } from "ai";
 import { and, desc, eq, ilike } from "drizzle-orm";
 import { z } from "zod";
+import {
+  headlineTotal,
+  num,
+  sumByCurrency,
+} from "@/lib/analytics";
 import { db } from "@/lib/db";
 import {
   BOOKING_STATUS_META,
@@ -13,11 +18,6 @@ import {
   type OpportunityStage,
   type ProductStatus,
 } from "@/lib/domain";
-import {
-  headlineTotal,
-  num,
-  sumByCurrency,
-} from "@/lib/analytics";
 import { client as clientTable } from "@/lib/schema";
 
 /** How many nested rows (bookings/proposals/opportunities) a detail call returns. */
