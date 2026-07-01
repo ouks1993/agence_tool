@@ -15,13 +15,7 @@ import {
 import { SectionCard } from "@/components/dashboard/section-card";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  growthPct,
-  countBy,
-  monthlyBuckets,
-  num,
-  topN,
-} from "@/lib/analytics";
+import { countBy, num, topN } from "@/lib/analytics";
 import { db } from "@/lib/db";
 import {
   DEFAULT_CURRENCY,
@@ -65,24 +59,40 @@ export async function DashboardInsights({
   // charts rather than mis-summed.
   const dzdActive = active.filter((b) => (b.currency || "DZD") === "DZD");
 
-  // Revenue per agent (was: booking count). Map createdById → first name.
+  // Realised-revenue basis — DZD bookings in the post-confirmation lifecycle
+  // (confirmed/paid/ticketed/completed). Counting only "confirmed" silently
+  // dropped ticketed/completed bookings from revenue while their payments still
+  // counted in "collected", making collected > revenue. Every DZD money figure
+  // in this band (per-agent, top-clients, total revenue) shares this basis so
+  // they stay mutually coherent. "paid" is a historical alias for older rows.
+  const isRevenueStatus = (s: string) =>
+    s === "confirmed" || s === "paid" || s === "ticketed" || s === "completed";
+  const dzdRevenue = dzdActive.filter((b) => isRevenueStatus(b.status));
+
+  // Revenue per agent (was: booking count). Map createdById → a display first
+  // name. Names are stored free-form (sometimes all-lowercase), and the chart
+  // X-axis renders the raw label, so we title-case the first name here — a
+  // lowercase "ouksili" reads as a bug on the axis.
+  const displayFirstName = (raw: string): string => {
+    const first = raw.trim().split(/\s+/)[0] || raw;
+    return first.charAt(0).toUpperCase() + first.slice(1);
+  };
   const members = await db
     .select({ id: userTable.id, name: userTable.name })
     .from(userTable)
     .where(eq(userTable.agencyId, agencyId));
-  const memberName = new Map(members.map((m) => [m.id, m.name.split(" ")[0] || m.name]));
+  const memberName = new Map(
+    members.map((m) => [m.id, displayFirstName(m.name)])
+  );
   const revenueByAgent = topN(
-    dzdActive,
+    dzdRevenue,
     (b) => (b.createdById ? memberName.get(b.createdById) ?? "Unknown" : "Unassigned"),
     (b) => num(b.totalAmount),
     8
   );
 
-  // Revenue growth basis — last 2 months by createdAt, DZD, for the MoM KPI.
-  const revenueMonthly = monthlyBuckets(dzdActive, (b) => b.createdAt, (b) => num(b.totalAmount), 2);
-
   // Top clients by revenue.
-  const topClients = topN(dzdActive, (b) => b.client?.name, (b) => num(b.totalAmount), 8);
+  const topClients = topN(dzdRevenue, (b) => b.client?.name, (b) => num(b.totalAmount), 8);
 
   // Lead-source breakdown (by client count). Uses free-text source today;
   // becomes clean once Phase 2 makes it an enum.
@@ -99,10 +109,10 @@ export async function DashboardInsights({
   // is picked from the ISO list).
   const sourceMarkets = countBy(sourceRows, (r) => r.country, 8);
 
-  // Finance KPIs.
-  const totalRevenue = dzdActive
-    .filter((b) => b.status === "confirmed")
-    .reduce((s, b) => s + num(b.totalAmount), 0);
+  // Finance KPIs. "Total revenue" uses the shared realised-revenue basis (see
+  // dzdRevenue above); "collected" is completed payments across every booking.
+  // Both are all-time DZD.
+  const totalRevenue = dzdRevenue.reduce((s, b) => s + num(b.totalAmount), 0);
 
   let collected = 0;
   for (const b of bookings) {
@@ -119,11 +129,6 @@ export async function DashboardInsights({
   const wonOpps = allOpps.filter((o) => o.stage === "won");
   const wonPipeline = wonOpps.reduce((s, o) => s + num(o.value), 0);
 
-  // MoM revenue growth from the last two month buckets.
-  const lastTwo = revenueMonthly.slice(-2);
-  const revenueGrowth =
-    lastTwo.length === 2 ? growthPct(lastTwo[1]!.value, lastTwo[0]!.value) : null;
-
   return (
     <section className="space-y-6">
       <div className="flex items-center gap-2">
@@ -137,11 +142,11 @@ export async function DashboardInsights({
       <StatStrip
         items={[
           {
-            label: "Total revenue",
+            label: "Total revenue · all time",
             value: formatMoneyCompact(totalRevenue, DEFAULT_CURRENCY),
           },
           {
-            label: "Collected",
+            label: "Collected · all time",
             value: formatMoneyCompact(collected, DEFAULT_CURRENCY),
             tone: "text-success",
           },
@@ -149,13 +154,6 @@ export async function DashboardInsights({
             label: "Won pipeline",
             value: formatMoneyCompact(wonPipeline, DEFAULT_CURRENCY),
             tone: "text-success",
-          },
-          {
-            label: "Revenue growth",
-            value:
-              revenueGrowth === null
-                ? "—"
-                : `${revenueGrowth > 0 ? "+" : ""}${revenueGrowth}%`,
           },
         ]}
       />
@@ -195,7 +193,7 @@ export function DashboardInsightsSkeleton() {
         <BarChart3 className="text-muted-foreground size-5" />
         <Skeleton className="h-7 w-32" />
       </div>
-      <StatStripSkeleton cells={4} />
+      <StatStripSkeleton cells={3} />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {[0, 1, 2, 3].map((i) => (
           <Card key={i} className="card-elevated overflow-hidden">

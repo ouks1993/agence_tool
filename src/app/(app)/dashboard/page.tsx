@@ -143,10 +143,16 @@ export default async function DashboardPage() {
     );
 
   const active = bookings.filter((b) => b.status !== "cancelled");
-  // Confirmed & paid (kept exactly as before — "paid" is a historical alias).
-  const confirmedBookings = bookings.filter(
-    (b) => b.status === "confirmed" || b.status === "paid"
-  );
+  // "Confirmed revenue" basis — the post-confirmation lifecycle. A booking that
+  // has advanced to ticketed/completed is still realised revenue (and its
+  // payments are already counted in "collected"), so excluding those statuses
+  // under-reports revenue and makes collected > revenue. "paid" is a historical
+  // alias kept for older rows. This same set is reused wherever the dashboard
+  // computes "confirmed revenue" (hero strip, revenue chart, top destinations,
+  // insights band) so the money figures stay mutually coherent.
+  const isRevenueStatus = (s: string) =>
+    s === "confirmed" || s === "paid" || s === "ticketed" || s === "completed";
+  const confirmedBookings = bookings.filter((b) => isRevenueStatus(b.status));
 
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -299,20 +305,23 @@ export default async function DashboardPage() {
   );
   const closingTotal = closingThisMonth.reduce((s, o) => s + num(o.value), 0);
 
-  // --- Top destinations by revenue THIS MONTH (DZD, currency-safe) --------
-  // Confirmed & paid DZD bookings created this calendar month, grouped by the
-  // destination country. Currency-safe: only the DZD series is summed.
+  // --- Top destinations by revenue over the last 12 months (DZD, safe) -----
+  // Revenue-status DZD bookings created within the same 12-month window the
+  // neighbouring insight charts use (a single calendar month was almost always
+  // empty and read as broken). Grouped by destination country; currency-safe:
+  // only the DZD series is summed.
   const countryOf = (raw: string | null | undefined) =>
     raw
       ? raw.includes(",")
         ? raw.slice(raw.lastIndexOf(",") + 1).trim() || raw
         : raw
       : "Unknown";
-  const destThisMonth = dzdConfirmed.filter(
-    (b) => new Date(b.createdAt) >= monthStart
+  const destWindowStart = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+  const destWindow = dzdConfirmed.filter(
+    (b) => new Date(b.createdAt) >= destWindowStart
   );
   const destTotals = topN(
-    destThisMonth,
+    destWindow,
     (b) => countryOf(b.destination),
     (b) => num(b.totalAmount),
     5
@@ -381,14 +390,18 @@ export default async function DashboardPage() {
   for (const b of active) {
     const { balance } = paymentSummary(b.payments, num(b.totalAmount));
     if (balance > 0.005) {
+      // Overdue (departed with a balance) reads as danger; upcoming reads as
+      // due-soon (warning) even though both need chasing.
+      const departed = Boolean(b.departDate && new Date(b.departDate) < now);
       followUps.push({
         id: `bal-${b.id}`,
+        kind: "payment",
         href: `/bookings/${b.id}`,
         title: `Collect balance on ${b.reference}`,
         meta: `${formatMoney(balance, b.currency || "DZD")} due${
           b.departDate ? ` · departs ${formatDate(b.departDate)}` : ""
         }`,
-        priority: "high",
+        priority: departed ? "high" : "medium",
       });
     }
   }
@@ -400,6 +413,7 @@ export default async function DashboardPage() {
     const overdue = close < now;
     followUps.push({
       id: `opp-${o.id}`,
+      kind: "deal",
       href: `/opportunities/${o.id}`,
       title: `Follow up ${o.title}`,
       meta: overdue
@@ -412,6 +426,7 @@ export default async function DashboardPage() {
   for (const a of passportAlerts) {
     followUps.push({
       id: `pass-${a.bookingId}-${a.traveller}`,
+      kind: "document",
       href: `/bookings/${a.bookingId}`,
       title: `Passport check — ${a.traveller}`,
       meta: `${a.reference} · ${a.message}`,
@@ -542,9 +557,12 @@ export default async function DashboardPage() {
   const firstName = user.name.split(" ")[0] ?? user.name;
 
   // Pre-build optional delta pills so we never pass an explicit `undefined`
-  // (the project uses exactOptionalPropertyTypes).
+  // (the project uses exactOptionalPropertyTypes). When the CURRENT period is
+  // zero we suppress the (always −100% / alarming red) delta and surface a
+  // neutral "none yet this month" note instead — a fresh calendar month with no
+  // confirmed activity is not a regression.
   const revenueDelta =
-    revenueGrowth !== null
+    revenueGrowth !== null && revenueThisMonth > 0
       ? {
           value: `${revenueGrowth > 0 ? "+" : ""}${revenueGrowth}%`,
           direction: (revenueGrowth >= 0 ? "up" : "down") as "up" | "down",
@@ -552,7 +570,7 @@ export default async function DashboardPage() {
         }
       : null;
   const confirmedDelta =
-    confirmedGrowth !== null
+    confirmedGrowth !== null && confirmedThisMonth > 0
       ? {
           value: `${confirmedGrowth > 0 ? "+" : ""}${confirmedGrowth}%`,
           direction: (confirmedGrowth >= 0 ? "up" : "down") as "up" | "down",
@@ -626,12 +644,20 @@ export default async function DashboardPage() {
           {
             label: "Revenue this month",
             value: formatMoneyCompact(revenueThisMonth),
-            ...(revenueDelta ? { delta: revenueDelta } : {}),
+            ...(revenueDelta
+              ? { delta: revenueDelta }
+              : revenueThisMonth === 0
+                ? { note: "no confirmed revenue yet this month" }
+                : {}),
           },
           {
             label: "Confirmed bookings",
             value: confirmedThisMonth,
-            ...(confirmedDelta ? { delta: confirmedDelta } : {}),
+            ...(confirmedDelta
+              ? { delta: confirmedDelta }
+              : confirmedThisMonth === 0
+                ? { note: "none yet this month" }
+                : {}),
           },
           {
             label: "Pipeline value",
@@ -675,23 +701,21 @@ export default async function DashboardPage() {
           title="Revenue"
           subtitle="Confirmed revenue · last 12 months"
         >
-          <RevenueTrend
-            data={revenueMonthly}
-            bookingsData={bookingsMonthly}
-            headline={formatMoney(revenueThisMonth)}
-            {...(revenueDelta
-              ? { deltaLabel: revenueDelta.value, deltaDirection: revenueDelta.direction }
-              : {})}
-          />
+          <RevenueTrend data={revenueMonthly} bookingsData={bookingsMonthly} />
         </SectionCard>
 
         <SectionCard
           icon={Briefcase}
           title="Bookings by status"
-          subtitle={`${active.length} active booking${active.length === 1 ? "" : "s"}`}
+          subtitle={
+            bookings.length === active.length
+              ? `${active.length} active booking${active.length === 1 ? "" : "s"}`
+              : `${bookings.length} total · ${active.length} active`
+          }
         >
           <BookingsStatusPanel
             data={byStatus}
+            activeCount={active.length}
             outstanding={formatMoney(outstandingTotal)}
             avgBookingValue={formatMoney(avgBookingValue)}
           />
@@ -762,7 +786,7 @@ export default async function DashboardPage() {
               Nothing needs attention right now.
             </p>
           ) : (
-            <FollowUpsList items={followUps.slice(0, 6)} />
+            <FollowUpsList items={followUps} />
           )}
         </SectionCard>
       </div>
@@ -823,7 +847,7 @@ export default async function DashboardPage() {
           <SectionCard
             icon={MapPin}
             title="Top destinations"
-            subtitle="By revenue this month"
+            subtitle="By revenue · last 12 months"
           >
             <TopDestinations rows={destinationRows} />
           </SectionCard>

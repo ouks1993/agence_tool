@@ -7,21 +7,27 @@ import { DonutInsight, type Point } from "@/components/charts/insight-charts";
  */
 export function BookingsStatusPanel({
   data,
+  activeCount,
   outstanding,
   avgBookingValue,
 }: {
   data: Point[];
+  /**
+   * Active (non-cancelled) booking count shown in the donut centre. The donut
+   * segments still cover every status (incl. cancelled) as legend rows, but the
+   * centre figure matches the card's "active" subtitle so the two agree.
+   */
+  activeCount: number;
   outstanding: string;
   avgBookingValue: string;
 }) {
-  const total = data.reduce((s, d) => s + d.value, 0);
   return (
     <div className="space-y-4">
       <DonutInsight
         data={data}
         height={180}
-        centerValue={total.toLocaleString()}
-        centerLabel={total === 1 ? "booking" : "bookings"}
+        centerValue={activeCount.toLocaleString()}
+        centerLabel="active"
       />
       <div className="space-y-2 border-t pt-4">
         <div className="flex items-center justify-between">

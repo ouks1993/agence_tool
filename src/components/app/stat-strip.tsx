@@ -13,6 +13,12 @@ export type StatStripItem = {
   tone?: string;
   /** Optional trend pill shown beside the value. Caption is omitted in the strip. */
   delta?: StatDelta;
+  /**
+   * Optional muted annotation shown in place of a delta pill — e.g. a neutral
+   * "none yet this month" line when the current period is zero and an alarming
+   * −100% delta would be misleading. Ignored when `delta` is set.
+   */
+  note?: string;
 };
 
 /**
@@ -73,6 +79,11 @@ export function StatStrip({
                     </span>
                   )}
                 </div>
+                {!item.delta && item.note && (
+                  <div className="mt-0.5 text-[11px] font-medium text-muted-foreground">
+                    {item.note}
+                  </div>
+                )}
               </div>
             </Fragment>
           );

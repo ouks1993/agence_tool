@@ -25,13 +25,24 @@ The insights section (`DashboardInsights` in `dashboard-insights.tsx`) is
 rendered inside a Suspense boundary — the page shell streams first, then the
 insights-specific queries resolve behind `DashboardInsightsSkeleton`. It renders:
 
-- **Finance KPIs:** Total revenue (confirmed bookings, DZD), Collected (completed
-  payments net of refunds), Outstanding, Won pipeline.
-- **Performance KPIs:** Conversion rate (won ÷ closed), Avg booking value, MoM
-  revenue growth (from the last two monthly buckets).
-- **Charts:** Revenue evolution (last 6 months), Top destinations by revenue,
-  Top clients by revenue, Revenue per agent, Bookings by status (count donut),
+- **Finance KPIs (3 tiles, all-time, labelled "· all time"):** Total revenue
+  (post-confirmation bookings — `confirmed | paid | ticketed | completed`, DZD),
+  Collected (completed payments net of refunds), Won pipeline. The former "MoM
+  revenue growth" tile was removed — the hero StatStrip's this-month delta is
+  the page's single growth metric (it renders a neutral "no confirmed revenue
+  yet this month" note instead of a red −100% chip when the current month is
+  still zero).
+- **Charts:** Revenue evolution (last 12 months), Top destinations by revenue
+  (last 12 months), Top clients by revenue, Revenue per agent (first names
+  title-cased), Bookings by status (count donut — center shows the **active**
+  count; subtitle reads "N total · M active" when cancellations exist),
   Lead sources (client count), Top source markets (clients by country).
+
+> **Dashboard revenue basis:** everywhere the dashboard says "revenue" it now
+> means bookings in a post-confirmation lifecycle status
+> (`confirmed | paid | ticketed | completed`), DZD-only — previously
+> `confirmed` only, which made "Collected" exceed "Total revenue". The
+> `/reports` and `/finance` definitions are unchanged.
 
 The page itself (`dashboard/page.tsx`) also builds a **pipeline funnel by value**
 across `OPPORTUNITY_STAGES` (excluding `lost`), summing DZD `opportunity.value`
@@ -172,10 +183,17 @@ Shared behaviour:
 - Colors come from a 6-entry `CHART_COLORS` palette (`--chart-1` … `--chart-6`),
   cycled via `colorAt(i)`. Tooltips use `--popover` / `--border` /
   `--radius-md`; axis ticks use `--muted-foreground`.
+- **Axis ticks are compact** (`makeAxisTickFormatter`): large values render as
+  lowercase compact units ("1.2m", "600k") with no currency code — the full
+  `Intl` precision lives in the tooltip. This keeps 7–8-digit DZD figures from
+  clipping the Y axis.
 - Empty/zero data renders an `EmptyChart` ("Not enough data yet.").
 - `FunnelInsight` is CSS-only (no recharts) so it stays crisp at any width; each
-  row shows the stage label, formatted value, and conversion % vs the first
-  stage. It is consumed by both `dashboard/page.tsx` and
+  row shows the stage label, formatted value, and **per-step conversion** — the
+  stage's value as a % of the *previous* stage (standard funnel semantics). The
+  first row shows no %, a zero-value predecessor renders "—", and >100% is
+  possible when a later stage's value legitimately exceeds the prior stage's.
+  It is consumed by both `dashboard/page.tsx` and
   `opportunities/page.tsx` (the "Conversion funnel (by value)" card).
 
 The `Point` type (`{ label: string; value: number }`) and the `ChartFormat`

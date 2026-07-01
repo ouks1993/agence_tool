@@ -17,7 +17,7 @@ export function TopDestinations({ rows }: { rows: DestinationRow[] }) {
   if (rows.length === 0) {
     return (
       <p className="text-muted-foreground py-2 text-sm">
-        No destination revenue this month yet.
+        No destination revenue in the last 12 months yet.
       </p>
     );
   }

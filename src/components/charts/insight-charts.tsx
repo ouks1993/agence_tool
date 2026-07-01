@@ -66,6 +66,37 @@ function makeFormatter(
   return (n) => n.toLocaleString();
 }
 
+/**
+ * Builds a *compact* formatter for AXIS TICKS only — 7-8 digit currency ticks
+ * ("1,200,000") overflow the default YAxis width and render clipped ("00,000").
+ * Compact notation keeps ticks short ("1.2m", "600k") while tooltips keep full
+ * precision via `makeFormatter`. Small integers stay unchanged.
+ *
+ * Lowercased ("m"/"k") to match the app's dense axis style. Currency ticks are
+ * kept unit-less (no code/symbol) — the axis header/tooltip already carry the
+ * currency, and a suffix would re-introduce the width overflow this fixes.
+ */
+function makeAxisTickFormatter(
+  _format: ChartFormat,
+  _currency: string
+): (n: number) => string {
+  // Both `currency` and `number` axes get the same unit-less compact treatment:
+  // ticks intentionally drop the currency code/symbol (the axis/tooltip already
+  // carry it) so 7-8 digit values no longer overflow the YAxis width. The params
+  // are kept to mirror `makeFormatter`'s signature and stay call-site symmetric.
+  const compact = new Intl.NumberFormat("en", {
+    notation: "compact",
+    compactDisplay: "short",
+    maximumFractionDigits: 1,
+  });
+  return (n) => {
+    if (!Number.isFinite(n)) return "";
+    // Small values render plainly (compact leaves them as-is, e.g. "600"); the
+    // lowercase pass only affects the "K"/"M"/"B" suffix on large values.
+    return compact.format(n).toLowerCase();
+  };
+}
+
 /** Vertical bar chart — good for "bookings by country", "team performance". */
 export function BarInsight({
   data,
@@ -81,6 +112,7 @@ export function BarInsight({
   currency?: string;
 }) {
   const fmt = makeFormatter(format, currency);
+  const tickFmt = makeAxisTickFormatter(format, currency);
   if (data.length === 0) {
     return <EmptyChart height={height} />;
   }
@@ -94,8 +126,8 @@ export function BarInsight({
             tick={axisTick}
             tickLine={false}
             axisLine={false}
-            width={48}
-            tickFormatter={fmt}
+            width={52}
+            tickFormatter={tickFmt}
           />
           <Tooltip
             cursor={{ fill: "var(--accent)", opacity: 0.4 }}
@@ -214,6 +246,7 @@ export function AreaInsight({
   currency?: string;
 }) {
   const fmt = makeFormatter(format, currency);
+  const tickFmt = makeAxisTickFormatter(format, currency);
   if (data.length === 0) {
     return <EmptyChart height={height} />;
   }
@@ -233,8 +266,8 @@ export function AreaInsight({
             tick={axisTick}
             tickLine={false}
             axisLine={false}
-            width={48}
-            tickFormatter={fmt}
+            width={52}
+            tickFormatter={tickFmt}
           />
           <Tooltip contentStyle={tooltipStyle} formatter={(value) => fmt(Number(value))} />
           <Area
@@ -265,6 +298,7 @@ export function HBarInsight({
   currency?: string;
 }) {
   const fmt = makeFormatter(format, currency);
+  const tickFmt = makeAxisTickFormatter(format, currency);
   if (data.length === 0) {
     return <EmptyChart height={height} />;
   }
@@ -277,7 +311,7 @@ export function HBarInsight({
           margin={{ top: 4, right: 12, left: 4, bottom: 4 }}
         >
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
-          <XAxis type="number" tick={axisTick} tickLine={false} axisLine={false} tickFormatter={fmt} />
+          <XAxis type="number" tick={axisTick} tickLine={false} axisLine={false} tickFormatter={tickFmt} />
           <YAxis
             type="category"
             dataKey="label"
@@ -301,8 +335,15 @@ export function HBarInsight({
 
 /**
  * Funnel — stacked horizontal stage bars that shrink as the pipeline narrows.
- * Each row shows the stage label, value, and conversion vs the first stage.
- * Pure CSS bars (no recharts) so it stays crisp at any width.
+ * Each row shows the stage label, value, and *step* conversion: the percentage
+ * of the PREVIOUS stage's value that reached this stage (standard funnel
+ * semantics). The first row shows no % (nothing precedes it). A stage can
+ * legitimately convert above 100% when its value grows vs the prior stage, so
+ * the figure is not capped — it stays truthful. When the previous stage is 0
+ * (division undefined) the cell renders "—".
+ *
+ * Bar widths remain proportional to the max value across all stages. Pure CSS
+ * bars (no recharts) so it stays crisp at any width.
  */
 export function FunnelInsight({
   data,
@@ -317,13 +358,15 @@ export function FunnelInsight({
   if (data.length === 0 || data.every((d) => d.value === 0)) {
     return <EmptyChart height={200} />;
   }
-  const top = data[0]?.value || 1;
   const max = Math.max(...data.map((d) => d.value), 1);
   return (
     <div className="flex w-full flex-col gap-2">
       {data.map((d, i) => {
         const widthPct = Math.max((d.value / max) * 100, 4);
-        const convPct = Math.round((d.value / top) * 100);
+        const prev = i > 0 ? data[i - 1]?.value ?? 0 : 0;
+        // First row: no prior stage → no %. Prior value 0 → undefined ratio → "—".
+        const convLabel =
+          i === 0 ? "—" : prev === 0 ? "—" : `${Math.round((d.value / prev) * 100)}%`;
         return (
           <div key={d.label} className="flex items-center gap-3">
             <span className="text-muted-foreground w-28 shrink-0 truncate text-xs">
@@ -338,7 +381,7 @@ export function FunnelInsight({
               </div>
             </div>
             <span className="text-muted-foreground w-10 shrink-0 text-right text-xs">
-              {i === 0 ? "—" : `${convPct}%`}
+              {convLabel}
             </span>
           </div>
         );
