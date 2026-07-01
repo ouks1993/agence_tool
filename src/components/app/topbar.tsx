@@ -76,7 +76,7 @@ export function Topbar({
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link href="/profile">
+              <Link href="/settings">
                 <UserIcon className="size-4" />
                 {tCommon("profile")}
               </Link>

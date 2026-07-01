@@ -3,16 +3,20 @@
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
+import { useTranslations } from "next-intl"
+import { PasswordInput } from "@/components/auth/password-input"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { resetPassword } from "@/lib/auth-client"
+import { MIN_PASSWORD_LENGTH } from "@/lib/config"
 
 export function ResetPasswordForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const token = searchParams.get("token")
   const error = searchParams.get("error")
+  const t = useTranslations("resetPassword")
+  const tAuth = useTranslations("auth")
 
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -21,17 +25,13 @@ export function ResetPasswordForm() {
 
   if (error === "invalid_token" || !token) {
     return (
-      <div className="space-y-4 w-full max-w-sm text-center">
-        <p role="alert" className="text-sm text-destructive">
-          {error === "invalid_token"
-            ? "This password reset link is invalid or has expired."
-            : "No reset token provided."}
+      <div className="w-full max-w-sm space-y-4 text-center">
+        <p role="alert" className="text-destructive text-sm">
+          {error === "invalid_token" ? t("invalidTitle") : t("noToken")}
         </p>
-        <Link href="/forgot-password">
-          <Button variant="outline" className="w-full">
-            Request a new link
-          </Button>
-        </Link>
+        <Button asChild variant="outline" className="w-full">
+          <Link href="/forgot-password">{t("requestNew")}</Link>
+        </Button>
       </div>
     )
   }
@@ -41,12 +41,12 @@ export function ResetPasswordForm() {
     setFormError("")
 
     if (password !== confirmPassword) {
-      setFormError("Passwords do not match")
+      setFormError(tAuth("passwordsDoNotMatch"))
       return
     }
 
-    if (password.length < 8) {
-      setFormError("Password must be at least 8 characters")
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      setFormError(tAuth("passwordTooShort"))
       return
     }
 
@@ -59,48 +59,49 @@ export function ResetPasswordForm() {
       })
 
       if (result.error) {
-        setFormError(result.error.message || "Failed to reset password")
+        setFormError(result.error.message || t("failed"))
       } else {
         router.push("/login?reset=success")
       }
     } catch {
-      setFormError("An unexpected error occurred")
+      setFormError(tAuth("unexpectedError"))
     } finally {
       setIsPending(false)
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 w-full max-w-sm">
+    <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="password">New Password</Label>
-        <Input
+        <Label htmlFor="password">{t("newPassword")}</Label>
+        <PasswordInput
           id="password"
-          type="password"
-          placeholder="Enter new password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
           disabled={isPending}
+          aria-invalid={formError ? true : undefined}
         />
+        <p className="text-muted-foreground text-xs">{tAuth("passwordHint")}</p>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="confirmPassword">Confirm New Password</Label>
-        <Input
+        <Label htmlFor="confirmPassword">{t("confirmPassword")}</Label>
+        <PasswordInput
           id="confirmPassword"
-          type="password"
-          placeholder="Confirm new password"
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
           required
           disabled={isPending}
+          aria-invalid={formError ? true : undefined}
         />
       </div>
       {formError && (
-        <p role="alert" className="text-sm text-destructive">{formError}</p>
+        <p role="alert" className="text-destructive text-sm">
+          {formError}
+        </p>
       )}
       <Button type="submit" className="w-full" disabled={isPending}>
-        {isPending ? "Resetting..." : "Reset password"}
+        {isPending ? t("submitting") : t("submit")}
       </Button>
     </form>
   )

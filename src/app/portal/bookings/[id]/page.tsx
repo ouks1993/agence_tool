@@ -10,10 +10,12 @@ import {
   MessageCircle,
   Phone,
 } from "lucide-react";
+import { EmptyState } from "@/components/app/empty-state";
 import { PayNowButton } from "@/components/portal/pay-now-button";
 import {
   InfoLine,
   SectionHead,
+  TintPanel,
   TripStatusPill,
   tripGradient,
 } from "@/components/portal/portal-bits";
@@ -53,6 +55,17 @@ function nightsBetween(
   const ms = new Date(end).getTime() - new Date(start).getTime();
   if (ms <= 0) return null;
   return Math.round(ms / 86_400_000);
+}
+
+/** "Sunday, 2 Aug" — weekday + short date, matching the deck countdown foot. */
+function formatWeekdayDate(date: Date | string): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  if (Number.isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "short",
+  }).format(d);
 }
 
 /** Human label for a document type code. */
@@ -144,6 +157,9 @@ export default async function PortalBookingPage({
   if (agent?.name) heroMeta.push({ label: "Your agent", value: agent.name });
 
   const countdown = daysUntil(b.departDate);
+  const countdownFoot = b.departDate
+    ? formatWeekdayDate(b.departDate)
+    : undefined;
 
   return (
     <div className="space-y-7">
@@ -171,8 +187,10 @@ export default async function PortalBookingPage({
         subParts={subParts}
         meta={heroMeta}
         countdownDays={countdown}
-        countdownFoot={b.departDate ? formatDate(b.departDate) : undefined}
-        itineraryHref={b.shareToken ? `/i/${b.shareToken}` : undefined}
+        countdownFoot={countdownFoot}
+        packHref="#documents"
+        itineraryHref={b.shareToken ? `/i/${b.shareToken}` : "#itinerary"}
+        supportHref="#support"
         agentName={agent?.name ?? undefined}
       />
 
@@ -232,12 +250,23 @@ export default async function PortalBookingPage({
             </Card>
           </section>
 
-          {/* Documents — real booking documents only; omitted when none exist. */}
-          {b.documents.length > 0 && (
-            <section id="documents">
-              <SectionHead title="Documents" />
-              <Card className="card-elevated">
-                <CardContent className="py-2">
+          {/*
+            Documents — a first-class section (the hero's "Travel documents" CTA
+            anchors here). Always rendered so the anchor resolves; shows a
+            branded empty state until the agent uploads real documents.
+          */}
+          <section id="documents">
+            <SectionHead title="Documents" />
+            <Card className="card-elevated">
+              <CardContent className="py-2">
+                {b.documents.length === 0 ? (
+                  <EmptyState
+                    icon={FileText}
+                    title="No documents yet"
+                    description="Your travel pack, e-tickets and vouchers will appear here once your agent uploads them."
+                    className="border-0 py-8"
+                  />
+                ) : (
                   <div className="flex flex-col">
                     {b.documents.map((doc) => {
                       const label =
@@ -285,10 +314,10 @@ export default async function PortalBookingPage({
                       );
                     })}
                   </div>
-                </CardContent>
-              </Card>
-            </section>
-          )}
+                )}
+              </CardContent>
+            </Card>
+          </section>
 
           {/* Payments */}
           <section id="payments">
@@ -555,13 +584,7 @@ export default async function PortalBookingPage({
 
           {/* Shareable itinerary link (public, read-only) */}
           {b.shareToken && (
-            <div
-              className="rounded-lg border p-5"
-              style={{
-                backgroundImage:
-                  "linear-gradient(180deg, var(--accent) 0%, var(--card) 100%)",
-              }}
-            >
+            <TintPanel>
               <div className="mb-2 text-sm font-semibold">
                 Share your itinerary
               </div>
@@ -574,7 +597,7 @@ export default async function PortalBookingPage({
               >
                 View shareable itinerary →
               </Link>
-            </div>
+            </TintPanel>
           )}
         </aside>
       </div>

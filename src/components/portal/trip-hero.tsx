@@ -1,11 +1,13 @@
 import Link from "next/link";
-import { Calendar, Download, MessageCircle, Plane } from "lucide-react";
+import { Download, MessageCircle, Plane } from "lucide-react";
 
 /**
  * The branded "your next trip" hero card. Presentational only — every value is
  * derived server-side from real booking data and passed in. Action buttons are
- * rendered as affordances that link to real destinations where they exist
- * (itinerary share link, payments/documents anchors); no endpoints invented.
+ * rendered as affordances that link to real destinations only. Each CTA href is
+ * passed in explicitly by the host page (booking-detail sections, the share
+ * link, the support card) so no button is ever a dead anchor; a CTA is omitted
+ * entirely when its destination does not exist.
  */
 
 export type TripHeroMeta = { label: string; value: string };
@@ -18,7 +20,9 @@ export function TripHero({
   meta,
   countdownDays,
   countdownFoot,
+  packHref,
   itineraryHref,
+  supportHref,
   agentName,
 }: {
   eyebrow: string;
@@ -31,10 +35,15 @@ export function TripHero({
   countdownDays: number | null;
   /** Small caption under the countdown (e.g. formatted depart date). */
   countdownFoot?: string | undefined;
-  /** Real shareable itinerary link, when the booking has a share token. */
+  /** Real destination for the "travel pack" CTA (booking documents section). */
+  packHref?: string | undefined;
+  /** Real itinerary destination — booking detail or the share link. */
   itineraryHref?: string | undefined;
+  /** Real destination for the "message agent" CTA (support section/mailto). */
+  supportHref?: string | undefined;
   agentName?: string | undefined;
 }) {
+  const hasActions = Boolean(packHref || itineraryHref || supportHref);
   return (
     <section
       className="relative isolate mb-7 overflow-hidden rounded-xl border text-white shadow-lg"
@@ -111,39 +120,39 @@ export function TripHero({
           </div>
         )}
 
-        <div className="col-span-full flex flex-wrap gap-2.5 border-t border-white/15 pt-5">
-          <a
-            href="#documents"
-            className="inline-flex items-center gap-2 rounded-md bg-white px-4 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none"
-          >
-            <Download className="size-4" />
-            Download travel pack
-          </a>
-          {itineraryHref ? (
-            <Link
-              href={itineraryHref}
-              className="inline-flex items-center gap-2 rounded-md border border-white/30 bg-white/10 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none"
-            >
-              <Plane className="size-4" />
-              View full itinerary
-            </Link>
-          ) : (
-            <a
-              href="#itinerary"
-              className="inline-flex items-center gap-2 rounded-md border border-white/30 bg-white/10 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none"
-            >
-              <Calendar className="size-4" />
-              View full itinerary
-            </a>
-          )}
-          <a
-            href="#support"
-            className="inline-flex items-center gap-2 rounded-md border border-white/30 bg-white/10 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none"
-          >
-            <MessageCircle className="size-4" />
-            {agentName ? `Message ${agentName.split(/\s+/)[0]}` : "Message agent"}
-          </a>
-        </div>
+        {hasActions && (
+          <div className="col-span-full flex flex-wrap gap-2.5 border-t border-white/15 pt-5">
+            {packHref && (
+              <Link
+                href={packHref}
+                className="inline-flex items-center gap-2 rounded-md bg-white px-4 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none"
+              >
+                <Download className="size-4" />
+                Travel documents
+              </Link>
+            )}
+            {itineraryHref && (
+              <Link
+                href={itineraryHref}
+                className="inline-flex items-center gap-2 rounded-md border border-white/30 bg-white/10 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none"
+              >
+                <Plane className="size-4" />
+                View full itinerary
+              </Link>
+            )}
+            {supportHref && (
+              <a
+                href={supportHref}
+                className="inline-flex items-center gap-2 rounded-md border border-white/30 bg-white/10 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none"
+              >
+                <MessageCircle className="size-4" />
+                {agentName
+                  ? `Message ${agentName.split(/\s+/)[0]}`
+                  : "Message agent"}
+              </a>
+            )}
+          </div>
+        )}
       </div>
     </section>
   );

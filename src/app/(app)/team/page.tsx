@@ -1,6 +1,16 @@
 import { and, asc, desc, eq, sql } from "drizzle-orm";
-import { ShieldCheck, Activity, Info, MailPlus } from "lucide-react";
+import {
+  ShieldCheck,
+  Activity,
+  Info,
+  MailPlus,
+  Users,
+  Target,
+  Trophy,
+} from "lucide-react";
+import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
+import { StatCard } from "@/components/app/stat-card";
 import { StatusBadge } from "@/components/app/status-badge";
 import { PendingInviteRow, TeamInviteForm } from "@/components/team/invite-form";
 import { MemberControls } from "@/components/team/member-controls";
@@ -16,7 +26,12 @@ import {
 } from "@/components/ui/table";
 import { describeActivity } from "@/lib/activity-format";
 import { db } from "@/lib/db";
-import { OPEN_STAGES, USER_ROLES, USER_ROLE_META } from "@/lib/domain";
+import {
+  DEFAULT_CURRENCY,
+  OPEN_STAGES,
+  USER_ROLES,
+  USER_ROLE_META,
+} from "@/lib/domain";
 import type { UserRole } from "@/lib/domain";
 import { formatMoney, formatRelative, initials } from "@/lib/format";
 import { requireAgencyUser, requireManager } from "@/lib/permissions";
@@ -80,6 +95,7 @@ export default async function TeamPage() {
       assignedToId: opportunity.assignedToId,
       stage: opportunity.stage,
       value: opportunity.value,
+      currency: opportunity.currency,
     })
     .from(opportunity)
     .where(eq(opportunity.agencyId, agencyId));
@@ -91,6 +107,9 @@ export default async function TeamPage() {
     .groupBy(client.ownerId);
   const clientMap = new Map(clientCounts.map((c) => [c.ownerId, c.count]));
 
+  // Won revenue is a monetary aggregate: never sum across currencies. We only
+  // headline the agency's default currency (DZD) — records in other currencies
+  // are excluded from the money figure (their count still lands in "won").
   const openByUser = new Map<string, number>();
   const wonByUser = new Map<string, number>();
   for (const o of opps) {
@@ -98,13 +117,19 @@ export default async function TeamPage() {
     if (OPEN_STAGES.includes(o.stage as (typeof OPEN_STAGES)[number])) {
       openByUser.set(o.assignedToId, (openByUser.get(o.assignedToId) ?? 0) + 1);
     }
-    if (o.stage === "won") {
+    if (o.stage === "won" && (o.currency || DEFAULT_CURRENCY) === DEFAULT_CURRENCY) {
       wonByUser.set(
         o.assignedToId,
         (wonByUser.get(o.assignedToId) ?? 0) + parseFloat(o.value || "0")
       );
     }
   }
+
+  // Agency-level KPI band (all count-based except Won revenue, which is
+  // headline-currency-only via the guard above).
+  const activeMembers = members.filter((m) => m.active).length;
+  const totalOpenOpps = [...openByUser.values()].reduce((s, n) => s + n, 0);
+  const totalWon = [...wonByUser.values()].reduce((s, n) => s + n, 0);
 
   const activities = await db.query.activityLog.findMany({
     where: eq(activityLog.agencyId, agencyId),
@@ -120,6 +145,38 @@ export default async function TeamPage() {
         description="Manage access and oversee what your team is working on."
       />
 
+      {/* KPI band — agency-level team snapshot */}
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          label="Team members"
+          value={members.length}
+          hint={`${activeMembers} active`}
+          icon={Users}
+        />
+        <StatCard
+          label="Active seats"
+          value={activeMembers}
+          hint={
+            members.length - activeMembers > 0
+              ? `${members.length - activeMembers} inactive`
+              : "All active"
+          }
+          icon={ShieldCheck}
+        />
+        <StatCard
+          label="Open opportunities"
+          value={totalOpenOpps}
+          hint="Across the team"
+          icon={Target}
+        />
+        <StatCard
+          label="Won revenue"
+          value={formatMoney(totalWon)}
+          hint={`${DEFAULT_CURRENCY} deals only`}
+          icon={Trophy}
+        />
+      </div>
+
       <div className="bg-muted/50 text-muted-foreground flex items-start gap-2 rounded-lg border p-3 text-sm">
         <Info className="mt-0.5 size-4 shrink-0" />
         <p>
@@ -131,8 +188,11 @@ export default async function TeamPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <MailPlus className="size-4" /> Invite a team member
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <span className="bg-primary/10 text-primary flex size-7 items-center justify-center rounded-md">
+              <MailPlus className="size-4" />
+            </span>{" "}
+            Invite a team member
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -181,90 +241,97 @@ export default async function TeamPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <ShieldCheck className="size-4" /> Members ({members.length})
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <span className="bg-primary/10 text-primary flex size-7 items-center justify-center rounded-md">
+              <ShieldCheck className="size-4" />
+            </span>{" "}
+            Members ({members.length})
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Member</TableHead>
-                <TableHead className="text-right">Clients</TableHead>
-                <TableHead className="text-right">Open opps</TableHead>
-                <TableHead className="text-right">Won</TableHead>
-                <TableHead className="text-right">Access</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {members.map((m) => (
-                <TableRow key={m.id} className={m.active ? "" : "opacity-60"}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Avatar className="size-8">
-                        <AvatarFallback className="text-xs">
-                          {initials(m.name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0">
-                        <p className="flex items-center gap-2 font-medium">
-                          {m.name}
-                          {m.id === me.id && (
-                            <span className="text-muted-foreground text-xs">
-                              (you)
-                            </span>
-                          )}
-                          {!m.active && (
+        <CardContent>
+          <div className="rounded-lg border">
+            <Table zebra>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Member</TableHead>
+                  <TableHead numeric>Clients</TableHead>
+                  <TableHead numeric>Open opps</TableHead>
+                  <TableHead numeric>Won</TableHead>
+                  <TableHead align="right">Access</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {members.map((m) => (
+                  <TableRow key={m.id} className={m.active ? "" : "opacity-60"}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar className="size-8">
+                          <AvatarFallback className="text-xs">
+                            {initials(m.name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <p className="flex items-center gap-2 font-medium">
+                            {m.name}
+                            {m.id === me.id && (
+                              <span className="text-muted-foreground text-xs">
+                                (you)
+                              </span>
+                            )}
+                            {!m.active && (
+                              <StatusBadge label="Inactive" variant="danger" />
+                            )}
+                          </p>
+                          <p className="text-muted-foreground text-xs">
+                            {m.email}
+                          </p>
+                          <div className="mt-1">
                             <StatusBadge
-                              label="Inactive"
-                              tone="bg-red-500/15 text-red-600 dark:text-red-400"
+                              label={USER_ROLE_META[m.role as UserRole].label}
+                              tone={USER_ROLE_META[m.role as UserRole].badgeClass}
                             />
-                          )}
-                        </p>
-                        <p className="text-muted-foreground text-xs">{m.email}</p>
-                        <div className="mt-1">
-                          <StatusBadge
-                            label={USER_ROLE_META[m.role as UserRole].label}
-                            tone={USER_ROLE_META[m.role as UserRole].badgeClass}
-                          />
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {clientMap.get(m.id) ?? 0}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {openByUser.get(m.id) ?? 0}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatMoney(wonByUser.get(m.id) ?? 0)}
-                  </TableCell>
-                  <TableCell>
-                    <MemberControls
-                      userId={m.id}
-                      role={m.role}
-                      active={m.active}
-                      isSelf={m.id === me.id}
-                      assignableRoles={assignableRoles}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                    </TableCell>
+                    <TableCell numeric>{clientMap.get(m.id) ?? 0}</TableCell>
+                    <TableCell numeric>{openByUser.get(m.id) ?? 0}</TableCell>
+                    <TableCell numeric>
+                      {formatMoney(wonByUser.get(m.id) ?? 0)}
+                    </TableCell>
+                    <TableCell align="right">
+                      <MemberControls
+                        userId={m.id}
+                        role={m.role}
+                        active={m.active}
+                        isSelf={m.id === me.id}
+                        assignableRoles={assignableRoles}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Activity className="size-4" /> Team activity
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <span className="bg-primary/10 text-primary flex size-7 items-center justify-center rounded-md">
+              <Activity className="size-4" />
+            </span>{" "}
+            Team activity
           </CardTitle>
         </CardHeader>
         <CardContent>
           {activities.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No activity yet.</p>
+            <EmptyState
+              icon={Activity}
+              title="No activity yet"
+              description="Actions your team takes — new bookings, proposals, status changes — will show up here."
+            />
           ) : (
             <ul className="space-y-3">
               {activities.map((a) => (

@@ -192,7 +192,7 @@ export default async function SupportPage() {
       </PageHeader>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Active bookings"
           value={active.length}
@@ -222,10 +222,15 @@ export default async function SupportPage() {
       {/* Action queue */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <ListChecks className="size-4" /> Action queue
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <span className="bg-primary/10 text-primary flex size-7 items-center justify-center rounded-md">
+              <ListChecks className="size-4" />
+            </span>{" "}
+            Action queue
           </CardTitle>
-          <span className="text-muted-foreground text-xs">{queue.length} to handle</span>
+          <span className="text-muted-foreground text-xs tabular-nums">
+            {queue.length} to handle
+          </span>
         </CardHeader>
         <CardContent>
           {queue.length === 0 ? (
@@ -236,7 +241,7 @@ export default async function SupportPage() {
             />
           ) : (
             <div className="rounded-lg border">
-              <Table>
+              <Table zebra>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Reference</TableHead>
@@ -269,7 +274,7 @@ export default async function SupportPage() {
                         <TableCell className="text-muted-foreground">
                           {row.destination ?? "—"}
                         </TableCell>
-                        <TableCell className="text-muted-foreground text-xs">
+                        <TableCell className="text-muted-foreground text-xs tabular-nums">
                           {formatDate(row.departDate)}
                         </TableCell>
                         <TableCell>
@@ -314,8 +319,11 @@ export default async function SupportPage() {
         {/* Clients */}
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Users className="size-4" /> Clients
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <span className="bg-primary/10 text-primary flex size-7 items-center justify-center rounded-md">
+                <Users className="size-4" />
+              </span>{" "}
+              Clients
             </CardTitle>
             <Button asChild variant="ghost" size="sm">
               <Link href="/clients">All clients</Link>
@@ -323,15 +331,19 @@ export default async function SupportPage() {
           </CardHeader>
           <CardContent>
             {clients.length === 0 ? (
-              <p className="text-muted-foreground text-sm">No clients yet.</p>
+              <EmptyState
+                icon={Users}
+                title="No clients yet"
+                description="Clients you add will appear here with their booking counts."
+              />
             ) : (
               <div className="rounded-lg border">
-                <Table>
+                <Table zebra>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Name</TableHead>
                       <TableHead>Contact</TableHead>
-                      <TableHead className="text-right">Bookings</TableHead>
+                      <TableHead numeric>Bookings</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -353,7 +365,7 @@ export default async function SupportPage() {
                         <TableCell className="text-muted-foreground text-xs">
                           {c.email ?? c.phone ?? "—"}
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell numeric>
                           {bookingCountMap.get(c.id) ?? 0}
                         </TableCell>
                       </TableRow>
@@ -368,15 +380,20 @@ export default async function SupportPage() {
         {/* Operations strip — next 14 days */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <CalendarClock className="size-4" /> Next {OPS_WINDOW_DAYS} days
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <span className="bg-primary/10 text-primary flex size-7 items-center justify-center rounded-md">
+                <CalendarClock className="size-4" />
+              </span>{" "}
+              Next {OPS_WINDOW_DAYS} days
             </CardTitle>
           </CardHeader>
           <CardContent>
             {opsTrips.length === 0 ? (
-              <p className="text-muted-foreground text-sm">
-                No departures in the next {OPS_WINDOW_DAYS} days.
-              </p>
+              <EmptyState
+                icon={CalendarClock}
+                title="No departures ahead"
+                description={`No trips depart in the next ${OPS_WINDOW_DAYS} days.`}
+              />
             ) : (
               <ul className="divide-y">
                 {opsTrips.slice(0, 8).map((trip) => {
@@ -391,7 +408,7 @@ export default async function SupportPage() {
                           <span className="min-w-0 truncate font-medium">
                             {trip.clientName ?? trip.destination ?? trip.reference}
                           </span>
-                          <span className="text-muted-foreground shrink-0 text-xs">
+                          <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
                             {formatDate(trip.departDate)}
                           </span>
                         </span>

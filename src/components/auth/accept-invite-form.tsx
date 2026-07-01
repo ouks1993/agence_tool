@@ -2,11 +2,14 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { useTranslations } from "next-intl"
 import { toast } from "sonner"
+import { PasswordInput } from "@/components/auth/password-input"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { signUp } from "@/lib/auth-client"
+import { MIN_PASSWORD_LENGTH } from "@/lib/config"
 
 /**
  * Sign-up form for accepting an invite. The email is fixed by the invite (the
@@ -15,6 +18,8 @@ import { signUp } from "@/lib/auth-client"
  */
 export function AcceptInviteForm({ email }: { email: string }) {
   const router = useRouter()
+  const t = useTranslations("invite")
+  const tAuth = useTranslations("auth")
   const [name, setName] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -26,12 +31,12 @@ export function AcceptInviteForm({ email }: { email: string }) {
     setError("")
 
     if (password !== confirmPassword) {
-      setError("Passwords do not match")
+      setError(tAuth("passwordsDoNotMatch"))
       return
     }
 
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters")
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      setError(tAuth("passwordTooShort"))
       return
     }
 
@@ -41,31 +46,31 @@ export function AcceptInviteForm({ email }: { email: string }) {
       const result = await signUp.email({ name, email, password })
 
       if (result.error) {
-        setError(result.error.message || "Failed to create account")
+        setError(result.error.message || t("failed"))
       } else {
-        toast.success("Account created. Welcome aboard!")
+        toast.success(t("welcome"))
         router.push("/dashboard")
         router.refresh()
       }
     } catch {
-      setError("An unexpected error occurred")
+      setError(tAuth("unexpectedError"))
     } finally {
       setIsPending(false)
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 w-full max-w-sm">
+    <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email">{t("email")}</Label>
         <Input id="email" type="email" value={email} readOnly disabled />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="name">Name</Label>
+        <Label htmlFor="name">{t("name")}</Label>
         <Input
           id="name"
           type="text"
-          placeholder="Your name"
+          placeholder={t("namePlaceholder")}
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
@@ -73,32 +78,35 @@ export function AcceptInviteForm({ email }: { email: string }) {
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="password">Password</Label>
-        <Input
+        <Label htmlFor="password">{t("password")}</Label>
+        <PasswordInput
           id="password"
-          type="password"
-          placeholder="Create a password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
           disabled={isPending}
+          aria-invalid={error ? true : undefined}
         />
+        <p className="text-muted-foreground text-xs">{tAuth("passwordHint")}</p>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="confirmPassword">Confirm Password</Label>
-        <Input
+        <Label htmlFor="confirmPassword">{t("confirmPassword")}</Label>
+        <PasswordInput
           id="confirmPassword"
-          type="password"
-          placeholder="Confirm your password"
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
           required
           disabled={isPending}
+          aria-invalid={error ? true : undefined}
         />
       </div>
-      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+      {error && (
+        <p role="alert" className="text-destructive text-sm">
+          {error}
+        </p>
+      )}
       <Button type="submit" className="w-full" disabled={isPending}>
-        {isPending ? "Creating account..." : "Accept invite"}
+        {isPending ? t("creating") : t("accept")}
       </Button>
     </form>
   )

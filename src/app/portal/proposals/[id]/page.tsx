@@ -83,7 +83,7 @@ export default async function PortalProposalPage({
   ) : null;
 
   return (
-    <div className="max-w-3xl space-y-4">
+    <div className="space-y-4">
       <Link
         href="/portal/proposals"
         className="text-muted-foreground hover:text-foreground text-sm transition-colors"

@@ -42,10 +42,12 @@ export function BookingsBoard({ bookings }: { bookings: BookingRow[] }) {
             <div className="mb-2 flex items-center justify-between px-1">
               <div className="flex items-center gap-2">
                 <h2 className="text-sm font-semibold">{meta.label}</h2>
-                <span className="text-muted-foreground text-xs">{cards.length}</span>
+                <span className="text-muted-foreground text-xs tabular-nums">
+                  {cards.length}
+                </span>
               </div>
               {total > 0 && (
-                <span className="text-muted-foreground text-xs">
+                <span className="text-muted-foreground text-xs tabular-nums">
                   {formatMoney(total, cards[0]?.currency)}
                 </span>
               )}
@@ -69,11 +71,11 @@ export function BookingsBoard({ bookings }: { bookings: BookingRow[] }) {
                       {b.destination ? ` · ${b.destination}` : ""}
                     </p>
                     <div className="mt-1 flex items-center justify-between">
-                      <span className="text-sm font-semibold">
+                      <span className="text-sm font-semibold tabular-nums">
                         {formatMoney(b.totalAmount, b.currency)}
                       </span>
                       {b.departDate && (
-                        <span className="text-muted-foreground text-xs">
+                        <span className="text-muted-foreground text-xs tabular-nums">
                           {formatDate(b.departDate)}
                         </span>
                       )}

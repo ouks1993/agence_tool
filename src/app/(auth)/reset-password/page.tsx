@@ -1,6 +1,7 @@
 import { Suspense } from "react"
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
+import { getTranslations } from "next-intl/server"
 import { ResetPasswordForm } from "@/components/auth/reset-password-form"
 import {
   Card,
@@ -9,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { Spinner } from "@/components/ui/spinner"
 import { auth } from "@/lib/auth"
 
 export default async function ResetPasswordPage() {
@@ -18,19 +20,25 @@ export default async function ResetPasswordPage() {
     redirect("/dashboard")
   }
 
+  const t = await getTranslations("resetPassword")
+
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle>Reset password</CardTitle>
-          <CardDescription>Enter your new password below</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col items-center">
-          <Suspense fallback={<div>Loading...</div>}>
-            <ResetPasswordForm />
-          </Suspense>
-        </CardContent>
-      </Card>
-    </div>
+    <Card className="w-full max-w-md">
+      <CardHeader className="text-center">
+        <CardTitle className="text-2xl tracking-tight">{t("title")}</CardTitle>
+        <CardDescription>{t("subtitle")}</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col items-center">
+        <Suspense
+          fallback={
+            <div className="flex w-full justify-center py-6">
+              <Spinner size="md" />
+            </div>
+          }
+        >
+          <ResetPasswordForm />
+        </Suspense>
+      </CardContent>
+    </Card>
   )
 }

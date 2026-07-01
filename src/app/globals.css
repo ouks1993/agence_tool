@@ -293,6 +293,48 @@
   }
 }
 
+/* ---------------------------------------------------------------------------
+ * Print — booking documents (invoice / voucher) are print/PDF-only screens.
+ * Define page geometry (A4 + margins), force accurate ink, and keep financial
+ * rows/list items from breaking across pages. Screen chrome opts out via the
+ * `.doc-print-hidden` hook and Tailwind `print:` utilities on the doc shell.
+ * ------------------------------------------------------------------------- */
+@media print {
+  @page {
+    size: A4;
+    margin: 16mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+  }
+
+  /* Preserve brand ink (gradient chip, amber balance, etc.) in the PDF. */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Never print interactive chrome (print button, nav, back links). */
+  .doc-print-hidden {
+    display: none !important;
+  }
+
+  /* Keep line items, payment rows and traveller entries whole across pages. */
+  tr,
+  li,
+  .doc-avoid-break {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Repeat table headers when a long line-item table spans pages. */
+  thead {
+    display: table-header-group;
+  }
+}
+
 /* Respect reduced-motion — collapse animations/transitions for users who opt out. */
 @media (prefers-reduced-motion: reduce) {
   *,

@@ -2,12 +2,16 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { MailCheck } from "lucide-react"
+import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { requestPasswordReset } from "@/lib/auth-client"
 
 export function ForgotPasswordForm() {
+  const t = useTranslations("forgotPassword")
+  const tAuth = useTranslations("auth")
   const [email, setEmail] = useState("")
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
@@ -25,12 +29,12 @@ export function ForgotPasswordForm() {
       })
 
       if (result.error) {
-        setError(result.error.message || "Failed to send reset email")
+        setError(result.error.message || t("failed"))
       } else {
         setSuccess(true)
       }
     } catch {
-      setError("An unexpected error occurred")
+      setError(tAuth("unexpectedError"))
     } finally {
       setIsPending(false)
     }
@@ -38,44 +42,48 @@ export function ForgotPasswordForm() {
 
   if (success) {
     return (
-      <div className="space-y-4 w-full max-w-sm text-center">
-        <p className="text-sm text-muted-foreground">
-          If an account exists with that email, a password reset link has been sent.
-          Check your terminal for the reset URL.
-        </p>
-        <Link href="/login">
-          <Button variant="outline" className="w-full">
-            Back to sign in
-          </Button>
-        </Link>
+      <div className="w-full max-w-sm space-y-4 text-center">
+        <div className="bg-success-soft text-success mx-auto flex size-12 items-center justify-center rounded-full">
+          <MailCheck className="size-6" aria-hidden="true" />
+        </div>
+        <div className="space-y-1">
+          <p className="font-semibold">{t("sentTitle")}</p>
+          <p className="text-muted-foreground text-sm">{t("sentBody")}</p>
+        </div>
+        <Button asChild variant="outline" className="w-full">
+          <Link href="/login">{tAuth("backToSignIn")}</Link>
+        </Button>
       </div>
     )
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 w-full max-w-sm">
+    <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email">{t("email")}</Label>
         <Input
           id="email"
           type="email"
-          placeholder="you@example.com"
+          placeholder={t("emailPlaceholder")}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
           disabled={isPending}
+          aria-invalid={error ? true : undefined}
         />
       </div>
       {error && (
-        <p role="alert" className="text-sm text-destructive">{error}</p>
+        <p role="alert" className="text-destructive text-sm">
+          {error}
+        </p>
       )}
       <Button type="submit" className="w-full" disabled={isPending}>
-        {isPending ? "Sending..." : "Send reset link"}
+        {isPending ? t("sending") : t("send")}
       </Button>
-      <div className="text-center text-sm text-muted-foreground">
-        Remember your password?{" "}
+      <div className="text-muted-foreground text-center text-sm">
+        {t("remember")}{" "}
         <Link href="/login" className="text-primary hover:underline">
-          Sign in
+          {t("signIn")}
         </Link>
       </div>
     </form>

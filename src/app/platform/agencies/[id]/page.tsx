@@ -2,8 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { ArrowLeft, CreditCard, Eye, Mail, Users } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/app/page-header";
-import { StatusBadge } from "@/components/app/status-badge";
+import { StatusBadge, StatusPill } from "@/components/app/status-badge";
 import { AgencyStatusControls } from "@/components/platform/agency-status-controls";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,26 +23,9 @@ import { formatDate } from "@/lib/format";
 import { requirePlatformAdmin } from "@/lib/permissions";
 import { agency, agencyInvite, user } from "@/lib/schema";
 
-/** Green for active, red for suspended — matches the StatusBadge tone convention. */
-function statusTone(status: string): string {
-  return status === "active"
-    ? "bg-green-500/15 text-green-600 dark:text-green-400"
-    : "bg-red-500/15 text-red-600 dark:text-red-400";
-}
-
-/** Tone for a Stripe subscription status badge. */
-function subscriptionTone(status: string | null): string {
-  if (status === "active" || status === "trialing")
-    return "bg-green-500/15 text-green-600 dark:text-green-400";
-  if (status === "past_due" || status === "incomplete")
-    return "bg-amber-500/15 text-amber-600 dark:text-amber-400";
-  if (!status) return "bg-slate-500/15 text-slate-600 dark:text-slate-300";
-  return "bg-red-500/15 text-red-600 dark:text-red-400";
-}
-
 /** Human label for a subscription status (Stripe values are snake_case). */
-function subscriptionLabel(status: string | null): string {
-  if (!status) return "No subscription";
+function subscriptionLabel(status: string | null, none: string): string {
+  if (!status) return none;
   return status.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
 }
 
@@ -53,6 +37,7 @@ export default async function AgencyDetailPage({
   // Guard: only the platform super-admin may view agency details.
   await requirePlatformAdmin();
   const { id } = await params;
+  const t = await getTranslations("platform.detail");
 
   const ag = await db.query.agency.findFirst({
     where: eq(agency.id, id),
@@ -86,27 +71,31 @@ export default async function AgencyDetailPage({
       .orderBy(desc(agencyInvite.createdAt)),
   ]);
 
+  const isActive = ag.status === "active";
+
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-8 sm:px-6">
       <Button asChild variant="ghost" size="sm" className="-ml-2">
         <Link href="/platform">
           <ArrowLeft className="mr-1 size-4" />
-          Agencies
+          {t("back")}
         </Link>
       </Button>
 
       <PageHeader title={ag.name} description={ag.slug}>
         <StatusBadge
-          label={ag.status === "active" ? "Active" : "Suspended"}
-          tone={statusTone(ag.status)}
+          label={isActive ? t("activeLabel") : "Suspended"}
+          variant={isActive ? "success" : "danger"}
+          dot
         />
-        <StatusBadge
-          label={subscriptionLabel(ag.subscriptionStatus)}
-          tone={subscriptionTone(ag.subscriptionStatus)}
+        <StatusPill
+          domain="subscription"
+          status={ag.subscriptionStatus}
+          label={subscriptionLabel(ag.subscriptionStatus, t("noSubscription"))}
         />
         <form action={viewAsAgency.bind(null, ag.id)}>
           <Button type="submit" size="sm" variant="outline">
-            <Eye className="mr-1 size-4" /> View agency app
+            <Eye className="mr-1 size-4" /> {t("viewApp")}
           </Button>
         </form>
         <AgencyStatusControls agencyId={ag.id} status={ag.status} />
@@ -114,19 +103,19 @@ export default async function AgencyDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Details</CardTitle>
+          <CardTitle>{t("details")}</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-3">
           <div className="space-y-1">
-            <p className="text-muted-foreground text-xs">Slug</p>
-            <p className="font-medium">{ag.slug}</p>
+            <p className="text-muted-foreground text-xs">{t("slug")}</p>
+            <p className="font-mono text-sm font-medium">{ag.slug}</p>
           </div>
           <div className="space-y-1">
-            <p className="text-muted-foreground text-xs">Status</p>
+            <p className="text-muted-foreground text-xs">{t("status")}</p>
             <p className="font-medium capitalize">{ag.status}</p>
           </div>
           <div className="space-y-1">
-            <p className="text-muted-foreground text-xs">Created</p>
+            <p className="text-muted-foreground text-xs">{t("created")}</p>
             <p className="font-medium">{formatDate(ag.createdAt)}</p>
           </div>
         </CardContent>
@@ -134,18 +123,22 @@ export default async function AgencyDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <CreditCard className="size-4" /> Subscription
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="size-4" /> {t("subscription")}
           </CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-3">
           <div className="space-y-1">
-            <p className="text-muted-foreground text-xs">Status</p>
-            <p className="font-medium">{subscriptionLabel(ag.subscriptionStatus)}</p>
+            <p className="text-muted-foreground text-xs">{t("status")}</p>
+            <p className="font-medium">
+              {subscriptionLabel(ag.subscriptionStatus, t("noSubscription"))}
+            </p>
           </div>
           <div className="space-y-1">
             <p className="text-muted-foreground text-xs">
-              {ag.subscriptionStatus === "trialing" ? "Trial ends" : "Renews"}
+              {ag.subscriptionStatus === "trialing"
+                ? t("trialEnds")
+                : t("renews")}
             </p>
             <p className="font-medium">
               {ag.subscriptionStatus === "trialing"
@@ -158,9 +151,14 @@ export default async function AgencyDetailPage({
             </p>
           </div>
           <div className="space-y-1">
-            <p className="text-muted-foreground text-xs">Stripe customer</p>
-            <p className="truncate font-medium" title={ag.stripeCustomerId ?? undefined}>
-              {ag.stripeCustomerId ?? "Not provisioned"}
+            <p className="text-muted-foreground text-xs">
+              {t("stripeCustomer")}
+            </p>
+            <p
+              className="truncate font-mono text-xs font-medium"
+              title={ag.stripeCustomerId ?? undefined}
+            >
+              {ag.stripeCustomerId ?? t("notProvisioned")}
             </p>
           </div>
         </CardContent>
@@ -168,23 +166,23 @@ export default async function AgencyDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Users className="size-4" /> Members ({members.length})
+          <CardTitle className="flex items-center gap-2">
+            <Users className="size-4" /> {t("members")} ({members.length})
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {members.length === 0 ? (
             <p className="text-muted-foreground px-6 py-8 text-sm">
-              No members yet — the invited admin has not signed up.
+              {t("noMembers")}
             </p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Member</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Access</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>{t("member")}</TableHead>
+                  <TableHead>{t("role")}</TableHead>
+                  <TableHead>{t("access")}</TableHead>
+                  <TableHead align="right">{t("actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -202,18 +200,15 @@ export default async function AgencyDetailPage({
                     </TableCell>
                     <TableCell>
                       <StatusBadge
-                        label={m.active ? "Active" : "Inactive"}
-                        tone={
-                          m.active
-                            ? "bg-green-500/15 text-green-600 dark:text-green-400"
-                            : "bg-red-500/15 text-red-600 dark:text-red-400"
-                        }
+                        label={m.active ? t("activeLabel") : t("inactiveLabel")}
+                        variant={m.active ? "success" : "danger"}
+                        dot
                       />
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell align="right">
                       <form action={viewAsUser.bind(null, m.id)} className="inline">
                         <Button type="submit" variant="outline" size="sm">
-                          <Eye className="mr-1 size-4" /> View as
+                          <Eye className="mr-1 size-4" /> {t("viewAs")}
                         </Button>
                       </form>
                     </TableCell>
@@ -227,22 +222,23 @@ export default async function AgencyDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Mail className="size-4" /> Pending invites ({pendingInvites.length})
+          <CardTitle className="flex items-center gap-2">
+            <Mail className="size-4" /> {t("pendingInvites")} (
+            {pendingInvites.length})
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {pendingInvites.length === 0 ? (
             <p className="text-muted-foreground px-6 py-8 text-sm">
-              No pending invites.
+              {t("noInvites")}
             </p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Expires</TableHead>
+                  <TableHead>{t("email")}</TableHead>
+                  <TableHead>{t("role")}</TableHead>
+                  <TableHead>{t("expires")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

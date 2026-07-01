@@ -6,6 +6,7 @@ import { Check, Copy, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { inviteTeamMember, revokeInvite } from "@/lib/actions/invites";
 import { USER_ROLE_META } from "@/lib/domain";
@@ -39,31 +40,45 @@ export function TeamInviteForm({
     });
   };
 
+  const roleDescription = USER_ROLE_META[role as UserRole]?.description;
+
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row">
-      <Input
-        type="email"
-        placeholder="teammate@example.com"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        required
-        disabled={pending}
-        aria-label="Invite email"
-        className="sm:flex-1"
-      />
-      <Select
-        value={role}
-        onChange={(e) => setRole(e.target.value)}
-        disabled={pending}
-        aria-label="Invite role"
-        className="sm:w-44"
-      >
-        {assignableRoles.map((r) => (
-          <option key={r} value={r}>
-            {USER_ROLE_META[r as UserRole].label}
-          </option>
-        ))}
-      </Select>
+    <form
+      onSubmit={handleSubmit}
+      className="flex flex-col gap-4 sm:flex-row sm:items-end"
+    >
+      <div className="space-y-1.5 sm:flex-1">
+        <Label htmlFor="invite-email">Email address</Label>
+        <Input
+          id="invite-email"
+          type="email"
+          placeholder="teammate@example.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          disabled={pending}
+          className="w-full"
+        />
+      </div>
+      <div className="space-y-1.5 sm:w-52">
+        <Label htmlFor="invite-role">Role</Label>
+        <Select
+          id="invite-role"
+          value={role}
+          onChange={(e) => setRole(e.target.value)}
+          disabled={pending}
+          className="w-full"
+        >
+          {assignableRoles.map((r) => (
+            <option key={r} value={r}>
+              {USER_ROLE_META[r as UserRole].label}
+            </option>
+          ))}
+        </Select>
+        {roleDescription && (
+          <p className="text-muted-foreground text-xs">{roleDescription}</p>
+        )}
+      </div>
       <Button type="submit" disabled={pending} className="gap-2">
         <Mail className="size-4" />
         Send invite

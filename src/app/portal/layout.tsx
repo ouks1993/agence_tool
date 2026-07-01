@@ -2,13 +2,24 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { Plane } from "lucide-react";
 import { APP_NAME } from "@/lib/config";
+import { getPortalSession } from "@/lib/portal-session";
 
 /**
  * Minimal layout for the client-facing Traveler Portal — intentionally NOT the
  * staff AppShell (no sidebar, no app nav). Just a branded header and a footer.
  * ThemeProvider and global providers are inherited from the root layout.
+ *
+ * The nav links and Sign out control are only shown when there is a live portal
+ * session, so logged-out visitors on /portal/login see a brand-only header
+ * (no authenticated chrome they cannot use).
  */
-export default function PortalLayout({ children }: { children: ReactNode }) {
+export default async function PortalLayout({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  const session = await getPortalSession();
+
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
       <header className="border-b bg-card sticky top-0 z-30">
@@ -27,37 +38,41 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
               </span>
             </span>
           </Link>
-          <nav className="ml-6 hidden items-center gap-1 text-sm sm:flex">
-            <Link
-              href="/portal"
-              className="text-muted-foreground hover:text-foreground hover:bg-accent rounded-md px-3 py-1.5 font-medium transition-colors"
+          {session && (
+            <nav className="ml-6 hidden items-center gap-1 text-sm sm:flex">
+              <Link
+                href="/portal"
+                className="text-muted-foreground hover:text-foreground hover:bg-accent rounded-md px-3 py-1.5 font-medium transition-colors"
+              >
+                My trips
+              </Link>
+              <Link
+                href="/portal/proposals"
+                className="text-muted-foreground hover:text-foreground hover:bg-accent rounded-md px-3 py-1.5 font-medium transition-colors"
+              >
+                Proposals
+              </Link>
+            </nav>
+          )}
+          {session && (
+            /*
+              Sign out is a POST form (not an <a> GET) to prevent CSRF
+              forced-logout — a state-changing GET is exploitable via
+              `<img src=".../signout">` (CWE-352).
+            */
+            <form
+              method="POST"
+              action="/api/portal/auth/signout"
+              className="ml-auto"
             >
-              My trips
-            </Link>
-            <Link
-              href="/portal/proposals"
-              className="text-muted-foreground hover:text-foreground hover:bg-accent rounded-md px-3 py-1.5 font-medium transition-colors"
-            >
-              Proposals
-            </Link>
-          </nav>
-          {/*
-            Sign out is a POST form (not an <a> GET) to prevent CSRF
-            forced-logout — a state-changing GET is exploitable via
-            `<img src=".../signout">` (CWE-352).
-          */}
-          <form
-            method="POST"
-            action="/api/portal/auth/signout"
-            className="ml-auto"
-          >
-            <button
-              type="submit"
-              className="text-muted-foreground hover:text-foreground rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
-            >
-              Sign out
-            </button>
-          </form>
+              <button
+                type="submit"
+                className="text-muted-foreground hover:text-foreground rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
+              >
+                Sign out
+              </button>
+            </form>
+          )}
         </div>
       </header>
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-6">

@@ -4,9 +4,11 @@ import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useTranslations } from "next-intl"
+import { PasswordInput } from "@/components/auth/password-input"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Spinner } from "@/components/ui/spinner"
 import { syncLocaleAfterLogin } from "@/lib/actions/settings"
 import { signIn, useSession } from "@/lib/auth-client"
 
@@ -14,13 +16,18 @@ export function SignInButton() {
   const { data: session, isPending: sessionPending } = useSession()
   const router = useRouter()
   const t = useTranslations("login")
+  const tAuth = useTranslations("auth")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [isPending, setIsPending] = useState(false)
 
   if (sessionPending) {
-    return <Button disabled>Loading...</Button>
+    return (
+      <div className="flex w-full justify-center py-6">
+        <Spinner size="md" />
+      </div>
+    )
   }
 
   if (session) {
@@ -40,7 +47,7 @@ export function SignInButton() {
       })
 
       if (result.error) {
-        setError(result.error.message || "Failed to sign in")
+        setError(result.error.message || tAuth("failedSignIn"))
       } else {
         // Inherit the account's stored language on this device before redirecting.
         await syncLocaleAfterLogin()
@@ -48,7 +55,7 @@ export function SignInButton() {
         router.refresh()
       }
     } catch {
-      setError("An unexpected error occurred")
+      setError(tAuth("unexpectedError"))
     } finally {
       setIsPending(false)
     }
@@ -70,21 +77,20 @@ export function SignInButton() {
       </div>
       <div className="space-y-2">
         <Label htmlFor="password">{t("password")}</Label>
-        <Input
+        <PasswordInput
           id="password"
-          type="password"
-          placeholder="Your password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
           disabled={isPending}
+          aria-invalid={error ? true : undefined}
         />
       </div>
       {error && (
         <p role="alert" className="text-sm text-destructive">{error}</p>
       )}
       <Button type="submit" className="w-full" disabled={isPending}>
-        {isPending ? "Signing in..." : t("signIn")}
+        {isPending ? tAuth("signingIn") : t("signIn")}
       </Button>
       <div className="text-center text-sm text-muted-foreground">
         <Link href="/forgot-password" className="hover:underline">

@@ -13,6 +13,7 @@ import { EmptyState } from "@/components/app/empty-state";
 import {
   InfoLine,
   SectionHead,
+  TintPanel,
   TripStatusPill,
   tripGradient,
 } from "@/components/portal/portal-bits";
@@ -47,6 +48,17 @@ function nightsBetween(
   const ms = new Date(end).getTime() - new Date(start).getTime();
   if (ms <= 0) return null;
   return Math.round(ms / 86_400_000);
+}
+
+/** "Sunday, 2 Aug" — weekday + short date, matching the deck countdown foot. */
+function formatWeekdayDate(date: Date | string): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  if (Number.isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "short",
+  }).format(d);
 }
 
 export default async function PortalPage() {
@@ -178,6 +190,11 @@ export default async function PortalPage() {
   if (agent?.name) heroMeta.push({ label: "Your agent", value: agent.name });
 
   const countdown = daysUntil(featured.departDate);
+  // Weekday + date caption under the countdown (weekday is derived from the
+  // real depart date — no fabricated time is shown).
+  const countdownFoot = featured.departDate
+    ? formatWeekdayDate(featured.departDate)
+    : undefined;
 
   return (
     <div className="space-y-7">
@@ -201,9 +218,10 @@ export default async function PortalPage() {
         subParts={subParts}
         meta={heroMeta}
         countdownDays={countdown}
-        countdownFoot={
-          featured.departDate ? formatDate(featured.departDate) : undefined
-        }
+        countdownFoot={countdownFoot}
+        packHref={`/portal/bookings/${featured.id}#documents`}
+        itineraryHref={`/portal/bookings/${featured.id}#itinerary`}
+        supportHref="#support"
         agentName={agent?.name ?? undefined}
       />
 
@@ -214,13 +232,7 @@ export default async function PortalPage() {
           {/* Awaiting your signature */}
           {proposalNeedsSignature && pendingProposal && (
             <section id="signature">
-              <div
-                className="border-primary/20 rounded-lg border p-5"
-                style={{
-                  backgroundImage:
-                    "linear-gradient(180deg, var(--accent) 0%, var(--card) 70%)",
-                }}
-              >
+              <TintPanel>
                 <span className="text-primary mb-2.5 inline-flex items-center gap-1.5 text-[11.5px] font-bold tracking-[0.04em] uppercase">
                   <FileSignature className="size-4" />
                   Awaiting your signature
@@ -268,7 +280,7 @@ export default async function PortalPage() {
                     </Link>
                   </Button>
                 </div>
-              </div>
+              </TintPanel>
             </section>
           )}
 
@@ -462,13 +474,7 @@ export default async function PortalPage() {
           </Card>
 
           {/* Help / tip panel */}
-          <div
-            className="rounded-lg border p-5"
-            style={{
-              backgroundImage:
-                "linear-gradient(180deg, var(--accent) 0%, var(--card) 100%)",
-            }}
-          >
+          <TintPanel>
             <div className="mb-2 text-sm font-semibold">Travelling soon?</div>
             <p className="text-muted-foreground text-sm leading-relaxed">
               Check your travel documents, passport validity and payment status
@@ -481,7 +487,7 @@ export default async function PortalPage() {
               Open trip details
               <ArrowRight className="size-3.5" />
             </Link>
-          </div>
+          </TintPanel>
         </aside>
       </div>
     </div>

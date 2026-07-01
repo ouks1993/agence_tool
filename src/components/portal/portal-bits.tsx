@@ -58,6 +58,34 @@ export function InfoLine({
   );
 }
 
+/**
+ * Branded tint panel — the deck's soft brand-gradient surface, defined once so
+ * the gradient is not duplicated inline across portal pages. Renders a bordered
+ * card with a `--accent → --card` wash and a subtle brand border.
+ */
+export function TintPanel({
+  children,
+  className,
+  id,
+}: {
+  children: ReactNode;
+  className?: string;
+  id?: string;
+}) {
+  return (
+    <div
+      id={id}
+      className={cn("border-primary/20 rounded-lg border p-5", className)}
+      style={{
+        backgroundImage:
+          "linear-gradient(180deg, var(--accent) 0%, var(--card) 100%)",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 /** A dot + label status pill tinted with an arbitrary tone class. */
 export function TripStatusPill({
   label,

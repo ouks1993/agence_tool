@@ -1,6 +1,8 @@
 import Link from "next/link"
 import { eq } from "drizzle-orm"
+import { getTranslations } from "next-intl/server"
 import { AcceptInviteForm } from "@/components/auth/accept-invite-form"
+import { AuthBrand } from "@/components/auth/auth-brand"
 import {
   Card,
   CardContent,
@@ -23,20 +25,22 @@ export default async function InvitePage({
 }) {
   const { token } = await params
   const invite = await findPendingInviteByToken(token)
+  const t = await getTranslations("invite")
 
   if (!invite) {
     return (
-      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center p-4">
+      <div className="auth-bg flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center gap-8 p-4">
+        <AuthBrand />
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <CardTitle>Invite not found</CardTitle>
-            <CardDescription>
-              This invite is invalid or has expired.
-            </CardDescription>
+            <CardTitle className="text-2xl tracking-tight">
+              {t("notFoundTitle")}
+            </CardTitle>
+            <CardDescription>{t("notFoundBody")}</CardDescription>
           </CardHeader>
           <CardContent className="text-center">
             <Link href="/login" className="text-primary text-sm hover:underline">
-              Go to sign in
+              {t("goToSignIn")}
             </Link>
           </CardContent>
         </Card>
@@ -52,14 +56,17 @@ export default async function InvitePage({
   const roleLabel = USER_ROLE_META[invite.role as UserRole].label
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center p-4">
+    <div className="auth-bg flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center gap-8 p-4">
+      <AuthBrand />
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle>Join {agencyName}</CardTitle>
+          <CardTitle className="text-2xl tracking-tight">
+            {t("joinTitle", { agency: agencyName })}
+          </CardTitle>
           <CardDescription>
-            You&apos;ve been invited to join as{" "}
-            <span className="font-medium">{roleLabel}</span>. Set up your account
-            to get started.
+            {t.rich("joinBody", {
+              role: () => <span className="font-medium">{roleLabel}</span>,
+            })}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col items-center">

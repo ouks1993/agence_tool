@@ -1,6 +1,10 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, asc, desc, eq } from "drizzle-orm";
+import { FileWarning } from "lucide-react";
 import { DocShell } from "@/components/documents/doc-shell";
+import { EmptyState } from "@/components/app/empty-state";
+import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db";
 import { PAYMENT_KIND_LABEL } from "@/lib/domain";
 import { formatDate, formatMoney } from "@/lib/format";
@@ -31,8 +35,17 @@ export default async function InvoicePage({
   // Hard prerequisite: a document is meaningless without trip services.
   if (b.items.length === 0) {
     return (
-      <div className="text-muted-foreground mx-auto max-w-md py-16 text-center text-sm">
-        Cannot generate document: booking has no trip services.
+      <div className="doc-print-hidden mx-auto max-w-lg px-4 py-16">
+        <EmptyState
+          icon={FileWarning}
+          title="No trip services yet"
+          description="This booking has no trip services, so an invoice can't be generated. Add services to the booking first."
+          action={
+            <Button asChild>
+              <Link href={`/bookings/${b.id}`}>Back to booking</Link>
+            </Button>
+          }
+        />
       </div>
     );
   }
@@ -64,25 +77,25 @@ export default async function InvoicePage({
         </div>
       </div>
 
-      <table className="w-full border-t text-sm">
+      <table className="w-full text-sm">
         <thead>
-          <tr className="text-muted-foreground text-left text-xs">
-            <th className="py-2 font-medium">Description</th>
-            <th className="py-2 text-center font-medium">Qty</th>
-            <th className="py-2 text-right font-medium">Amount</th>
+          <tr className="bg-muted/40 text-foreground/70 text-left text-xs">
+            <th className="rounded-l-md px-3 py-2.5 font-semibold">Description</th>
+            <th className="px-3 py-2.5 text-center font-semibold">Qty</th>
+            <th className="rounded-r-md px-3 py-2.5 text-right font-semibold">Amount</th>
           </tr>
         </thead>
         <tbody>
           {b.items.map((i) => (
-            <tr key={i.id} className="border-t">
-              <td className="py-2">
+            <tr key={i.id} className="border-b">
+              <td className="px-3 py-2.5">
                 {i.title}
                 {i.supplier ? (
                   <span className="text-muted-foreground"> · {i.supplier}</span>
                 ) : null}
               </td>
-              <td className="py-2 text-center">{i.quantity}</td>
-              <td className="py-2 text-right">
+              <td className="tabular-nums px-3 py-2.5 text-center">{i.quantity}</td>
+              <td className="tabular-nums px-3 py-2.5 text-right">
                 {formatMoney(parseFloat(i.amount || "0") * i.quantity, i.currency)}
               </td>
             </tr>
@@ -90,13 +103,20 @@ export default async function InvoicePage({
         </tbody>
       </table>
 
-      <div className="mt-4 ml-auto w-64 space-y-1 text-sm">
+      <div className="doc-avoid-break mt-6 ml-auto w-full max-w-xs space-y-1.5 text-sm">
         <Row label="Total" value={formatMoney(total, b.currency)} bold />
         <Row label="Paid" value={`− ${formatMoney(paid, b.currency)}`} />
-        <div className="flex items-center justify-between border-t pt-2 text-base font-bold">
-          <span>Balance due</span>
-          <span>{formatMoney(balance, b.currency)}</span>
-        </div>
+        {balance > 0 ? (
+          <div className="mt-1 flex items-center justify-between rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-base font-bold text-amber-600 dark:text-amber-400">
+            <span>Balance due</span>
+            <span className="tabular-nums">{formatMoney(balance, b.currency)}</span>
+          </div>
+        ) : (
+          <div className="mt-1 flex items-center justify-between rounded-md border border-green-500/30 bg-green-500/10 px-3 py-2 text-base font-bold text-green-600 dark:text-green-400">
+            <span>Paid in full</span>
+            <span className="tabular-nums">{formatMoney(0, b.currency)}</span>
+          </div>
+        )}
       </div>
 
       {b.payments.length > 0 && (
@@ -112,7 +132,7 @@ export default async function InvoicePage({
                   {PAYMENT_KIND_LABEL[p.kind as keyof typeof PAYMENT_KIND_LABEL] ?? p.kind} (
                   {p.method})
                 </span>
-                <span>
+                <span className="tabular-nums">
                   {p.kind === "refund" ? "− " : ""}
                   {formatMoney(p.amount, p.currency)}
                 </span>
@@ -131,9 +151,9 @@ export default async function InvoicePage({
 
 function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-between px-3">
       <span className={bold ? "font-semibold" : "text-muted-foreground"}>{label}</span>
-      <span className={bold ? "font-semibold" : ""}>{value}</span>
+      <span className={bold ? "tabular-nums font-semibold" : "tabular-nums"}>{value}</span>
     </div>
   );
 }

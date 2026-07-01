@@ -1,6 +1,10 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, asc, eq } from "drizzle-orm";
+import { FileWarning } from "lucide-react";
 import { DocShell } from "@/components/documents/doc-shell";
+import { EmptyState } from "@/components/app/empty-state";
+import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db";
 import { BOOKING_ITEM_TYPE_META, type BookingItemType } from "@/lib/domain";
 import { formatDate } from "@/lib/format";
@@ -30,8 +34,17 @@ export default async function VoucherPage({
   // Hard prerequisite: a document is meaningless without trip services.
   if (b.items.length === 0) {
     return (
-      <div className="text-muted-foreground mx-auto max-w-md py-16 text-center text-sm">
-        Cannot generate document: booking has no trip services.
+      <div className="doc-print-hidden mx-auto max-w-lg px-4 py-16">
+        <EmptyState
+          icon={FileWarning}
+          title="No trip services yet"
+          description="This booking has no trip services, so a voucher can't be generated. Add services to the booking first."
+          action={
+            <Button asChild>
+              <Link href={`/bookings/${b.id}`}>Back to booking</Link>
+            </Button>
+          }
+        />
       </div>
     );
   }
@@ -74,30 +87,26 @@ export default async function VoucherPage({
         <p className="text-muted-foreground mb-3 text-xs font-semibold uppercase">
           Confirmed services
         </p>
-        {b.items.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No services on this booking.</p>
-        ) : (
-          <ul className="space-y-3">
-            {b.items.map((i) => (
-              <li key={i.id} className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="font-medium">{i.title}</p>
-                  <p className="text-muted-foreground text-xs">
-                    {BOOKING_ITEM_TYPE_META[i.type as BookingItemType]?.label ?? i.type}
-                    {i.supplier ? ` · ${i.supplier}` : ""}
-                    {i.startDate ? ` · ${formatDate(i.startDate)}` : ""}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-muted-foreground text-xs">Confirmation</p>
-                  <p className="font-mono text-sm font-medium">
-                    {i.confirmationNumber ?? i.bookingRef ?? "—"}
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+        <ul className="space-y-3">
+          {b.items.map((i) => (
+            <li key={i.id} className="flex items-start justify-between gap-4">
+              <div>
+                <p className="font-medium">{i.title}</p>
+                <p className="text-muted-foreground text-xs">
+                  {BOOKING_ITEM_TYPE_META[i.type as BookingItemType]?.label ?? i.type}
+                  {i.supplier ? ` · ${i.supplier}` : ""}
+                  {i.startDate ? ` · ${formatDate(i.startDate)}` : ""}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-muted-foreground text-xs">Confirmation</p>
+                <p className="font-mono text-sm font-medium tabular-nums">
+                  {i.confirmationNumber ?? i.bookingRef ?? "—"}
+                </p>
+              </div>
+            </li>
+          ))}
+        </ul>
       </div>
 
       <p className="text-muted-foreground mt-6 border-t pt-4 text-xs">

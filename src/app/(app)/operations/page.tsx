@@ -1,17 +1,23 @@
 import Link from "next/link";
 import { and, desc, eq } from "drizzle-orm";
-import { ClipboardList } from "lucide-react";
+import { ClipboardList, Layers, Plane, CircleDollarSign } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
-import { BookingsBoard } from "@/components/bookings/bookings-board";
+import { StatCard } from "@/components/app/stat-card";
+import { OperationsBoard } from "@/components/operations/operations-board";
 import { Button } from "@/components/ui/button";
+import { headlineTotal, num, sumByCurrency } from "@/lib/analytics";
 import { db } from "@/lib/db";
-import { seesAllData } from "@/lib/domain";
+import { DEFAULT_CURRENCY, seesAllData } from "@/lib/domain";
+import { formatMoney } from "@/lib/format";
 import { requireAgencyUser } from "@/lib/permissions";
 import { booking } from "@/lib/schema";
 
 export const metadata = { title: "Operations" };
+
+const MS_PER_DAY = 86_400_000;
+const UPCOMING_WINDOW_DAYS = 30;
 
 export default async function OperationsPage() {
   const user = await requireAgencyUser();
@@ -32,6 +38,37 @@ export default async function OperationsPage() {
     limit: 500,
   });
 
+  const rows = bookings.map((b) => ({
+    id: b.id,
+    reference: b.reference,
+    status: b.status,
+    destination: b.destination,
+    departDate: b.departDate,
+    totalAmount: b.totalAmount,
+    currency: b.currency,
+    clientName: b.client?.name ?? null,
+  }));
+
+  // --- KPI derivations (currency-safe) -------------------------------------
+  const active = bookings.filter((b) => b.status !== "cancelled");
+  const now = new Date();
+  const upcomingCutoff = new Date(now.getTime() + UPCOMING_WINDOW_DAYS * MS_PER_DAY);
+  const upcoming = active.filter(
+    (b) =>
+      b.departDate &&
+      new Date(b.departDate) >= now &&
+      new Date(b.departDate) <= upcomingCutoff
+  );
+  // Pipeline value: never sum across currencies — headline the agency default
+  // (DZD) only; stray-currency bookings are excluded from the money figure.
+  const pipelineValue = headlineTotal(
+    sumByCurrency(
+      active,
+      (b) => num(b.totalAmount),
+      (b) => b.currency
+    )
+  );
+
   return (
     <div className="mx-auto w-full max-w-[100rem] space-y-6 px-4 py-8 sm:px-6">
       <PageHeader title={t("title")} description={t("description")} />
@@ -48,18 +85,36 @@ export default async function OperationsPage() {
           }
         />
       ) : (
-        <BookingsBoard
-          bookings={bookings.map((b) => ({
-            id: b.id,
-            reference: b.reference,
-            status: b.status,
-            destination: b.destination,
-            departDate: b.departDate,
-            totalAmount: b.totalAmount,
-            currency: b.currency,
-            clientName: b.client?.name ?? null,
-          }))}
-        />
+        <>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              label="Active bookings"
+              value={active.length}
+              hint="Not cancelled"
+              icon={Layers}
+            />
+            <StatCard
+              label="Total in workflow"
+              value={bookings.length}
+              hint="All statuses"
+              icon={ClipboardList}
+            />
+            <StatCard
+              label="Departing soon"
+              value={upcoming.length}
+              hint={`Next ${UPCOMING_WINDOW_DAYS} days`}
+              icon={Plane}
+            />
+            <StatCard
+              label="Pipeline value"
+              value={formatMoney(pipelineValue)}
+              hint={`${DEFAULT_CURRENCY} bookings only`}
+              icon={CircleDollarSign}
+            />
+          </div>
+
+          <OperationsBoard bookings={rows} />
+        </>
       )}
     </div>
   );

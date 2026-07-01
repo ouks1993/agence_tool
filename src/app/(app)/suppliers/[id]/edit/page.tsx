@@ -1,9 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/app/page-header";
 import { SupplierForm } from "@/components/suppliers/supplier-form";
-import { Button } from "@/components/ui/button";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { getSupplierById } from "@/lib/actions/suppliers";
 import type { SupplierStatus, SupplierType } from "@/lib/domain";
 import { requireAgencyUser } from "@/lib/permissions";
@@ -16,6 +23,7 @@ export default async function EditSupplierPage({
   params: Promise<{ id: string }>;
 }) {
   await requireAgencyUser();
+  const t = await getTranslations("suppliers");
   const { id } = await params;
 
   const s = await getSupplierById(id);
@@ -23,13 +31,26 @@ export default async function EditSupplierPage({
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6 px-4 py-8 sm:px-6">
-      <Button asChild variant="ghost" size="sm" className="-ml-2">
-        <Link href={`/suppliers/${id}`}>
-          <ArrowLeft className="mr-1 size-4" />
-          {s.name}
-        </Link>
-      </Button>
-      <PageHeader title="Edit supplier" />
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href="/suppliers">{t("title")}</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href={`/suppliers/${id}`}>{s.name}</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>{t("editSupplier")}</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+      <PageHeader title={t("editSupplier")} />
       <SupplierForm
         mode="edit"
         supplierId={id}

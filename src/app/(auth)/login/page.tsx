@@ -11,15 +11,12 @@ import {
 } from "@/components/ui/card"
 import { auth } from "@/lib/auth"
 
-/** Friendly messages for the `?error=` codes redirected here by the auth guards. */
-const ERROR_MESSAGES: Record<string, string> = {
-  account_disabled:
-    "Your account has been deactivated. Contact your administrator.",
-  agency_suspended:
-    "Your agency has been suspended. Contact your administrator.",
-  subscription_inactive:
-    "Your agency's subscription is inactive. Ask an admin to update billing.",
-  no_agency: "Your account isn't linked to an agency yet.",
+/** Maps `?error=` codes redirected here by the auth guards to i18n keys. */
+const ERROR_KEYS: Record<string, string> = {
+  account_disabled: "errorAccountDisabled",
+  agency_suspended: "errorAgencySuspended",
+  subscription_inactive: "errorSubscriptionInactive",
+  no_agency: "errorNoAgency",
 }
 
 export default async function LoginPage({
@@ -34,29 +31,26 @@ export default async function LoginPage({
   }
 
   const t = await getTranslations("login")
+  const tAuth = await getTranslations("auth")
 
   const { reset, error } = await searchParams
-  const errorMessage = error ? ERROR_MESSAGES[error] : undefined
+  const errorKey = error ? ERROR_KEYS[error] : undefined
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle>{t("welcome")}</CardTitle>
-          <CardDescription>{t("subtitle")}</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col items-center">
-          {reset === "success" && (
-            <p className="mb-4 text-sm text-green-600 dark:text-green-400">
-              Password reset successfully. Please sign in with your new password.
-            </p>
-          )}
-          {errorMessage && (
-            <p className="mb-4 text-sm text-destructive">{errorMessage}</p>
-          )}
-          <SignInButton />
-        </CardContent>
-      </Card>
-    </div>
+    <Card className="w-full max-w-md">
+      <CardHeader className="text-center">
+        <CardTitle className="text-2xl tracking-tight">{t("welcome")}</CardTitle>
+        <CardDescription>{t("subtitle")}</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col items-center">
+        {reset === "success" && (
+          <p className="mb-4 text-sm text-success">{tAuth("resetSuccess")}</p>
+        )}
+        {errorKey && (
+          <p className="mb-4 text-sm text-destructive">{tAuth(errorKey)}</p>
+        )}
+        <SignInButton />
+      </CardContent>
+    </Card>
   )
 }

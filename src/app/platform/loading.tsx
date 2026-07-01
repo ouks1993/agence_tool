@@ -3,7 +3,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 // Route-level skeleton: the platform console awaits the agency list plus grouped
 // user/client/booking counts before rendering. Mirrors the live layout in
-// page.tsx (max-w-6xl, PageHeader + new-agency action, agencies table card).
+// page.tsx (max-w-6xl, PageHeader + new-agency action, KPI grid, filters +
+// agencies table card).
 export default function PlatformLoading() {
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8 sm:px-6">
@@ -16,28 +17,52 @@ export default function PlatformLoading() {
         <Skeleton className="h-9 w-32 shrink-0" />
       </div>
 
-      {/* Agencies table card — header row + agency rows */}
-      <Card>
-        <CardContent className="p-0">
-          <div className="border-b px-4 py-3">
-            <Skeleton className="h-4 w-full max-w-md" />
-          </div>
-          <div className="divide-y">
-            {[0, 1, 2, 3, 4].map((i) => (
-              <div key={i} className="flex items-center gap-4 px-4 py-3">
-                <div className="min-w-0 flex-1 space-y-1.5">
-                  <Skeleton className="h-4 w-40" />
-                  <Skeleton className="h-3 w-24" />
+      {/* KPI grid — 4 StatCards */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {[0, 1, 2, 3].map((i) => (
+          <Card key={i} className="card-elevated">
+            <CardContent className="p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-7 w-16" />
+                  <Skeleton className="h-3 w-28" />
                 </div>
-                <Skeleton className="h-5 w-16 rounded-full" />
-                <Skeleton className="hidden h-4 w-10 sm:block" />
-                <Skeleton className="hidden h-4 w-10 sm:block" />
-                <Skeleton className="hidden h-4 w-10 sm:block" />
+                <Skeleton className="size-9 rounded-lg" />
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Filters — search + status select */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <Skeleton className="h-9 w-full sm:max-w-xs sm:flex-1" />
+        <Skeleton className="h-9 w-full sm:max-w-[180px]" />
+      </div>
+
+      {/* Agencies table card — header band + rows */}
+      <div className="overflow-hidden rounded-lg border">
+        <div className="bg-surface-2 border-b px-4 py-3">
+          <Skeleton className="h-4 w-full max-w-md" />
+        </div>
+        <div className="divide-y">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <div key={i} className="flex items-center gap-4 px-4 py-3">
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-3 w-24" />
+              </div>
+              <Skeleton className="h-5 w-16 rounded-full" />
+              <Skeleton className="h-5 w-20 rounded-full" />
+              <Skeleton className="hidden h-4 w-10 sm:block" />
+              <Skeleton className="hidden h-4 w-10 sm:block" />
+              <Skeleton className="hidden h-4 w-10 sm:block" />
+              <Skeleton className="size-8 rounded-md" />
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
