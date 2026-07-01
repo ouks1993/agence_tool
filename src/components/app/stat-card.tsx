@@ -1,4 +1,5 @@
 import { ArrowDownRight, ArrowUpRight } from "lucide-react";
+import { SparkLine } from "@/components/charts/insight-charts";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +19,7 @@ export function StatCard({
   hint,
   delta,
   icon: Icon,
+  spark,
   className,
 }: {
   label: string;
@@ -25,21 +27,29 @@ export function StatCard({
   hint?: string;
   delta?: StatDelta;
   icon?: React.ComponentType<{ className?: string }>;
+  /** Optional trailing micro-trend series rendered bottom-right as a sparkline. */
+  spark?: number[];
   className?: string;
 }) {
   const up = delta?.direction === "up";
+  // Colour the spark by delta direction when known, else neutral brand.
+  const sparkColor = delta
+    ? up
+      ? "var(--chart-2)"
+      : "var(--destructive)"
+    : "var(--chart-1)";
   return (
-    <Card className={cn("card-interactive card-elevated", className)}>
+    <Card className={cn("card-interactive card-elevated relative overflow-hidden", className)}>
       <CardContent className="p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1">
             <p className="text-muted-foreground text-sm font-medium">{label}</p>
-            <p className="text-2xl font-bold tracking-tight">{value}</p>
+            <p className="text-2xl font-bold tracking-tight tabular-nums">{value}</p>
             {delta ? (
               <div className="flex items-center gap-1.5 pt-0.5 text-xs">
                 <span
                   className={cn(
-                    "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 font-semibold",
+                    "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 font-semibold tabular-nums",
                     up
                       ? "bg-green-500/10 text-green-600 dark:text-green-400"
                       : "bg-destructive/10 text-destructive"
@@ -66,6 +76,11 @@ export function StatCard({
             </div>
           )}
         </div>
+        {spark && spark.length >= 2 && (
+          <div className="pointer-events-none absolute right-3 bottom-3 opacity-80">
+            <SparkLine data={spark} color={sparkColor} />
+          </div>
+        )}
       </CardContent>
     </Card>
   );

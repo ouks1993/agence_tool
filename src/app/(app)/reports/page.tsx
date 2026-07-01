@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Download } from "lucide-react";
+import { CalendarRange, Download } from "lucide-react";
 import { PeriodPills } from "@/components/reports/period-pills";
 import {
   ReportsAnalytics,
@@ -28,6 +28,11 @@ const MONTH_YEAR = new Intl.DateTimeFormat("en-GB", {
   year: "numeric",
 });
 
+const RANGE_DAY = new Intl.DateTimeFormat("en-GB", {
+  month: "short",
+  day: "numeric",
+});
+
 export default async function ReportsPage({
   searchParams,
 }: {
@@ -41,8 +46,13 @@ export default async function ReportsPage({
   const now = new Date();
   const window = resolvePeriodWindow(period, now);
 
+  // Human range label for the active window (mirrors the mockup's calendar chip).
+  const rangeLabel = `${RANGE_DAY.format(window.from)} – ${RANGE_DAY.format(
+    new Date(window.to.getTime() - 1)
+  )}, ${window.to.getFullYear()}`;
+
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8 sm:px-6">
+    <div className="mx-auto w-full max-w-7xl space-y-6 px-4 py-8 sm:px-6">
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
@@ -67,6 +77,10 @@ export default async function ReportsPage({
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <PeriodPills active={period} />
+          <span className="text-muted-foreground border-input bg-background hidden h-8 items-center gap-1.5 rounded-md border px-3 text-xs font-medium tabular-nums shadow-xs sm:inline-flex">
+            <CalendarRange className="size-3.5" />
+            {rangeLabel}
+          </span>
           <Button asChild variant="outline" size="sm">
             <a href="#export">
               <Download className="mr-1.5 size-4" />

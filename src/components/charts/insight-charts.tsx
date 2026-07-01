@@ -8,6 +8,7 @@
  * NOTE: props are all serializable (no function props) so these can be rendered
  * directly from Server Components. Formatting is selected via the `format` enum.
  */
+import { BarChart3 } from "lucide-react";
 import {
   Area,
   AreaChart,
@@ -108,25 +109,39 @@ export function BarInsight({
   );
 }
 
-/** Donut chart — good for "bookings by status", "payments by method". */
+/**
+ * Donut chart — good for "bookings by status", "margin by product type".
+ *
+ * Optional `centerValue` / `centerLabel` render a headline figure in the ring's
+ * hole (e.g. a blended total). Each legend row can carry a `meta` sub-line and a
+ * `share` percentage (shown as the bold right-hand value) — matching the deck's
+ * donut legend. When `share` is provided the legend value is the share; the raw
+ * value is used for the tooltip only.
+ */
+export type DonutSlice = Point & { meta?: string; share?: number };
+
 export function DonutInsight({
   data,
   height = 240,
   format = "number",
   currency = "DZD",
+  centerValue,
+  centerLabel,
 }: {
-  data: Point[];
+  data: DonutSlice[];
   height?: number;
   format?: ChartFormat;
   currency?: string;
+  centerValue?: string;
+  centerLabel?: string;
 }) {
   const fmt = makeFormatter(format, currency);
   if (data.length === 0 || data.every((d) => d.value === 0)) {
     return <EmptyChart height={height} />;
   }
   return (
-    <div style={{ height }} className="flex w-full items-center gap-4">
-      <div className="h-full flex-1">
+    <div style={{ height }} className="flex w-full items-center gap-5">
+      <div className="relative h-full flex-1">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Tooltip
@@ -137,8 +152,8 @@ export function DonutInsight({
               data={data}
               dataKey="value"
               nameKey="label"
-              innerRadius="58%"
-              outerRadius="85%"
+              innerRadius="62%"
+              outerRadius="88%"
               paddingAngle={2}
               stroke="var(--background)"
             >
@@ -148,16 +163,35 @@ export function DonutInsight({
             </Pie>
           </PieChart>
         </ResponsiveContainer>
+        {centerValue && (
+          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-lg font-bold tracking-tight tabular-nums">
+              {centerValue}
+            </span>
+            {centerLabel && (
+              <span className="text-muted-foreground text-[11px]">{centerLabel}</span>
+            )}
+          </div>
+        )}
       </div>
-      <ul className="flex flex-1 flex-col gap-1.5 text-sm">
+      <ul className="flex flex-1 flex-col gap-2.5 text-sm">
         {data.map((d, i) => (
-          <li key={d.label} className="flex items-center gap-2">
+          <li key={d.label} className="grid grid-cols-[12px_1fr_auto] items-center gap-2.5">
             <span
-              className="size-2.5 shrink-0 rounded-full"
+              className="size-3 shrink-0 rounded-[3px]"
               style={{ backgroundColor: colorAt(i) }}
             />
-            <span className="text-muted-foreground truncate">{d.label}</span>
-            <span className="ml-auto font-medium">{fmt(d.value)}</span>
+            <span className="min-w-0">
+              <span className="block truncate font-medium">{d.label}</span>
+              {d.meta && (
+                <span className="text-muted-foreground block truncate text-[11px]">
+                  {d.meta}
+                </span>
+              )}
+            </span>
+            <span className="font-semibold tabular-nums">
+              {d.share !== undefined ? `${d.share}%` : fmt(d.value)}
+            </span>
           </li>
         ))}
       </ul>
@@ -313,13 +347,76 @@ export function FunnelInsight({
   );
 }
 
-function EmptyChart({ height }: { height: number }) {
+/**
+ * Tiny inline sparkline (no axes/tooltip) for KPI-card micro-trends. Renders a
+ * trailing series as a single smoothed stroke; stroke colour is chosen by the
+ * caller (up→success, down→danger) so it reads at a glance. Pure SVG, no deps.
+ */
+export function SparkLine({
+  data,
+  color = "var(--chart-1)",
+  width = 64,
+  height = 24,
+}: {
+  data: number[];
+  color?: string;
+  width?: number;
+  height?: number;
+}) {
+  const pts = data.filter((n) => Number.isFinite(n));
+  if (pts.length < 2) return null;
+  const min = Math.min(...pts);
+  const max = Math.max(...pts);
+  const span = max - min || 1;
+  const stepX = width / (pts.length - 1);
+  const pad = 2;
+  const usable = height - pad * 2;
+  const d = pts
+    .map((v, i) => {
+      const x = i * stepX;
+      const y = pad + usable - ((v - min) / span) * usable;
+      return `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+  return (
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      width={width}
+      height={height}
+      preserveAspectRatio="none"
+      fill="none"
+      aria-hidden
+    >
+      <path
+        d={d}
+        stroke={color}
+        strokeWidth={1.75}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function EmptyChart({
+  height,
+  hint = "Data appears here once bookings and proposals land in this window.",
+}: {
+  height: number;
+  hint?: string;
+}) {
   return (
     <div
       style={{ height }}
-      className="text-muted-foreground flex w-full items-center justify-center text-sm"
+      className="text-muted-foreground flex w-full flex-col items-center justify-center gap-3 text-center"
     >
-      Not enough data yet.
+      <span className="bg-muted text-muted-foreground flex size-11 items-center justify-center rounded-full">
+        <BarChart3 className="size-5" />
+      </span>
+      <div className="space-y-0.5">
+        <p className="text-foreground text-sm font-medium">Not enough data yet</p>
+        <p className="mx-auto max-w-[15rem] text-xs">{hint}</p>
+      </div>
     </div>
   );
 }

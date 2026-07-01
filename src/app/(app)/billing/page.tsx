@@ -2,8 +2,9 @@ import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { CreditCard } from "lucide-react";
 import { getTranslations } from "next-intl/server";
+import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
-import { StatusBadge } from "@/components/app/status-badge";
+import { StatusPill } from "@/components/app/status-badge";
 import { BillingActions } from "@/components/billing/billing-actions";
 import {
   Card,
@@ -19,16 +20,6 @@ import { requireAgencyUser } from "@/lib/permissions";
 import { agency } from "@/lib/schema";
 
 export const metadata = { title: "Billing" };
-
-/** Tone for a Stripe subscription status badge. */
-function subscriptionTone(status: string | null): string {
-  if (status === "active" || status === "trialing")
-    return "bg-green-500/15 text-green-600 dark:text-green-400";
-  if (status === "past_due" || status === "incomplete")
-    return "bg-amber-500/15 text-amber-600 dark:text-amber-400";
-  if (!status) return "bg-slate-500/15 text-slate-600 dark:text-slate-300";
-  return "bg-red-500/15 text-red-600 dark:text-red-400";
-}
 
 function subscriptionLabel(status: string | null): string {
   if (!status) return "No subscription";
@@ -58,17 +49,19 @@ export default async function BillingPage() {
   const onTrial = status === "trialing";
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mx-auto max-w-2xl space-y-8">
-        <PageHeader title={t("title")} description={t("description")} />
+    <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8 sm:px-6">
+      <PageHeader title={t("title")} description={t("description")} />
 
-        <Card>
+      <div className="mx-auto w-full max-w-2xl">
+        <Card className="card-elevated">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <CreditCard className="size-5" /> Subscription
-              <StatusBadge
+              <StatusPill
+                domain="subscription"
+                status={status}
                 label={subscriptionLabel(status)}
-                tone={subscriptionTone(status)}
+                dot
               />
             </CardTitle>
             <CardDescription>
@@ -85,10 +78,11 @@ export default async function BillingPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {!configured ? (
-              <p className="text-muted-foreground text-sm">
-                Billing isn&apos;t configured yet. Set <code>STRIPE_SECRET_KEY</code> and{" "}
-                <code>STRIPE_PRICE_ID</code> to enable subscriptions.
-              </p>
+              <EmptyState
+                icon={CreditCard}
+                title="Billing not configured"
+                description="Set STRIPE_SECRET_KEY and STRIPE_PRICE_ID to enable subscriptions."
+              />
             ) : (
               <BillingActions hasCustomer={Boolean(ag.stripeCustomerId)} />
             )}

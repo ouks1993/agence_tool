@@ -125,6 +125,9 @@
   /* Deck elevation ramp — lg (dialogs/popovers) · xl (device frames, hero cards). */
   --shadow-lg: 0 12px 32px rgba(16, 24, 40, 0.12), 0 4px 8px rgba(16, 24, 40, 0.05);
   --shadow-xl: 0 24px 60px rgba(16, 24, 40, 0.16), 0 8px 16px rgba(16, 24, 40, 0.06);
+  /* Deck ink/navy — the dark-callout gradient endpoints (forecast card etc.). */
+  --ink: #0E1525;
+  --navy: #162244;
   /* Sidebar — dark ink rail (deck identity). */
   --sidebar: #0E1525;
   --sidebar-foreground: #C7CEDC;

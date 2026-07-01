@@ -4,8 +4,9 @@ import { BadgePercent, Wallet, CircleDollarSign, CheckCircle2 } from "lucide-rea
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
 import { StatCard } from "@/components/app/stat-card";
-import { StatusBadge } from "@/components/app/status-badge";
+import { StatusPill } from "@/components/app/status-badge";
 import { RecordCommissionDialog } from "@/components/commissions/record-commission-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -89,29 +90,38 @@ export default async function CommissionsPage({
         {canManage && <RecordCommissionDialog />}
       </PageHeader>
 
-      {/* Summary cards — one row of three per currency in play. */}
+      {/* Summary cards — one row of three per currency in play. Each currency is
+          totalled independently; we never blend currencies into one figure. */}
       {summaryRows.length > 0 && (
-        <div className="space-y-4">
+        <div className="space-y-6">
           {summaryRows.map(([currency, totals]) => (
-            <div
-              key={currency}
-              className="grid grid-cols-1 gap-4 sm:grid-cols-3"
-            >
-              <StatCard
-                label={`Pending (${currency})`}
-                value={formatMoney(totals.pending, currency)}
-                icon={Wallet}
-              />
-              <StatCard
-                label={`Earned (${currency})`}
-                value={formatMoney(totals.earned, currency)}
-                icon={CircleDollarSign}
-              />
-              <StatCard
-                label={`Paid (${currency})`}
-                value={formatMoney(totals.paid, currency)}
-                icon={CheckCircle2}
-              />
+            <div key={currency} className="space-y-3">
+              {summaryRows.length > 1 && (
+                <h2 className="text-muted-foreground flex items-center gap-2 text-xs font-semibold tracking-wider uppercase">
+                  {currency}
+                  <span className="bg-border h-px flex-1" />
+                </h2>
+              )}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <StatCard
+                  label={`Pending (${currency})`}
+                  value={formatMoney(totals.pending, currency)}
+                  hint="Not yet earned"
+                  icon={Wallet}
+                />
+                <StatCard
+                  label={`Earned (${currency})`}
+                  value={formatMoney(totals.earned, currency)}
+                  hint="Earned, awaiting payout"
+                  icon={CircleDollarSign}
+                />
+                <StatCard
+                  label={`Paid (${currency})`}
+                  value={formatMoney(totals.paid, currency)}
+                  hint="Settled commissions"
+                  icon={CheckCircle2}
+                />
+              </div>
             </div>
           ))}
         </div>
@@ -202,14 +212,14 @@ export default async function CommissionsPage({
           }
         />
       ) : (
-        <div className="card-elevated rounded-lg border bg-card">
-          <Table>
-            <TableHeader>
+        <div className="card-elevated bg-card max-h-[36rem] overflow-y-auto rounded-lg border">
+          <Table zebra>
+            <TableHeader sticky>
               <TableRow>
                 <TableHead>Booking</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Supplier / Agent</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
+                <TableHead numeric>Amount</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Date</TableHead>
               </TableRow>
@@ -239,20 +249,22 @@ export default async function CommissionsPage({
                       )}
                     </TableCell>
                     <TableCell>
-                      <span className="bg-secondary text-secondary-foreground inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap">
+                      <Badge variant="secondary" className="whitespace-nowrap">
                         {typeLabel}
-                      </span>
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {party ?? "—"}
                     </TableCell>
-                    <TableCell className="text-right font-medium">
+                    <TableCell numeric className="font-medium">
                       {formatMoney(c.amount, c.currency)}
                     </TableCell>
                     <TableCell>
-                      <StatusBadge
+                      <StatusPill
+                        domain="commission"
+                        status={c.status}
                         label={statusMeta?.label ?? c.status}
-                        tone={statusMeta?.className}
+                        dot
                       />
                     </TableCell>
                     <TableCell className="text-muted-foreground text-xs">

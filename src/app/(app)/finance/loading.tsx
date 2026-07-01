@@ -79,6 +79,22 @@ export default function FinanceLoading() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Commissions section (h2 + 3-up KPI row) */}
+      <div className="space-y-4">
+        <Skeleton className="h-6 w-40" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {[0, 1, 2].map((i) => (
+            <Card key={i} className="card-elevated">
+              <CardContent className="space-y-2 p-6">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-8 w-24" />
+                <Skeleton className="h-3 w-32" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
