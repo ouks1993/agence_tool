@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { PRODUCT_ITEM_TYPE_META, type ProductItemType } from "@/lib/domain";
 import { formatDate, formatMoney } from "@/lib/format";
+import { depositAmount } from "@/lib/payments/deposit";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -138,6 +139,8 @@ export type ProposalDocLabels = {
   fullItinerary: string;
   totalPackage: string;
   taxesAndDeposit: (deposit: string) => string;
+  /** Summary line when the agency takes no deposit (full payment at booking). */
+  taxesNoDeposit: string;
   validUntil: (date: string) => string;
   preparedBy: (appName: string, tagline: string) => string;
 };
@@ -153,6 +156,7 @@ function defaultLabels(): ProposalDocLabels {
     fullItinerary: "Full itinerary as detailed above",
     totalPackage: "Total package",
     taxesAndDeposit: (deposit) => `All taxes & fees included · deposit ${deposit}`,
+    taxesNoDeposit: "All taxes & fees included · full payment due at booking",
     validUntil: (date) => `This proposal is valid until ${date}.`,
     preparedBy: (appName, tagline) =>
       `Prepared by ${appName} · ${tagline}. Prices are per the package and subject to availability at the time of booking.`,
@@ -166,6 +170,7 @@ export function ProposalDocument({
   statusBanner,
   signSlot,
   labels,
+  depositPercent = 50,
   className,
 }: {
   data: ProposalDocData;
@@ -177,6 +182,12 @@ export function ProposalDocument({
   signSlot?: React.ReactNode;
   /** Localized copy for the public surface; defaults to English. */
   labels?: ProposalDocLabels;
+  /**
+   * The agency's deposit percentage (the share of the total that secures the
+   * dates). Sourced from the proposal's agency; defaults to 50 for callers that
+   * don't pass it. When 0, the deposit figure is omitted from the summary line.
+   */
+  depositPercent?: number;
   className?: string;
 }) {
   const L = labels ?? defaultLabels();
@@ -184,9 +195,10 @@ export function ProposalDocument({
   const currency = data.currency;
   const agencyMark = appName.trim().charAt(0).toUpperCase() || "A";
 
-  // Deposit is a derived incentive figure (50% of the real total), presented as
-  // a rounded figure — not stored, purely computed from the authoritative total.
-  const deposit = totalPrice / 2;
+  // Deposit is a derived incentive figure (`depositPercent`% of the real total),
+  // presented as a rounded figure — not stored, purely computed from the
+  // authoritative total and the agency's configured deposit percentage.
+  const deposit = depositAmount(totalPrice, depositPercent);
 
   const { days, undated } = buildItinerary(data.items);
   const hasItinerary = days.length > 0;
@@ -357,7 +369,9 @@ export function ProposalDocument({
                     {L.totalPackage}
                   </p>
                   <p className="text-accent-foreground/80 text-xs">
-                    {L.taxesAndDeposit(formatMoney(deposit, currency))}
+                    {deposit > 0
+                      ? L.taxesAndDeposit(formatMoney(deposit, currency))
+                      : L.taxesNoDeposit}
                   </p>
                 </div>
                 <p className="text-accent-foreground text-2xl font-bold tracking-tight tabular-nums">

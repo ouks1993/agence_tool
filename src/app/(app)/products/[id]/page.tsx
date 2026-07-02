@@ -53,6 +53,7 @@ export default async function ProductDetailPage({
       with: {
         client: { columns: { id: true, name: true, email: true, city: true } },
         opportunity: { columns: { id: true, title: true } },
+        agency: { columns: { depositPercent: true } },
         items: { orderBy: (t) => [asc(t.sortOrder)] },
       },
     }),
@@ -62,6 +63,7 @@ export default async function ProductDetailPage({
 
   const meta = PRODUCT_STATUS_META[p.status as ProductStatus];
   const doc = toProposalDocData(p, p.client?.name ?? null);
+  const depositPercent = parseFloat(p.agency?.depositPercent ?? "50");
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-6 px-4 py-8 sm:px-6">
@@ -204,6 +206,7 @@ export default async function ProductDetailPage({
               data={doc}
               appName={APP_NAME}
               appTagline={APP_TAGLINE}
+              depositPercent={depositPercent}
             />
           </div>
         </div>

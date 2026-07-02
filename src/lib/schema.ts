@@ -55,6 +55,12 @@ export const agency = pgTable(
     // Timestamp when an admin dismissed the getting-started checklist.
     // NULL = checklist is still active for this agency.
     onboardingDismissedAt: timestamp("onboarding_dismissed_at"),
+    // % of a booking total the client must pay for it to reach `confirmed`
+    // (the deposit that "secures the dates" on the client proposal). 0–100;
+    // 100 means full payment is required to confirm. Defaults to 50%.
+    depositPercent: numeric("deposit_percent", { precision: 5, scale: 2 })
+      .default("50")
+      .notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()

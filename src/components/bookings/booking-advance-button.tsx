@@ -24,11 +24,14 @@ export function BookingAdvanceButton({
   status,
   hasItems,
   hasBalance,
+  belowDeposit,
 }: {
   bookingId: string;
   status: string;
   hasItems: boolean;
   hasBalance: boolean;
+  /** True when the agency's deposit threshold isn't yet met (blocks `confirmed`). */
+  belowDeposit?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -41,9 +44,15 @@ export function BookingAdvanceButton({
       if (!window.confirm("This booking has no trip services yet. Confirm anyway?"))
         return;
     }
+    // Confirming unlocks at the agency deposit threshold; ticketing/completion
+    // still require the full balance to be settled.
+    if (next === "confirmed" && belowDeposit) {
+      if (!window.confirm("The required deposit hasn't been received yet. Advance anyway?"))
+        return;
+    }
     const nextIndex = BOOKING_LIFECYCLE.indexOf(next);
-    const paymentIndex = BOOKING_LIFECYCLE.indexOf("awaiting_payment");
-    if (hasBalance && paymentIndex !== -1 && nextIndex > paymentIndex) {
+    const confirmedIndex = BOOKING_LIFECYCLE.indexOf("confirmed");
+    if (hasBalance && confirmedIndex !== -1 && nextIndex > confirmedIndex) {
       if (!window.confirm("There is still a balance due. Advance anyway?")) return;
     }
 

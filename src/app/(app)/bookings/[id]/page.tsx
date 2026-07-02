@@ -56,11 +56,12 @@ import {
 } from "@/lib/domain";
 import { formatDate, passportExpiryStatus } from "@/lib/format";
 import { isEmailConfigured } from "@/lib/notifications/email";
+import { meetsDepositThreshold } from "@/lib/payments/deposit";
 import { isStripeConfigured } from "@/lib/payments/stripe";
 import { paymentSummary } from "@/lib/payments/summary";
 import { requireAgencyUser } from "@/lib/permissions";
 import { listClientOptions, listOpenBookings } from "@/lib/queries";
-import { booking } from "@/lib/schema";
+import { agency, booking } from "@/lib/schema";
 import { statusTone } from "@/lib/status-tone";
 import {
   getActiveFlightProvider,
@@ -124,6 +125,16 @@ export default async function BookingWorkspace({
   const total = parseFloat(b.totalAmount || "0");
   const { paid, balance } = paymentSummary(b.payments, total);
 
+  // Deposit gate for the status controls: `confirmed` unlocks once the agency's
+  // deposit threshold is met, so the soft warnings must reflect the deposit —
+  // not the full balance — for that step. (Ticketing still needs zero balance.)
+  const ag = await db.query.agency.findFirst({
+    where: eq(agency.id, user.agencyId),
+    columns: { depositPercent: true },
+  });
+  const depositPercent = parseFloat(ag?.depositPercent ?? "50");
+  const belowDeposit = !meetsDepositThreshold(total, paid, depositPercent);
+
   // Gross margin for the rail Margin card: sum of this booking's commission
   // lines that are in the booking's own currency (never mix currencies). Lines
   // in other currencies are excluded, so the derived net cost stays honest.
@@ -173,6 +184,7 @@ export default async function BookingWorkspace({
           status={b.status}
           hasItems={b.items.length > 0}
           hasBalance={balance > 0}
+          belowDeposit={belowDeposit}
         />
         <Button asChild variant="outline" size="sm">
           <Link href={`/bookings/${b.id}/edit`}>
@@ -199,6 +211,7 @@ export default async function BookingWorkspace({
           status={b.status}
           hasItems={b.items.length > 0}
           hasBalance={balance > 0}
+          belowDeposit={belowDeposit}
         />
       </PageHeader>
 

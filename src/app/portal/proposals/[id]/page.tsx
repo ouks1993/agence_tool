@@ -7,6 +7,7 @@ import { ProposalDocument } from "@/components/products/proposal-document";
 import { APP_NAME, APP_TAGLINE } from "@/lib/config";
 import { db } from "@/lib/db";
 import { formatDate, formatMoney } from "@/lib/format";
+import { depositAmount } from "@/lib/payments/deposit";
 import { requirePortalSession } from "@/lib/portal-session";
 import { toProposalDocData } from "@/lib/proposal-doc";
 import { product } from "@/lib/schema";
@@ -33,6 +34,7 @@ export default async function PortalProposalPage({
       eq(product.agencyId, session.client.agencyId)
     ),
     with: {
+      agency: { columns: { depositPercent: true } },
       items: { orderBy: (items, { asc: a }) => [a(items.sortOrder)] },
     },
   });
@@ -40,7 +42,8 @@ export default async function PortalProposalPage({
   if (!p) notFound();
 
   const totalPrice = parseFloat(p.totalPrice || "0");
-  const deposit = totalPrice / 2;
+  const depositPercent = parseFloat(p.agency?.depositPercent ?? "50");
+  const deposit = depositAmount(totalPrice, depositPercent);
   const doc = toProposalDocData(p, session.client.name);
 
   // Signing is only offered while the proposal is open (not accepted/declined/expired).
@@ -78,7 +81,8 @@ export default async function PortalProposalPage({
   const signSlot = canSign ? (
     <ProposalSignForm
       productId={p.id}
-      depositLabel={formatMoney(deposit, p.currency)}
+      depositPercent={depositPercent}
+      depositLabel={deposit > 0 ? formatMoney(deposit, p.currency) : null}
     />
   ) : null;
 
@@ -95,6 +99,7 @@ export default async function PortalProposalPage({
         data={doc}
         appName={APP_NAME}
         appTagline={APP_TAGLINE}
+        depositPercent={depositPercent}
         statusBanner={statusBanner}
         signSlot={signSlot}
       />

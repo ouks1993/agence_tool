@@ -1,0 +1,1 @@
+ALTER TABLE "agency" ADD COLUMN "deposit_percent" numeric(5, 2) DEFAULT '50' NOT NULL;

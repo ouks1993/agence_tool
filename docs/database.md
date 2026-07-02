@@ -32,7 +32,7 @@ truth, no hard delete, no cross-tenant exposure) at the schema level.
 
 | Table | Tenancy | Notes |
 |---|---|---|
-| `agency` | (root) | name, slug, status (active/suspended); **Stripe billing**: stripeCustomerId, stripeSubscriptionId, subscriptionStatus, priceId, currentPeriodEnd, trialEndsAt; **Connect**: stripeConnectAccountId, stripeConnectOnboarded; `onboardingDismissedAt` (getting-started card) |
+| `agency` | (root) | name, slug, status (active/suspended); **Stripe billing**: stripeCustomerId, stripeSubscriptionId, subscriptionStatus, priceId, currentPeriodEnd, trialEndsAt; **Connect**: stripeConnectAccountId, stripeConnectOnboarded; `onboardingDismissedAt` (getting-started card); `depositPercent` numeric(5,2) NOT NULL default 50 — % of total required to reach `confirmed` (also drives the proposal deposit line) |
 | `agency_invite` | agencyId | email, role, token, status, expiresAt |
 | `user` | agencyId (nullable) | + `isPlatformAdmin`, `role`, `active`, `locale`, `commissionRatePercent` (Better Auth) |
 | `session`, `account`, `verification` | via user | Better Auth |
@@ -81,6 +81,7 @@ All ID columns **not** related to Better Auth use UUIDs, randomly generated. See
 | `0020` | `product.convertedBookingId` (FK → `booking`, `set null`) — the proposal→booking idempotency latch used by auto-booking on accept (see [decision 0006](decisions/0006-auto-booking-on-proposal-accept.md)) |
 | `0021` | `commission.bookingId` + `commission.bookingItemId` FKs changed `cascade` → `set null` (the commission ledger now survives booking/item deletion — see [decision 0007](decisions/0007-commission-ledger-survives-booking-deletion.md)); new indexes `commission_item_idx`, `commission_supplier_idx`, `product_converted_booking_idx`; `portal_session.purpose` (`'magic'` \| `'session'`, default `'session'`) |
 | `0022` | `user_notification` table — per-user in-app notification inbox (topbar bell) |
+| `0023` | `agency.depositPercent` — deposit-threshold booking confirmation ([decision 0009](decisions/0009-deposit-threshold-booking-lifecycle.md)) |
 
 > Migrations `0000`–`0005` predate the multi-tenant rework (the pre-tenancy base
 > schema) and are not itemized here.

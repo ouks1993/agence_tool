@@ -61,7 +61,13 @@
     "stripeIncomplete": "La configuration de votre compte Stripe est incomplète. Terminez l'intégration pour commencer à accepter les paiements.",
     "stripeCompleteSetup": "Terminer la configuration",
     "stripeIntro": "Acceptez les paiements des voyageurs et recevez les fonds directement sur votre compte bancaire.",
-    "stripeConnect": "Connecter Stripe"
+    "stripeConnect": "Connecter Stripe",
+    "sectionAgency": "Agence",
+    "deposit": "Acompte",
+    "depositDesc": "Définissez l'acompte requis pour confirmer une réservation. Ce montant apparaît aussi sur les propositions client.",
+    "depositPercent": "Acompte requis pour confirmer une réservation (%)",
+    "depositPercentHint": "Ce pourcentage apparaît aussi sur les propositions client comme l'acompte qui réserve les dates.",
+    "depositRange": "Saisissez un acompte entre 0 et 100 %."
   },
   "login": {
     "welcome": "Bon retour",
@@ -377,6 +383,7 @@
         "fullItinerary": "Itinéraire complet détaillé ci-dessus",
         "totalPackage": "Forfait total",
         "taxesAndDeposit": "Toutes taxes et frais inclus · acompte {deposit}",
+        "taxesNoDeposit": "Toutes taxes et frais inclus · paiement intégral à la réservation",
         "validUntil": "Cette proposition est valable jusqu'au {date}.",
         "preparedBy": "Préparé par {appName} · {tagline}. Les prix correspondent au forfait et sont soumis à disponibilité au moment de la réservation."
       }

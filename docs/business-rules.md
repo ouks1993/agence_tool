@@ -67,7 +67,7 @@ Supplier reservation → Payment → Ticketing → Travel → Feedback → Repea
 | **Customer accepts** | e-sign stamps signer + flips opportunity to **won** + **auto-creates the booking** | also acceptable in the client portal |
 | **Booking** | `booking` — auto-created on accept (status `awaiting_payment`); agent one-click **convert proposal → booking** is the idempotent fallback | auto path starts at `awaiting_payment`, agent-drafted bookings at `draft` |
 | **Supplier reservation** | `booking_item` + `supplier` picker + `booking_service.ts` | live Duffel/Hotelbeds search; real booking wired via provider registry (quote → book → idempotency → event log); activate with production credentials |
-| **Payment** | `payment` (deposit/installments, Stripe Connect) | `confirmed` requires zero balance |
+| **Payment** | `payment` (deposit/installments, Stripe Connect) | `confirmed` requires the agency deposit threshold (default 50%); zero balance required for `ticketed` |
 | **Ticketing** | lifecycle `ticketed` | requires trip items; auto-generates commissions |
 | **Travel** | lifecycle `completed`; itinerary `/i/[token]` | day-by-day timeline, vouchers/invoices |
 | **Feedback** | activity log / notes on the client timeline | closes the loop |
@@ -119,9 +119,18 @@ that can jump to any status (`setBookingStatus`). **Both share the same
 server-side guards** — the dropdown is not a way around the stepper's rules:
 
 - `confirmed`, `ticketed`, and `completed` all require at least one trip item.
-- `confirmed` **and every stage beyond it** (`ticketed`, `completed`) additionally
-  require a zero outstanding balance — not just the `confirmed` transition
-  itself, since none of those later states are meaningful with money still owed.
+- `confirmed` requires the **agency's deposit threshold** to be paid —
+  `paid ≥ agency.depositPercent % of the booking total` (numeric column,
+  default **50**, configurable 0–100 in Settings → Agency; see
+  [decision 0009](decisions/0009-deposit-threshold-booking-lifecycle.md)).
+  This matches the promise on client proposals ("a {depositPercent}% deposit
+  secures your dates"), which is sourced from the **same column**, so the sales
+  copy and the lifecycle gate can never disagree. A 0% deposit confirms without
+  payment; 100% reproduces the old zero-balance behavior. Threshold math lives
+  in the pure helper `src/lib/payments/deposit.ts` (cent-rounded comparison).
+- `ticketed` and `completed` additionally require a **zero outstanding
+  balance** — full payment is due before supplier orders are issued, not before
+  confirmation.
 - Reaching `ticketed` runs the supplier-confirmation flow for every item
   (`runTicketingConfirmation`): each item without an existing confirmation is
   booked via the provider registry; if any provider call fails, the whole

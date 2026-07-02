@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { getLocale, getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/app/page-header";
+import { DepositPercentForm } from "@/components/settings/deposit-percent-form";
 import { LanguageSelector } from "@/components/settings/language-selector";
 import { ProfileForm } from "@/components/settings/profile-form";
 import { StripeConnect } from "@/components/settings/stripe-connect";
@@ -13,6 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { db } from "@/lib/db";
+import { canManageTeam } from "@/lib/domain";
 import { isStripeConfigured } from "@/lib/payments/stripe";
 import { requireAgencyUser } from "@/lib/permissions";
 import { agency } from "@/lib/schema";
@@ -26,9 +28,13 @@ export default async function SettingsPage() {
 
   // Payments (Stripe Connect) is an admin-only, stripe-configured concern.
   const showPayments = user.role === "admin" && isStripeConfigured();
-  const ag = showPayments
-    ? await db.query.agency.findFirst({ where: eq(agency.id, user.agencyId) })
-    : null;
+  // Agency settings (deposit %) are admin/manager, mirroring team management.
+  const showAgencySettings = canManageTeam(user.role);
+  // Load the agency once when either agency-scoped section needs it.
+  const ag =
+    showPayments || showAgencySettings
+      ? await db.query.agency.findFirst({ where: eq(agency.id, user.agencyId) })
+      : null;
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -78,6 +84,27 @@ export default async function SettingsPage() {
             </CardContent>
           </Card>
         </section>
+
+        {/* Agency — admin/manager operational settings */}
+        {showAgencySettings && ag ? (
+          <section className="space-y-4">
+            <h2 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+              {t("sectionAgency")}
+            </h2>
+
+            <Card className="card-elevated">
+              <CardHeader>
+                <CardTitle className="text-lg">{t("deposit")}</CardTitle>
+                <CardDescription>{t("depositDesc")}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <DepositPercentForm
+                  depositPercent={parseFloat(ag.depositPercent ?? "50")}
+                />
+              </CardContent>
+            </Card>
+          </section>
+        ) : null}
 
         {/* Billing — admin-only Stripe Connect payouts */}
         {showPayments && ag ? (

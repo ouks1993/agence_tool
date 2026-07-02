@@ -17,9 +17,10 @@ import {
   TRIP_TYPES,
 } from "@/lib/domain";
 import { formatMoney } from "@/lib/format";
+import { depositAmount, meetsDepositThreshold } from "@/lib/payments/deposit";
 import { paymentSummary } from "@/lib/payments/summary";
 import { requireAgencyUser } from "@/lib/permissions";
-import { booking, bookingTraveller, bookingItem, bookingDay, client, product, payment } from "@/lib/schema";
+import { agency, booking, bookingTraveller, bookingItem, bookingDay, client, product, payment } from "@/lib/schema";
 import {
   type FlightOffer,
   type FlightPassenger,
@@ -102,13 +103,14 @@ async function recalcTotal(
 }
 
 /**
- * Outstanding balance for a booking (total minus completed payments, refunds
- * subtracted). Used to hard-gate status transitions that require full payment.
+ * Payment position for a booking (`paid` = completed payments minus refunds,
+ * `balance` = total − paid). Used to hard-gate status transitions: the deposit
+ * threshold for `confirmed` and the zero-balance rule for `ticketed`/`completed`.
  */
-async function bookingBalance(
+async function bookingPayment(
   bookingId: string,
   totalAmount: string | null
-): Promise<number> {
+): Promise<{ paid: number; balance: number }> {
   const payments = await db
     .select({
       amount: payment.amount,
@@ -117,8 +119,20 @@ async function bookingBalance(
     })
     .from(payment)
     .where(eq(payment.bookingId, bookingId));
-  const { balance } = paymentSummary(payments, parseFloat(totalAmount || "0"));
-  return balance;
+  return paymentSummary(payments, parseFloat(totalAmount || "0"));
+}
+
+/**
+ * The agency's deposit percentage (the share of a booking total that must be
+ * paid to confirm). Scoped to the booking's own `agencyId`. Falls back to 50%
+ * — the historical default — if the row is somehow missing.
+ */
+async function agencyDepositPercent(agencyId: string): Promise<number> {
+  const row = await db.query.agency.findFirst({
+    where: eq(agency.id, agencyId),
+    columns: { depositPercent: true },
+  });
+  return num(row?.depositPercent ?? "50");
 }
 
 // --- Booking CRUD -----------------------------------------------------------
@@ -275,33 +289,69 @@ const ITEMS_REQUIRED_STATUSES: BookingStatus[] = [
   "completed",
 ];
 
+/** Forward steps that require the outstanding balance to be fully settled. */
+const ZERO_BALANCE_STATUSES: BookingStatus[] = ["ticketed", "completed"];
+
 /**
  * Enforce the per-target lifecycle prerequisites shared by `setBookingStatus`
  * and `advanceStatus`. Returns an error `ActionResult` to short-circuit on, or
  * `null` when the transition to `target` is permitted so far.
  *
+ * Agent-side only: both callers first run `requireAgencyUser`, and the public
+ * proposal→booking path creates bookings in `awaiting_payment` without ever
+ * touching this helper. Deriving the deposit % from `existing.agencyId` is
+ * therefore tenant-safe.
+ *
  * - `cancelled` and backward moves (e.g. → draft) are always permitted (no
  *   prerequisites): a booking must be cancellable/reversible from any state.
- * - Reaching `confirmed`/`ticketed`/`completed` requires at least one trip
- *   service and a fully settled balance (>0.01 tolerates float drift) — the
- *   same gates `advanceStatus` has always enforced for `confirmed`.
+ * - `confirmed`/`ticketed`/`completed` all require at least one trip service.
+ * - `confirmed` additionally requires the agency's **deposit threshold** to be
+ *   met (paid ≥ depositPercent of the total) — this is what the client proposal
+ *   promises "secures the dates". A 100% deposit collapses to zero-balance.
+ * - `ticketed`/`completed` additionally require a **fully settled balance**
+ *   (>0.01 tolerates float drift) — the zero-balance gate that formerly sat on
+ *   `confirmed` now blocks ticketing (and stays on completion).
  */
 async function checkStatusPrerequisites(
   existing: BookingWithItems,
   target: BookingStatus
 ): Promise<{ ok: false; error: string } | null> {
-  if (ITEMS_REQUIRED_STATUSES.includes(target)) {
-    if (existing.items.length === 0) {
-      return { ok: false, error: "Add at least one trip service before confirming." };
-    }
-    const balance = await bookingBalance(existing.id, existing.totalAmount);
-    if (balance > 0.01) {
+  if (
+    !ITEMS_REQUIRED_STATUSES.includes(target) &&
+    !ZERO_BALANCE_STATUSES.includes(target)
+  ) {
+    return null;
+  }
+
+  if (existing.items.length === 0) {
+    return { ok: false, error: "Add at least one trip service before confirming." };
+  }
+
+  const total = parseFloat(existing.totalAmount || "0");
+  const { paid, balance } = await bookingPayment(existing.id, existing.totalAmount);
+
+  // Deposit gate — reaching `confirmed` unlocks at the agency deposit threshold.
+  if (target === "confirmed") {
+    const percent = await agencyDepositPercent(existing.agencyId);
+    if (!meetsDepositThreshold(total, paid, percent)) {
+      const required = depositAmount(total, percent);
       return {
         ok: false,
-        error: `Balance of ${formatMoney(balance, existing.currency)} is still due.`,
+        error:
+          `Requires the ${percent}% deposit (${formatMoney(required, existing.currency)}) — ` +
+          `${formatMoney(paid, existing.currency)} received so far.`,
       };
     }
   }
+
+  // Zero-balance gate — ticketing and completion require full payment.
+  if (ZERO_BALANCE_STATUSES.includes(target) && balance > 0.01) {
+    return {
+      ok: false,
+      error: `Balance of ${formatMoney(balance, existing.currency)} is still due.`,
+    };
+  }
+
   return null;
 }
 

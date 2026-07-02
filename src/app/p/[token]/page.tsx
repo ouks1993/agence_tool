@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { APP_NAME, APP_TAGLINE } from "@/lib/config";
 import { db } from "@/lib/db";
 import { formatDate, formatMoney } from "@/lib/format";
+import { depositAmount } from "@/lib/payments/deposit";
 import { toProposalDocData } from "@/lib/proposal-doc";
 import { product } from "@/lib/schema";
 
@@ -35,13 +36,17 @@ export default async function PublicProposal({
     where: eq(product.shareToken, token),
     with: {
       client: { columns: { name: true, email: true } },
+      agency: { columns: { depositPercent: true } },
       items: { orderBy: (t) => [asc(t.sortOrder)] },
     },
   });
   if (!p) notFound();
 
   const totalPrice = parseFloat(p.totalPrice || "0");
-  const deposit = totalPrice / 2;
+  // Deposit that "secures the dates" is the proposal's agency deposit %, derived
+  // from the loaded product row (tenant-safe — never a caller-supplied value).
+  const depositPercent = parseFloat(p.agency?.depositPercent ?? "50");
+  const deposit = depositAmount(totalPrice, depositPercent);
   const expired = isExpired(p.validUntil);
   const open = !p.acceptedAt && !p.declinedAt && !expired;
   const doc = toProposalDocData(p, p.client?.name ?? null);
@@ -55,6 +60,7 @@ export default async function PublicProposal({
     fullItinerary: t("document.fullItinerary"),
     totalPackage: t("document.totalPackage"),
     taxesAndDeposit: (deposit) => t("document.taxesAndDeposit", { deposit }),
+    taxesNoDeposit: t("document.taxesNoDeposit"),
     validUntil: (date) => t("document.validUntil", { date }),
     preparedBy: (appName, tagline) =>
       t("document.preparedBy", { appName, tagline }),
@@ -91,7 +97,8 @@ export default async function PublicProposal({
     <ProposalSignForm
       token={token}
       defaultEmail={p.client?.email ?? null}
-      depositLabel={formatMoney(deposit, p.currency)}
+      depositPercent={depositPercent}
+      depositLabel={deposit > 0 ? formatMoney(deposit, p.currency) : null}
     />
   ) : null;
 
@@ -111,6 +118,7 @@ export default async function PublicProposal({
           appName={APP_NAME}
           appTagline={APP_TAGLINE}
           labels={docLabels}
+          depositPercent={depositPercent}
           statusBanner={statusBanner}
           signSlot={signSlot}
         />

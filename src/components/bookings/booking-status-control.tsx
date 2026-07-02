@@ -17,7 +17,8 @@ import {
  * choices so agents aren't offered illegal jumps:
  *  - keep the current status,
  *  - step forward exactly one lifecycle stage (each forward step is gated
- *    server-side: items required, balance settled, ticketing supplier flow),
+ *    server-side: items required, deposit threshold for `confirmed`, zero
+ *    balance for ticketing/completion, ticketing supplier flow),
  *  - move backward to any earlier lifecycle stage (reversible),
  *  - cancel from any state.
  * A cancelled booking can only be re-opened back to the start of the lifecycle.
@@ -44,11 +45,14 @@ export function BookingStatusControl({
   status,
   hasItems,
   hasBalance,
+  belowDeposit,
 }: {
   id: string;
   status: string;
   hasItems?: boolean;
   hasBalance?: boolean;
+  /** True when the agency's deposit threshold isn't yet met (blocks `confirmed`). */
+  belowDeposit?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -64,7 +68,12 @@ export function BookingStatusControl({
     if ((target === "confirmed" || target === "ticketed") && !hasItems) {
       if (!window.confirm("This booking has no trip services yet. Continue anyway?")) return;
     }
-    if ((target === "confirmed" || target === "ticketed" || target === "completed") && hasBalance) {
+    // Confirming now unlocks at the agency deposit threshold, not zero balance.
+    if (target === "confirmed" && belowDeposit) {
+      if (!window.confirm("The required deposit hasn't been received yet — this will be rejected until it is. Continue?")) return;
+    }
+    // Ticketing / completion still require the full balance to be settled.
+    if ((target === "ticketed" || target === "completed") && hasBalance) {
       if (!window.confirm("There is still a balance due — this will be rejected until it is settled. Continue?")) return;
     }
     if (target === "cancelled") {

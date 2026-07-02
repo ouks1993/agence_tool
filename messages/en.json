@@ -61,7 +61,13 @@
     "stripeIncomplete": "Your Stripe account setup is incomplete. Finish onboarding to start accepting payments.",
     "stripeCompleteSetup": "Complete setup",
     "stripeIntro": "Accept payments from travelers and receive funds directly to your bank account.",
-    "stripeConnect": "Connect Stripe"
+    "stripeConnect": "Connect Stripe",
+    "sectionAgency": "Agency",
+    "deposit": "Deposit",
+    "depositDesc": "Set the deposit required to confirm a booking. This figure also appears on client proposals.",
+    "depositPercent": "Deposit required to confirm a booking (%)",
+    "depositPercentHint": "This percentage also appears on client proposals as the deposit that secures the dates.",
+    "depositRange": "Enter a deposit between 0 and 100%."
   },
   "login": {
     "welcome": "Welcome back",
@@ -377,6 +383,7 @@
         "fullItinerary": "Full itinerary as detailed above",
         "totalPackage": "Total package",
         "taxesAndDeposit": "All taxes & fees included · deposit {deposit}",
+        "taxesNoDeposit": "All taxes & fees included · full payment due at booking",
         "validUntil": "This proposal is valid until {date}.",
         "preparedBy": "Prepared by {appName} · {tagline}. Prices are per the package and subject to availability at the time of booking."
       }

@@ -21,9 +21,13 @@ import { cn } from "@/lib/utils";
 export function ProposalSignForm({
   productId,
   depositLabel,
+  depositPercent = 50,
 }: {
   productId: string;
-  depositLabel?: string;
+  /** Formatted deposit figure, or null when the agency takes no deposit. */
+  depositLabel?: string | null;
+  /** Agency deposit % (drives the "secures your dates" copy). */
+  depositPercent?: number;
 }) {
   const router = useRouter();
   const [signature, setSignature] = useState("");
@@ -100,7 +104,9 @@ export function ProposalSignForm({
         ) : (
           <p className="text-muted-foreground text-center text-xs">
             Sign here to confirm
-            {depositLabel ? ` — a 50% deposit (${depositLabel}) secures your dates` : ""}
+            {depositLabel
+              ? ` — a ${depositPercent}% deposit (${depositLabel}) secures your dates`
+              : ""}
             .
           </p>
         )}

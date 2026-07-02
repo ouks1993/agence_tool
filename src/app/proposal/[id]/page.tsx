@@ -27,11 +27,13 @@ export default async function ProposalView({
     where: and(eq(product.id, id), eq(product.agencyId, user.agencyId)),
     with: {
       client: { columns: { name: true, email: true } },
+      agency: { columns: { depositPercent: true } },
       items: { orderBy: (t) => [asc(t.sortOrder)] },
     },
   });
   if (!p) notFound();
 
+  const depositPercent = parseFloat(p.agency?.depositPercent ?? "50");
   const doc = toProposalDocData(p, p.client?.name ?? null);
 
   return (
@@ -46,7 +48,12 @@ export default async function ProposalView({
           <PrintButton />
         </div>
 
-        <ProposalDocument data={doc} appName={APP_NAME} appTagline={APP_TAGLINE} />
+        <ProposalDocument
+          data={doc}
+          appName={APP_NAME}
+          appTagline={APP_TAGLINE}
+          depositPercent={depositPercent}
+        />
       </div>
     </div>
   );
