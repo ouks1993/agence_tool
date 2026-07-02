@@ -205,5 +205,11 @@ spellings never drift; city uses curated autocomplete suggestions.
 - Agents send the invite from a client or booking detail page; the link is
   copyable when email is unconfigured.
 - Online "Pay now" appears only when the agency has onboarded Stripe Connect.
+  It offers the traveler **two server-computed options**: pay the agency's
+  deposit % (the remainder needed to reach the deposit threshold, recorded as
+  kind `deposit`) or the full outstanding balance. Amounts are recomputed
+  server-side from the booking total, completed payments, and
+  `agency.depositPercent` — a client-supplied amount is never trusted. Once the
+  deposit is covered, only "Pay balance" is shown.
 - Clients can accept/decline proposals in-portal with the same e-sign audit as the
   public flow.

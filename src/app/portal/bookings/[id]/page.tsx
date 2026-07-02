@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { EmptyState } from "@/components/app/empty-state";
 import { StatusPill } from "@/components/app/status-badge";
-import { PayNowButton } from "@/components/portal/pay-now-button";
+import { PaymentOptions } from "@/components/portal/payment-options";
 import {
   InfoLine,
   SectionHead,
@@ -35,6 +35,7 @@ import {
   type PaymentKind,
 } from "@/lib/domain";
 import { formatDate, formatMoney, initials } from "@/lib/format";
+import { depositAmount } from "@/lib/payments/deposit";
 import { paymentSummary } from "@/lib/payments/summary";
 import { requirePortalSession } from "@/lib/portal-session";
 import { agency, booking, client } from "@/lib/schema";
@@ -114,9 +115,10 @@ export default async function PortalBookingPage({
   // Online self-pay is only offered once the agency has finished Stripe Connect.
   const ag = await db.query.agency.findFirst({
     where: eq(agency.id, session.client.agencyId),
-    columns: { stripeConnectOnboarded: true },
+    columns: { stripeConnectOnboarded: true, depositPercent: true },
   });
   const canPayOnline = ag?.stripeConnectOnboarded === true;
+  const depositPercent = parseFloat(ag?.depositPercent ?? "50");
 
   // The travel agent who owns this client relationship (real user row).
   const clientRow = await db.query.client.findFirst({
@@ -132,6 +134,9 @@ export default async function PortalBookingPage({
   const total = parseFloat(b.totalAmount ?? "0");
   const { paid: totalPaid, balance } = paymentSummary(b.payments, total);
   const paidPct = total > 0 ? Math.min(100, Math.round((totalPaid / total) * 100)) : 0;
+  // Remainder still needed to reach the agency's deposit threshold (display
+  // only — the pay action recomputes this server-side). <= 0 once covered.
+  const depositDue = Math.max(0, depositAmount(total, depositPercent) - totalPaid);
 
   // ---- Hero derivations ----
   const nights = nightsBetween(b.departDate, b.returnDate);
@@ -391,7 +396,13 @@ export default async function PortalBookingPage({
                       </div>
                       {canPayOnline && (
                         <div className="mt-2 flex justify-end">
-                          <PayNowButton bookingId={b.id} amount={balance} />
+                          <PaymentOptions
+                            bookingId={b.id}
+                            balance={balance}
+                            depositDue={depositDue}
+                            depositPercent={depositPercent}
+                            currency={currency}
+                          />
                         </div>
                       )}
                     </div>
