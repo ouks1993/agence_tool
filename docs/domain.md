@@ -74,8 +74,15 @@ offers. It optionally links back to both a `clientId` and an `opportunityId`
 Statuses are `PRODUCT_STATUSES` (`draft → sent → accepted → rejected → expired`).
 Line items live in `product_item` (`PRODUCT_ITEM_TYPES`: `flight`, `hotel`,
 `activity`, `transfer`, `insurance`, `other`), each optionally tied to a managed
-`supplierId`. Pricing is computed from `unitCost`/`unitPrice` per item plus a
-`markupPercent` on the parent. The `reference` (e.g. `PRD-1042`) is unique per
+`supplierId`. **Pricing:** stored truth is `unitCost`/`unitPrice` per item;
+totals are plain sums (`Σ unitCost×qty` / `Σ unitPrice×qty` — no multiplier).
+`markupPercent` on the parent is the proposal's **default margin**: it seeds
+newly added items (incl. AI-quote items) and the "apply to all items" control,
+but never retroactively reprices existing lines. In the builder, each line's
+margin is a two-way *input device* (margin ↔ sell price, derived — never
+stored; pure math in `src/lib/pricing.ts`), and an explicit **Apply to all
+items** button rewrites every line's price from its own cost (zero-cost lines
+skipped). The `reference` (e.g. `PRD-1042`) is unique per
 agency (`product_agency_reference_unique`).
 
 **E-signature acceptance.** A proposal is shared via an unguessable `shareToken`

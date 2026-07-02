@@ -167,6 +167,7 @@ export default async function ProductDetailPage({
                 productId={p.id}
                 currency={p.currency}
                 suppliers={suppliers}
+                defaultMarginPercent={Number(p.markupPercent) || 0}
                 items={p.items.map((i) => ({
                   id: i.id,
                   type: i.type,

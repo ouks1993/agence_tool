@@ -28,13 +28,24 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import type { QuoteResult } from "@/lib/actions/ai";
-import { addProductItem, removeProductItem } from "@/lib/actions/products";
+import {
+  addProductItem,
+  applyMarginToAllItems,
+  removeProductItem,
+  updateProductItemPricing,
+} from "@/lib/actions/products";
 import {
   PRODUCT_ITEM_TYPES,
   PRODUCT_ITEM_TYPE_META,
   type ProductItemType,
 } from "@/lib/domain";
 import { formatDate, formatMoney } from "@/lib/format";
+import {
+  marginFromCostPrice,
+  priceFromMargin,
+  round2,
+  toNumber,
+} from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 
 const ICONS: Record<ProductItemType, React.ComponentType<{ className?: string }>> = {
@@ -92,22 +103,180 @@ const emptyForm = (type: ProductItemType = "activity"): AddForm => ({
   startDate: "",
 });
 
+/**
+ * Compact two-way pricing editor for one line-item row.
+ *
+ * Stored truth is cost + price. Margin is a derived *input device*: typing a
+ * margin recomputes the price; editing the price re-derives the margin readout
+ * (cost 0 → "—"). Local edits are committed on blur/Enter, and only when a value
+ * actually changed, so browsing a proposal never fires writes. `unitCost` /
+ * `unitPrice` from the server are the source of truth whenever they change.
+ */
+function PricingRow({
+  item,
+  disabled,
+  onSave,
+}: {
+  item: ProductItemRow;
+  disabled: boolean;
+  onSave: (pricing: {
+    unitCost: number;
+    unitPrice: number;
+    quantity: number;
+  }) => void;
+}) {
+  // Editable draft strings for cost + price. Local draft of the margin input is
+  // a string so the field can be cleared/typed freely; `null` means "track the
+  // derived margin" (i.e. show margin computed from the current cost/price).
+  const [cost, setCost] = useState(item.unitCost);
+  const [price, setPrice] = useState(item.unitPrice);
+  const [marginDraft, setMarginDraft] = useState<string | null>(null);
+  // Re-seed drafts from the server whenever the persisted values change (e.g. an
+  // apply-to-all rewrite or a router refresh). Derived-state-from-props pattern:
+  // a render-phase setState is the React-sanctioned way to reset on prop change.
+  const [synced, setSynced] = useState({
+    cost: item.unitCost,
+    price: item.unitPrice,
+  });
+  if (synced.cost !== item.unitCost || synced.price !== item.unitPrice) {
+    setCost(item.unitCost);
+    setPrice(item.unitPrice);
+    setMarginDraft(null);
+    setSynced({ cost: item.unitCost, price: item.unitPrice });
+  }
+
+  const costNum = toNumber(cost);
+  const priceNum = toNumber(price);
+  const derivedMargin = marginFromCostPrice(costNum, priceNum);
+
+  const marginValue =
+    marginDraft ??
+    (derivedMargin === null ? "" : String(round2(derivedMargin)));
+
+  const commit = (next: { cost: number; price: number }) => {
+    // Only write when something actually changed vs the last server sync.
+    if (
+      round2(next.cost) === round2(toNumber(synced.cost)) &&
+      round2(next.price) === round2(toNumber(synced.price))
+    ) {
+      return;
+    }
+    onSave({ unitCost: next.cost, unitPrice: next.price, quantity: item.quantity });
+  };
+
+  const onMarginChange = (raw: string) => {
+    setMarginDraft(raw);
+    // Typing a margin recomputes the price live (cost is unchanged).
+    const m = raw === "" ? 0 : Number(raw);
+    if (Number.isFinite(m)) {
+      setPrice(String(priceFromMargin(costNum, m)));
+    }
+  };
+
+  const linePrice = priceNum * item.quantity;
+
+  return (
+    <div className="flex shrink-0 items-start gap-2">
+      <div className="flex flex-col items-end gap-1">
+        {/* Editable cost + price + margin, kept on one compact line. */}
+        <div className="flex items-center gap-1.5">
+          <label className="sr-only" htmlFor={`cost-${item.id}`}>
+            Net cost
+          </label>
+          <Input
+            id={`cost-${item.id}`}
+            type="number"
+            min="0"
+            step="0.01"
+            value={cost}
+            disabled={disabled}
+            onChange={(e) => {
+              setCost(e.target.value);
+              // Cost change keeps the current margin: recompute price from the
+              // current margin draft/derived value so margin stays put.
+              const m = marginDraft ?? (derivedMargin === null ? "0" : String(derivedMargin));
+              const mn = m === "" ? 0 : Number(m);
+              if (Number.isFinite(mn)) {
+                setPrice(String(priceFromMargin(toNumber(e.target.value), mn)));
+              }
+            }}
+            onBlur={() => commit({ cost: toNumber(cost), price: toNumber(price) })}
+            className="h-7 w-20 text-right text-xs tabular-nums"
+            aria-label="Net cost"
+          />
+          <span className="text-muted-foreground text-xs">→</span>
+          <div className="relative">
+            <Input
+              type="number"
+              min="0"
+              step="0.5"
+              value={marginValue}
+              disabled={disabled || costNum === 0}
+              placeholder={costNum === 0 ? "—" : "0"}
+              onChange={(e) => onMarginChange(e.target.value)}
+              onBlur={() => {
+                setMarginDraft(null);
+                commit({ cost: costNum, price: toNumber(price) });
+              }}
+              className="h-7 w-16 pr-4 text-right text-xs tabular-nums"
+              aria-label="Margin percent"
+            />
+            <span className="text-muted-foreground pointer-events-none absolute inset-y-0 right-1.5 flex items-center text-xs">
+              %
+            </span>
+          </div>
+          <label className="sr-only" htmlFor={`price-${item.id}`}>
+            Sell price
+          </label>
+          <Input
+            id={`price-${item.id}`}
+            type="number"
+            min="0"
+            step="0.01"
+            value={price}
+            disabled={disabled}
+            onChange={(e) => {
+              setPrice(e.target.value);
+              setMarginDraft(null); // fall back to derived margin from the new price
+            }}
+            onBlur={() => commit({ cost: costNum, price: toNumber(price) })}
+            className="h-7 w-24 text-right text-xs font-semibold tabular-nums"
+            aria-label="Sell price"
+          />
+        </div>
+        {item.quantity > 1 && (
+          <p className="text-muted-foreground text-xs tabular-nums">
+            {formatMoney(linePrice, item.currency)} for ×{item.quantity}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function ItemsManager({
   productId,
   currency,
   items,
   suppliers = [],
+  defaultMarginPercent = 0,
 }: {
   productId: string;
   currency: string;
   items: ProductItemRow[];
   suppliers?: SupplierOption[];
+  // The proposal's default margin (`markupPercent`) — seeds the apply-to-all
+  // input and is applied to newly added items server-side.
+  defaultMarginPercent?: number;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<AddForm>(emptyForm());
   const [titleError, setTitleError] = useState(false);
+  // Apply-to-all margin input, seeded from the proposal default. Explicit action
+  // only — typing here never touches items until "Apply to all" is pressed.
+  const [bulkMargin, setBulkMargin] = useState(String(defaultMarginPercent));
 
   const remove = (id: string) => {
     startTransition(async () => {
@@ -179,11 +348,42 @@ export function ItemsManager({
     });
   };
 
+  // Persist a single row's resolved cost/price/qty (the row editor turns the
+  // typed margin into a price before calling this).
+  const saveItemPricing = (
+    itemId: string,
+    pricing: { unitCost: number; unitPrice: number; quantity: number }
+  ) => {
+    startTransition(async () => {
+      const res = await updateProductItemPricing(itemId, pricing);
+      if (res.ok) {
+        router.refresh();
+      } else {
+        toast.error(res.error);
+      }
+    });
+  };
+
+  // Explicit "apply to all": rewrite every item's price from its own cost at one
+  // margin. Zero-cost items are skipped server-side. Fired only on button press.
+  const applyToAll = () => {
+    const margin = bulkMargin === "" ? 0 : Number(bulkMargin);
+    startTransition(async () => {
+      const res = await applyMarginToAllItems(productId, { marginPercent: margin });
+      if (res.ok) {
+        toast.success(`Applied ${round2(margin)}% margin to all items`);
+        router.refresh();
+      } else {
+        toast.error(res.error);
+      }
+    });
+  };
+
   const totals = items.reduce(
     (acc, it) => {
       const q = it.quantity;
-      acc.cost += parseFloat(it.unitCost || "0") * q;
-      acc.sell += parseFloat(it.unitPrice || "0") * q;
+      acc.cost += toNumber(it.unitCost) * q;
+      acc.sell += toNumber(it.unitPrice) * q;
       return acc;
     },
     { cost: 0, sell: 0 }
@@ -260,11 +460,6 @@ export function ItemsManager({
                   </div>
                   <ul className="divide-y rounded-lg border">
                     {rows.map((item) => {
-                      const lineCost =
-                        parseFloat(item.unitCost || "0") * item.quantity;
-                      const linePrice =
-                        parseFloat(item.unitPrice || "0") * item.quantity;
-                      const lineMargin = linePrice - lineCost;
                       return (
                         <li
                           key={item.id}
@@ -286,20 +481,13 @@ export function ItemsManager({
                               </p>
                             )}
                           </div>
-                          <div className="shrink-0 text-right">
-                            <p className="text-sm font-semibold tabular-nums">
-                              {formatMoney(linePrice, item.currency)}
-                            </p>
-                            <p className="text-muted-foreground text-xs tabular-nums">
-                              cost {formatMoney(lineCost, item.currency)}
-                              {lineMargin > 0 && (
-                                <span className="text-success">
-                                  {" · +"}
-                                  {formatMoney(lineMargin, item.currency)}
-                                </span>
-                              )}
-                            </p>
-                          </div>
+                          <PricingRow
+                            item={item}
+                            disabled={pending}
+                            onSave={(pricing) =>
+                              saveItemPricing(item.id, pricing)
+                            }
+                          />
                           <Button
                             type="button"
                             variant="ghost"
@@ -318,6 +506,36 @@ export function ItemsManager({
                 </section>
               );
             })}
+          </div>
+
+          {/* Apply-to-all margin — explicit action; rewrites every item's price
+              from its own cost at this one margin. Zero-cost items are skipped. */}
+          <div className="border-strong flex flex-wrap items-center gap-2 rounded-lg border border-dashed p-3 text-sm">
+            <span className="text-muted-foreground">Set one margin for all items</span>
+            <div className="relative ml-auto">
+              <Input
+                type="number"
+                min="0"
+                max="100"
+                step="0.5"
+                value={bulkMargin}
+                onChange={(e) => setBulkMargin(e.target.value)}
+                className="h-8 w-24 pr-6 text-right tabular-nums"
+                aria-label="Margin percent for all items"
+              />
+              <span className="text-muted-foreground pointer-events-none absolute inset-y-0 right-2 flex items-center text-xs">
+                %
+              </span>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={applyToAll}
+              disabled={pending}
+            >
+              Apply to all items
+            </Button>
           </div>
 
           {/* Quote summary */}

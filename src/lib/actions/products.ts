@@ -8,11 +8,8 @@ import { logActivity } from "@/lib/activity";
 import { db } from "@/lib/db";
 import { canDeleteRecords } from "@/lib/domain";
 import { requireAgencyUser } from "@/lib/permissions";
+import { priceFromMargin, round2, toNumber } from "@/lib/pricing";
 import { client, opportunity, product, productItem } from "@/lib/schema";
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
-}
 
 function toDate(value?: string | null): Date | null {
   if (!value) return null;
@@ -52,37 +49,35 @@ async function nextReference(agencyId: string): Promise<string> {
   return `PRD-${highest + 1}`;
 }
 
-/** Recompute per-item client prices and product totals from item costs + markup. */
+/**
+ * Recompute product totals as plain sums of the *stored* per-item cost and price.
+ *
+ * Margin now lives in each item's `unitPrice` (set individually per row, via the
+ * proposal-level apply-to-all action, or from the default margin when an item is
+ * created). `markupPercent` is the proposal's *default* margin — a UI seed — and
+ * is no longer multiplied into the totals here (doing so would double-count the
+ * margin already baked into `unitPrice`). Totals are therefore:
+ *   totalCost  = Σ unitCost  × quantity
+ *   totalPrice = Σ unitPrice × quantity
+ */
 async function recalcTotals(productId: string): Promise<void> {
   const p = await db.query.product.findFirst({
     where: eq(product.id, productId),
     with: { items: true },
   });
   if (!p) return;
-  const markup = parseFloat(p.markupPercent || "0");
   let totalCost = 0;
-  // Collect the per-item price corrections, then issue them in parallel instead
-  // of awaiting one UPDATE per item sequentially (N+1). Only items whose price
-  // actually changed are updated, exactly as before.
-  const itemUpdates: Promise<unknown>[] = [];
+  let totalPrice = 0;
   for (const item of p.items) {
-    const cost = parseFloat(item.unitCost || "0") * item.quantity;
-    totalCost += cost;
-    const unitPrice = round2(parseFloat(item.unitCost || "0") * (1 + markup / 100));
-    if (unitPrice !== parseFloat(item.unitPrice || "0")) {
-      itemUpdates.push(
-        db
-          .update(productItem)
-          .set({ unitPrice: String(unitPrice) })
-          .where(eq(productItem.id, item.id))
-      );
-    }
+    totalCost += toNumber(item.unitCost) * item.quantity;
+    totalPrice += toNumber(item.unitPrice) * item.quantity;
   }
-  await Promise.all(itemUpdates);
-  const totalPrice = round2(totalCost * (1 + markup / 100));
   await db
     .update(product)
-    .set({ totalCost: String(round2(totalCost)), totalPrice: String(totalPrice) })
+    .set({
+      totalCost: String(round2(totalCost)),
+      totalPrice: String(round2(totalPrice)),
+    })
     .where(eq(product.id, productId));
 }
 
@@ -393,12 +388,16 @@ export async function addProductItem(
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid item" };
   }
   // The child item has no agencyId, so verify the parent product's tenant first.
+  // Also read the proposal's default margin (`markupPercent`) so a new item's
+  // sell price is seeded from cost + default margin, not left equal to cost.
   const parent = await db.query.product.findFirst({
     where: and(eq(product.id, productId), eq(product.agencyId, user.agencyId)),
-    columns: { id: true },
+    columns: { id: true, markupPercent: true },
   });
   if (!parent) return { ok: false, error: "Not found" };
   const d = parsed.data;
+  const defaultMargin = toNumber(parent.markupPercent);
+  const unitPrice = priceFromMargin(d.unitCost, defaultMargin);
   const count = await db.$count(productItem, eq(productItem.productId, productId));
 
   await db.insert(productItem).values({
@@ -410,7 +409,7 @@ export async function addProductItem(
     supplier: d.supplier || null,
     quantity: d.quantity,
     unitCost: String(d.unitCost),
-    unitPrice: String(d.unitCost),
+    unitPrice: String(unitPrice),
     currency: d.currency,
     startDate: toDate(d.startDate),
     endDate: toDate(d.endDate),
@@ -443,6 +442,114 @@ export async function removeProductItem(
   await db.delete(productItem).where(eq(productItem.id, itemId));
   await recalcTotals(item.productId);
   revalidatePath(`/proposals/${item.productId}`);
+  return { ok: true };
+}
+
+const itemPricingInput = z.object({
+  unitCost: z.coerce.number().min(0),
+  unitPrice: z.coerce.number().min(0),
+  quantity: z.coerce.number().int().min(1),
+});
+
+export type ItemPricingInput = z.input<typeof itemPricingInput>;
+
+/**
+ * Update a single line item's pricing (net cost, sell price, quantity).
+ *
+ * The row editor is the two-way margin device: the client turns a typed margin %
+ * into a `unitPrice` (via `priceFromMargin`) and turns a typed price back into a
+ * margin readout — so this action only ever persists the resolved cost/price and
+ * never a margin field. Tenant is verified via the parent product.
+ */
+export async function updateProductItemPricing(
+  itemId: string,
+  input: ItemPricingInput
+): Promise<ActionResult> {
+  const user = await requireAgencyUser();
+  const parsed = itemPricingInput.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid pricing" };
+  }
+  // Load the item and confirm its parent product belongs to the caller's agency
+  // before writing — the item row carries no agencyId of its own.
+  const item = await db.query.productItem.findFirst({
+    where: eq(productItem.id, itemId),
+    columns: { id: true, productId: true },
+    with: { product: { columns: { id: true, agencyId: true } } },
+  });
+  if (!item || item.product.agencyId !== user.agencyId) {
+    return { ok: false, error: "Not found" };
+  }
+  const d = parsed.data;
+  await db
+    .update(productItem)
+    .set({
+      unitCost: String(round2(d.unitCost)),
+      unitPrice: String(round2(d.unitPrice)),
+      quantity: d.quantity,
+    })
+    .where(eq(productItem.id, itemId));
+
+  await recalcTotals(item.productId);
+  revalidatePath(`/proposals/${item.productId}`);
+  return { ok: true };
+}
+
+const applyMarginInput = z.object({
+  marginPercent: z.coerce.number().min(0).max(100),
+});
+
+export type ApplyMarginInput = z.input<typeof applyMarginInput>;
+
+/**
+ * Rewrite every line item's `unitPrice` from its own `unitCost` at a single
+ * margin %. This is the explicit "apply to all" action — it deliberately clobbers
+ * individually tuned per-item margins, so the UI only ever fires it on a button
+ * press, never while typing. Items with a zero cost are skipped (price left as-is).
+ */
+export async function applyMarginToAllItems(
+  productId: string,
+  input: ApplyMarginInput
+): Promise<ActionResult> {
+  const user = await requireAgencyUser();
+  const parsed = applyMarginInput.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid margin" };
+  }
+  const p = await db.query.product.findFirst({
+    where: and(eq(product.id, productId), eq(product.agencyId, user.agencyId)),
+    columns: { id: true },
+    with: { items: { columns: { id: true, unitCost: true, unitPrice: true } } },
+  });
+  if (!p) return { ok: false, error: "Not found" };
+
+  const margin = parsed.data.marginPercent;
+  // Skip zero-cost items (their price stays as-is) and items already at the
+  // target price, so we only issue UPDATEs that actually change a value.
+  const updates: Promise<unknown>[] = [];
+  for (const item of p.items) {
+    const cost = toNumber(item.unitCost);
+    if (cost === 0) continue;
+    const next = priceFromMargin(cost, margin);
+    if (next === toNumber(item.unitPrice)) continue;
+    updates.push(
+      db
+        .update(productItem)
+        .set({ unitPrice: String(next) })
+        .where(eq(productItem.id, item.id))
+    );
+  }
+  await Promise.all(updates);
+
+  // Persist the applied margin as the proposal's default so it seeds newly added
+  // items and pre-fills the apply-to-all input on the next visit.
+  await db
+    .update(product)
+    .set({ markupPercent: String(round2(margin)) })
+    .where(and(eq(product.id, productId), eq(product.agencyId, user.agencyId)));
+
+  await recalcTotals(productId);
+  revalidatePath(`/proposals/${productId}`);
   return { ok: true };
 }
 
