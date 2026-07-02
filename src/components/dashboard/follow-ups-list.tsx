@@ -38,7 +38,7 @@ const GROUP_LABEL: Record<FollowUpKind, string> = {
 
 // Show at most this many rows per group; the rest are summarised in a footer
 // count so a single busy group can't drown the others.
-const PER_GROUP_CAP = 4;
+const PER_GROUP_CAP = 3;
 
 const PRIORITY_RANK: Record<FollowUpPriority, number> = {
   high: 0,
@@ -62,7 +62,9 @@ export function FollowUpsList({ items }: { items: FollowUpItem[] }) {
   }).filter((g) => g.rows.length > 0);
 
   return (
-    <div className="space-y-4">
+    // Bounded height + internal scroll so a busy agency's list can't stretch
+    // the whole dashboard row and leave the neighbouring cards mostly blank.
+    <div className="max-h-[22rem] space-y-4 overflow-y-auto pr-1">
       {groups.map(({ kind, rows }) => {
         const shown = rows.slice(0, PER_GROUP_CAP);
         const hidden = rows.length - shown.length;
