@@ -949,6 +949,9 @@ const itemInput = z.object({
   endDate: z.string().optional(),
   quantity: z.coerce.number().int().min(1).default(1),
   amount: z.coerce.number().min(0).default(0),
+  // Net supplier cost per unit. Optional/nullable — null means "cost unknown"
+  // (we never fake a 0 cost). Callers that don't price cost simply omit it.
+  unitCost: z.coerce.number().min(0).nullable().optional(),
   currency: z.string().trim().min(1).max(8).default("DZD"),
   details: z.unknown().optional(),
 });
@@ -985,10 +988,59 @@ export async function addBookingItem(
     endDate: toDate(d.endDate),
     quantity: d.quantity,
     amount: String(d.amount),
+    // null when the caller omits cost (unknown) — never coerced to "0".
+    unitCost: d.unitCost == null ? null : String(d.unitCost),
     currency: d.currency,
     details: (d.details as object) ?? null,
     sortOrder: count,
   });
+
+  await recalcTotal(bookingId, user.agencyId);
+  revalidatePath(`/bookings/${bookingId}`);
+  return { ok: true };
+}
+
+// Per-line pricing edit: sell price (`amount`) plus optional net cost. Cost null
+// = "unknown" (margin shows "—"); a provided cost persists as a numeric string.
+const itemPricingInput = z.object({
+  amount: z.coerce.number().min(0),
+  unitCost: z.coerce.number().min(0).nullable(),
+  quantity: z.coerce.number().int().min(1),
+});
+
+export type BookingItemPricingInput = z.input<typeof itemPricingInput>;
+
+/**
+ * Updates a single booking item's sell price / net cost / quantity. The margin
+ * is derived on read, never stored. Tenant-checked via the parent booking
+ * (booking items carry no agencyId of their own).
+ */
+export async function updateBookingItemPricing(
+  itemId: string,
+  bookingId: string,
+  input: BookingItemPricingInput
+): Promise<ActionResult> {
+  const user = await requireAgencyUser();
+  const parsed = itemPricingInput.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid pricing" };
+  }
+  // Confirm the parent booking belongs to this agency before writing.
+  const parent = await db.query.booking.findFirst({
+    where: and(eq(booking.id, bookingId), eq(booking.agencyId, user.agencyId)),
+    columns: { id: true },
+  });
+  if (!parent) return { ok: false, error: "Not found" };
+
+  const d = parsed.data;
+  await db
+    .update(bookingItem)
+    .set({
+      amount: String(round2(d.amount)),
+      unitCost: d.unitCost == null ? null : String(round2(d.unitCost)),
+      quantity: d.quantity,
+    })
+    .where(and(eq(bookingItem.id, itemId), eq(bookingItem.bookingId, bookingId)));
 
   await recalcTotal(bookingId, user.agencyId);
   revalidatePath(`/bookings/${bookingId}`);
@@ -1205,6 +1257,9 @@ export async function createBookingFromAcceptedProposal(
         supplier: it.supplier ?? null,
         quantity: it.quantity,
         amount: it.unitPrice,
+        // Snapshot the proposal item's net cost onto the booking item so the
+        // booking keeps margin visibility (proposal items always carry a cost).
+        unitCost: it.unitCost,
         currency: it.currency,
         sortOrder: i,
       }))

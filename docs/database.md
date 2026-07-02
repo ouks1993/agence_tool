@@ -41,7 +41,7 @@ truth, no hard delete, no cross-tenant exposure) at the schema level.
 | `opportunity` | agencyId | pipeline stage, value, currency; `travel_purpose` code; `lost_reason` code |
 | `product` | agencyId | proposal; ref unique per agency; `depositPercent` nullable numeric(5,2) — per-deal deposit override (null = inherit agency default); + `product_item` (child; `supplierId` FK optional); **e-sign**: shareToken (unique), acceptedAt/declinedAt, signerName/Email, signatureData, signerIp/UserAgent |
 | `booking` | agencyId | ref unique per agency; shareToken; `travel_purpose` + `trip_type` codes; `depositPercent` nullable numeric(5,2) — effective deposit % **snapshotted at proposal→booking conversion** (null = inherit agency default) |
-| `booking_traveller` (+ `title`, `gender` codes), `booking_item` (+ `supplierId` FK), `payment`, `booking_day` | via booking | children; `booking_traveller` carries `email` + `phone` (required by supplier APIs for the lead passenger) |
+| `booking_traveller` (+ `title`, `gender` codes), `booking_item` (+ `supplierId` FK), `payment`, `booking_day` | via booking | children; `booking_traveller` carries `email` + `phone` (required by supplier APIs for the lead passenger); `booking_item.unit_cost` nullable numeric(12,2) — net supplier cost per unit (null = unknown, sell price is `amount`, margin derived never stored; snapshotted from `product_item.unitCost` at proposal→booking conversion) |
 | `booking_supplier_ref` | via booking + booking_item | structured supplier confirmation: `providerId`, `confirmationNumber`, `pnr`, `supplierOrderId`, `rawPayload`; replaces untyped JSONB in `booking_item.details` |
 | `booking_event` | bookingId + agencyId | append-only event log (audit + analytics); stable `event` codes: `search_initiated`, `offer_selected`, `price_validated`, `price_changed`, `booking_submitted`, `booking_confirmed`, `booking_failed`, `booking_cancelled`, `payment_started`, `payment_completed` |
 | `booking_document` | via booking (+ optional booking_item) | documents: `type` (voucher/ticket/invoice/itinerary/receipt), `url` (Vercel Blob), `rawData` (supplier payload for re-generation) |
@@ -83,6 +83,7 @@ All ID columns **not** related to Better Auth use UUIDs, randomly generated. See
 | `0022` | `user_notification` table — per-user in-app notification inbox (topbar bell) |
 | `0023` | `agency.depositPercent` — deposit-threshold booking confirmation ([decision 0009](decisions/0009-deposit-threshold-booking-lifecycle.md)) |
 | `0024` | Nullable `product.depositPercent` + `booking.depositPercent` — per-deal deposit override chain, snapshotted onto the booking at conversion |
+| `0025` | Nullable `booking_item.unit_cost` — margin visibility on directly created bookings (snapshotted from proposal items on conversion) |
 
 > Migrations `0000`–`0005` predate the multi-tenant rework (the pre-tenancy base
 > schema) and are not itemized here.

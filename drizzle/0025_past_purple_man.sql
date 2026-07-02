@@ -1,0 +1,1 @@
+ALTER TABLE "booking_item" ADD COLUMN "unit_cost" numeric(12, 2);

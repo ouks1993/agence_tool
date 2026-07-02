@@ -371,6 +371,7 @@ export default async function BookingWorkspace({
                   endDate: i.endDate,
                   quantity: i.quantity,
                   amount: i.amount,
+                  unitCost: i.unitCost,
                   currency: i.currency,
                   itemStatus: i.itemStatus,
                   confirmationNumber: i.confirmationNumber,

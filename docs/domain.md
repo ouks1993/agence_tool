@@ -133,7 +133,7 @@ Booking children:
 | Child table | Purpose |
 |---|---|
 | `booking_traveller` | Travellers + passport data; `title`/`gender` codes (`TITLES`/`GENDERS`); `email`/`phone` required by supplier APIs on the lead pax (`isLead`) |
-| `booking_item` | Purchased lines (`BOOKING_ITEM_TYPES`: `flight`, `hotel`, `transfer`, `excursion`, `insurance`, `fee`, `other`); `itemStatus` = `pending | confirmed | ticketed | cancelled`; optional `supplierId`; `dayIndex` for the timeline |
+| `booking_item` | Purchased lines (`BOOKING_ITEM_TYPES`: `flight`, `hotel`, `transfer`, `excursion`, `insurance`, `fee`, `other`); `itemStatus` = `pending | confirmed | ticketed | cancelled`; optional `supplierId`; `dayIndex` for the timeline; optional `unitCost` (null = unknown) for per-line margin on directly created bookings — snapshotted from `product_item.unitCost` on conversion, margin always derived |
 | `booking_day` | Per-day title/notes for the itinerary timeline |
 | `payment` | Deposits, installments, payments, refunds (see below) |
 | `booking_supplier_ref` | Structured supplier confirmation (replaces untyped JSONB) |

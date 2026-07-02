@@ -574,6 +574,10 @@ export const bookingItem = pgTable(
     quantity: integer("quantity").default(1).notNull(),
     // Price charged to the client (per unit).
     amount: numeric("amount", { precision: 12, scale: 2 }).default("0").notNull(),
+    // Net supplier cost per unit; null = unknown. Sell price is `amount`. Margin
+    // is derived, never stored. No default/notNull on purpose: we never fake a 0
+    // cost — directly-created bookings leave this null until an agent fills it in.
+    unitCost: numeric("unit_cost", { precision: 12, scale: 2 }),
     currency: text("currency").default("EUR").notNull(),
     // Operational status of this line: pending | confirmed | ticketed | cancelled.
     itemStatus: text("item_status").default("pending").notNull(),
