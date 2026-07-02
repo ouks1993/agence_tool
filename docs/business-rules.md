@@ -139,6 +139,15 @@ server-side guards** — the dropdown is not a way around the stepper's rules:
 - `ticketed` and `completed` additionally require a **zero outstanding
   balance** — full payment is due before supplier orders are issued, not before
   confirmation.
+- **Pricing on proposal-born bookings is locked to the signed total.** When a
+  booking was created from an accepted (e-signed) proposal
+  (`product.convertedBookingId` latched to the booking), each line item's sell
+  price and quantity are read-only — enforced server-side in
+  `updateBookingItemPricing`, with a "Pricing locked · from signed proposal"
+  indicator in the trip-services panel. The net supplier **cost stays
+  recordable** (it only refines the displayed margin, never the sell price).
+  Directly created bookings keep fully editable pricing. *Known gap:*
+  adding/removing whole items still changes a locked booking's total.
 - Reaching `ticketed` runs the supplier-confirmation flow for every item
   (`runTicketingConfirmation`): each item without an existing confirmation is
   booked via the provider registry; if any provider call fails, the whole

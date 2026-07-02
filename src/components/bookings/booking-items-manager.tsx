@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { BookingSearchPanel } from "@/components/bookings/booking-search-panel";
 import { BookingSegmentCard } from "@/components/bookings/booking-segment-cards";
@@ -63,11 +64,20 @@ export function BookingItemsManager({
   currency,
   items,
   suppliers = [],
+  pricingLockedBy = null,
 }: {
   bookingId: string;
   currency: string;
   items: BookingItemRow[];
   suppliers?: SupplierOption[];
+  /**
+   * The accepted proposal this booking was converted from, when any. Its
+   * presence LOCKS line-item sell price + quantity to the signed total (the net
+   * cost stays editable). Null for directly-created bookings, which keep the
+   * fully editable pricing rows. The server independently enforces the lock in
+   * `updateBookingItemPricing`; this only drives the read-only UI.
+   */
+  pricingLockedBy?: { id: string; reference: string } | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -207,13 +217,31 @@ export function BookingItemsManager({
       ? Math.round((itemMargin / marginBase.cost) * 1000) / 10
       : null;
 
+  const locked = pricingLockedBy !== null;
+
   return (
     <div className="space-y-6">
+      {pricingLockedBy && (
+        <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
+          <Lock className="size-3.5 shrink-0" />
+          <span>
+            Pricing locked · from signed proposal{" "}
+            <Link
+              href={`/proposals/${pricingLockedBy.id}`}
+              className="font-medium hover:underline"
+            >
+              {pricingLockedBy.reference}
+            </Link>
+          </span>
+        </p>
+      )}
+
       <ItemSection
         title="Flights & hotels"
         items={travel}
         currency={currency}
         bookingId={bookingId}
+        locked={locked}
         onRemove={remove}
         onConfirm={confirmItem}
         onSavePricing={savePricing}
@@ -228,6 +256,7 @@ export function BookingItemsManager({
         items={extras}
         currency={currency}
         bookingId={bookingId}
+        locked={locked}
         onRemove={remove}
         onConfirm={confirmItem}
         onSavePricing={savePricing}
@@ -405,6 +434,7 @@ function ItemSection({
   items,
   currency,
   bookingId: _bookingId,
+  locked,
   onRemove,
   onConfirm,
   onSavePricing,
@@ -417,6 +447,8 @@ function ItemSection({
   items: BookingItemRow[];
   currency: string;
   bookingId: string;
+  /** When true the sell price + quantity are locked (proposal-born booking). */
+  locked: boolean;
   onRemove: (id: string) => void;
   onConfirm: (id: string) => void;
   onSavePricing: (
@@ -480,6 +512,7 @@ function ItemSection({
                   <BookingPricingRow
                     item={item}
                     disabled={pending}
+                    locked={locked}
                     onSave={(pricing) => onSavePricing(item.id, pricing)}
                   />
                   {canConfirm && (
@@ -527,10 +560,20 @@ function ItemSection({
 function BookingPricingRow({
   item,
   disabled,
+  locked = false,
   onSave,
 }: {
   item: BookingItemRow;
   disabled: boolean;
+  /**
+   * When true (proposal-born booking) the sell price + quantity are locked to the
+   * signed total. The cost input stays editable — recording actual supplier cost
+   * only refines the displayed margin — but the margin + sell price render as
+   * read-only muted text, and a cost commit sends the CURRENT server amount /
+   * quantity untouched (never a repriced value). The server enforces this
+   * independently in `updateBookingItemPricing`.
+   */
+  locked?: boolean;
   onSave: (pricing: {
     amount: number;
     unitCost: number | null;
@@ -570,11 +613,15 @@ function BookingPricingRow({
     const nextCost = next.cost.trim() === "" ? null : round2(toNumber(next.cost));
     const prevCost =
       synced.cost.trim() === "" ? null : round2(toNumber(synced.cost));
+    // When locked, the sell price is frozen: send the CURRENT server amount
+    // untouched (never the draft `price`) so a cost edit can only refine the
+    // margin. Unlocked rows send whatever price the editor resolved.
+    const amount = locked ? round2(toNumber(synced.price)) : next.price;
     // Only write when cost or price actually changed vs the last server sync.
-    if (nextCost === prevCost && round2(next.price) === round2(toNumber(synced.price))) {
+    if (nextCost === prevCost && round2(amount) === round2(toNumber(synced.price))) {
       return;
     }
-    onSave({ amount: next.price, unitCost: nextCost, quantity: item.quantity });
+    onSave({ amount, unitCost: nextCost, quantity: item.quantity });
   };
 
   const onMarginChange = (raw: string) => {
@@ -613,44 +660,65 @@ function BookingPricingRow({
         aria-label="Net cost"
       />
       <span className="text-muted-foreground text-xs">→</span>
-      <div className="relative">
-        <Input
-          type="number"
-          min="0"
-          step="0.5"
-          value={marginValue}
-          disabled={disabled || !costKnown || costNum === 0}
-          placeholder="—"
-          onChange={(e) => onMarginChange(e.target.value)}
-          onBlur={() => {
-            setMarginDraft(null);
-            commit({ cost, price: toNumber(price) });
-          }}
-          className="h-7 w-14 pr-4 text-right text-xs tabular-nums"
-          aria-label="Margin percent"
-        />
-        <span className="text-muted-foreground pointer-events-none absolute inset-y-0 right-1.5 flex items-center text-xs">
-          %
-        </span>
-      </div>
-      <label className="sr-only" htmlFor={`bprice-${item.id}`}>
-        Sell price
-      </label>
-      <Input
-        id={`bprice-${item.id}`}
-        type="number"
-        min="0"
-        step="0.01"
-        value={price}
-        disabled={disabled}
-        onChange={(e) => {
-          setPrice(e.target.value);
-          setMarginDraft(null); // fall back to derived margin from the new price
-        }}
-        onBlur={() => commit({ cost, price: toNumber(price) })}
-        className="h-7 w-24 text-right text-xs font-semibold tabular-nums"
-        aria-label="Sell price"
-      />
+      {locked ? (
+        // Locked: margin + sell are read-only text (not disabled inputs) — the
+        // client e-signed this total, so only the cost input above is live.
+        <>
+          <span
+            className="text-muted-foreground w-14 text-right text-xs tabular-nums"
+            aria-label="Margin percent"
+          >
+            {derivedMargin === null ? "—" : `${round2(derivedMargin)}%`}
+          </span>
+          <span
+            className="w-24 text-right text-xs font-semibold tabular-nums"
+            aria-label="Sell price"
+          >
+            {round2(priceNum)}
+          </span>
+        </>
+      ) : (
+        <>
+          <div className="relative">
+            <Input
+              type="number"
+              min="0"
+              step="0.5"
+              value={marginValue}
+              disabled={disabled || !costKnown || costNum === 0}
+              placeholder="—"
+              onChange={(e) => onMarginChange(e.target.value)}
+              onBlur={() => {
+                setMarginDraft(null);
+                commit({ cost, price: toNumber(price) });
+              }}
+              className="h-7 w-14 pr-4 text-right text-xs tabular-nums"
+              aria-label="Margin percent"
+            />
+            <span className="text-muted-foreground pointer-events-none absolute inset-y-0 right-1.5 flex items-center text-xs">
+              %
+            </span>
+          </div>
+          <label className="sr-only" htmlFor={`bprice-${item.id}`}>
+            Sell price
+          </label>
+          <Input
+            id={`bprice-${item.id}`}
+            type="number"
+            min="0"
+            step="0.01"
+            value={price}
+            disabled={disabled}
+            onChange={(e) => {
+              setPrice(e.target.value);
+              setMarginDraft(null); // fall back to derived margin from the new price
+            }}
+            onBlur={() => commit({ cost, price: toNumber(price) })}
+            className="h-7 w-24 text-right text-xs font-semibold tabular-nums"
+            aria-label="Sell price"
+          />
+        </>
+      )}
     </div>
   );
 }

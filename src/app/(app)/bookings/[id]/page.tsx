@@ -64,7 +64,7 @@ import { isStripeConfigured } from "@/lib/payments/stripe";
 import { paymentSummary } from "@/lib/payments/summary";
 import { requireAgencyUser } from "@/lib/permissions";
 import { listClientOptions, listOpenBookings } from "@/lib/queries";
-import { agency, booking } from "@/lib/schema";
+import { agency, booking, product } from "@/lib/schema";
 import { statusTone } from "@/lib/status-tone";
 import {
   getActiveFlightProvider,
@@ -110,6 +110,19 @@ export default async function BookingWorkspace({
     listOpenBookings(user.agencyId),
   ]);
   if (!b) notFound();
+
+  // Pricing lock: resolve whether an accepted (e-signed) proposal converted into
+  // this booking. When one did, the booking's line-item sell prices are locked to
+  // the signed total (net cost stays editable) — see BookingItemsManager. Scoped
+  // to this agency; selects only what the lock indicator needs.
+  const pricingLockedByRow = await db.query.product.findFirst({
+    where: and(
+      eq(product.convertedBookingId, b.id),
+      eq(product.agencyId, user.agencyId)
+    ),
+    columns: { id: true, reference: true },
+  });
+  const pricingLockedBy = pricingLockedByRow ?? null;
 
   const flightLabel = getActiveFlightProvider().label;
   const hotelLabel = getActiveHotelProvider().label;
@@ -360,6 +373,7 @@ export default async function BookingWorkspace({
                 bookingId={b.id}
                 currency={b.currency}
                 suppliers={suppliers}
+                pricingLockedBy={pricingLockedBy}
                 items={b.items.map((i) => ({
                   id: i.id,
                   type: i.type,

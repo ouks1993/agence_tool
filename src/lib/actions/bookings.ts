@@ -1033,6 +1033,43 @@ export async function updateBookingItemPricing(
   if (!parent) return { ok: false, error: "Not found" };
 
   const d = parsed.data;
+
+  // Pricing lock: a booking born from an accepted (e-signed) proposal must not
+  // drift from the total the client signed. If a product's convertedBookingId
+  // points at this booking, the sell price and quantity are LOCKED — only the
+  // net cost may change (recording actual supplier cost is bookkeeping and can
+  // never move the sell price; it just refines the displayed margin). We compare
+  // the incoming amount/quantity against the item's current stored values and
+  // reject any change to them, while allowing a cost-only update through.
+  const lockingProposal = await db.query.product.findFirst({
+    where: and(
+      eq(product.convertedBookingId, bookingId),
+      eq(product.agencyId, user.agencyId)
+    ),
+    columns: { reference: true },
+  });
+  if (lockingProposal) {
+    const current = await db.query.bookingItem.findFirst({
+      where: and(
+        eq(bookingItem.id, itemId),
+        eq(bookingItem.bookingId, bookingId)
+      ),
+      columns: { amount: true, quantity: true },
+    });
+    if (!current) return { ok: false, error: "Item not found" };
+    const amountChanged =
+      round2(d.amount) !== round2(parseFloat(current.amount || "0"));
+    const quantityChanged = d.quantity !== current.quantity;
+    if (amountChanged || quantityChanged) {
+      return {
+        ok: false,
+        error:
+          `Pricing is locked — this booking was created from signed proposal ${lockingProposal.reference}. ` +
+          `Record the net cost only, or adjust via an admin decision.`,
+      };
+    }
+  }
+
   await db
     .update(bookingItem)
     .set({
