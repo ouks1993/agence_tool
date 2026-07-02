@@ -9,6 +9,10 @@ import { logActivity } from "@/lib/activity";
 import { APP_NAME } from "@/lib/config";
 import { db } from "@/lib/db";
 import { sendEmail } from "@/lib/notifications/email";
+import {
+  notifyProposalAccepted,
+  notifyProposalDeclined,
+} from "@/lib/notifications/inbox";
 import { requirePortalSession } from "@/lib/portal-session";
 import { notification, opportunity, product } from "@/lib/schema";
 
@@ -127,6 +131,7 @@ export async function acceptProposalFromPortal(
     // This must NEVER fail the client's acceptance — on any error we log and
     // still return success (the agent can convert manually later). The helper is
     // idempotent and derives the tenant from the proposal's own agencyId.
+    let bookedId: string | null = null;
     try {
       const booked = await createBookingFromAcceptedProposal(p.id, {
         actorUserId: p.createdById ?? null,
@@ -134,11 +139,15 @@ export async function acceptProposalFromPortal(
       if (!booked.ok) {
         console.error("[acceptProposalFromPortal] auto-booking:", booked.error);
       } else {
+        bookedId = booked.data?.id ?? null;
         revalidatePath("/bookings");
       }
     } catch (bookErr) {
       console.error("[acceptProposalFromPortal] auto-booking threw:", bookErr);
     }
+
+    // Best-effort in-app inbox notifications (never fail the acceptance).
+    await notifyProposalAccepted(p, session.client.name, bookedId);
 
     revalidatePath(`/portal/proposals/${productId}`);
     revalidatePath("/portal/proposals");
@@ -202,6 +211,9 @@ export async function declineProposalFromPortal(productId: string): Promise<Acti
       entityLabel: `${p.reference} · ${p.title}`,
       metadata: { declined: true, via: "client_portal" },
     });
+
+    // Best-effort in-app inbox notification (never fail the decline).
+    await notifyProposalDeclined(p);
 
     revalidatePath(`/portal/proposals/${productId}`);
     revalidatePath("/portal/proposals");

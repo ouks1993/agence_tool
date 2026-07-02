@@ -151,7 +151,10 @@ invite rows; see [deployment.md](deployment.md#scheduled-cleanup)).
 - `activity.ts` — `logActivity` (agency-scoped audit).
 - `db.ts` (validates env via `getServerEnv`), `schema.ts`, `env.ts`, `config.ts`,
   `format.ts`, `utils.ts`, `itinerary.ts`, `storage.ts`.
-- `notifications/email.ts` (Resend adapter) + `notifications/templates.ts` (HTML).
+- `notifications/email.ts` (Resend adapter) + `notifications/templates.ts` (HTML)
+  + `notifications/inbox.ts` (in-app inbox emitter — best-effort per-user
+  notifications for the topbar bell; `createUserNotifications`, `staffToNotify`,
+  event helpers for proposal accept/decline + payment received).
 - `billing/stripe.ts` — SaaS subscriptions (distinct from `payments/stripe.ts`).
 - `payments/stripe.ts` — Stripe Connect: account, onboarding link, destination
   charges.
@@ -175,7 +178,9 @@ invite rows; see [deployment.md](deployment.md#scheduled-cleanup)).
 `clients`, `opportunities`, `products`, `proposals-public`, `bookings`,
 `payments`, `notifications`, `team`, `invites`, `platform`, `billing`,
 `settings`, `search`, `suppliers`, `commissions`, `portal-payments`,
-`portal-proposals`, `portal-invite`, `onboarding`, `ai`.
+`portal-proposals`, `portal-invite`, `onboarding`, `ai`, `user-notifications`
+(bell inbox: `getMyNotifications`, `markNotificationRead`,
+`markAllNotificationsRead` — double-scoped by recipient + agency).
 
 **`src/components/`** — `app/` (shell, page-header, stat-card, status-badge,
 getting-started-card), `charts/` (insight-charts incl. `HBarInsight`,

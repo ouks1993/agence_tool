@@ -17,6 +17,7 @@ follow-up action:
 | Proposal accepted | Generate booking | ✅ **automatic** — accepting + e-signing a proposal (client portal *or* public token link) auto-creates an `awaiting_payment` booking (best-effort, idempotent); the one-click *convert proposal → booking* remains for the agent path |
 | Booking confirmed | Generate invoice | ❌ invoices are on-demand PDFs, not auto-generated |
 | Payment received / booking confirmed | Update accounting | ⚠️ partial — `autoGenerateCommissions` fires on confirm/ticket ([bookings.ts](../src/lib/actions/bookings.ts)); no full accounting |
+| Proposal accepted / declined · online payment received · booking auto-created | Notify the team (in-app) | ✅ **automatic** — best-effort in-app inbox notifications (topbar bell) to the client's owner + all active admins/managers, emitted from both accept/decline paths and the Stripe Connect webhook (`src/lib/notifications/inbox.ts`); failures never affect the business action |
 | Travel completed | Request review | ❌ not implemented |
 
 > **Current state:** two event-driven automations run today: commission

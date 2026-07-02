@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { Eye } from "lucide-react";
 import { AppShell } from "@/components/app/app-shell";
 import { exitAgencyView } from "@/lib/actions/platform";
+import { getMyNotifications } from "@/lib/actions/user-notifications";
 import { db } from "@/lib/db";
 import { USER_ROLE_META } from "@/lib/domain";
 import { isImpersonating, requireAgencyUser } from "@/lib/permissions";
@@ -32,12 +33,14 @@ export default async function AppLayout({
 
   // Shell chrome data (real data only): nav count badges + command-palette
   // jump targets. All scoped to the current agency via requireAgencyUser.
-  const [counts, clients, bookings, proposals] = await Promise.all([
-    getShellNavCounts(user.agencyId),
-    listClientOptions(user.agencyId),
-    listOpenBookings(user.agencyId),
-    listProposalOptions(user.agencyId),
-  ]);
+  const [counts, clients, bookings, proposals, notifications] =
+    await Promise.all([
+      getShellNavCounts(user.agencyId),
+      listClientOptions(user.agencyId),
+      listOpenBookings(user.agencyId),
+      listProposalOptions(user.agencyId),
+      getMyNotifications(),
+    ]);
 
   return (
     <>
@@ -80,6 +83,7 @@ export default async function AppLayout({
         }}
         counts={counts}
         paletteEntities={{ clients, bookings, proposals }}
+        notifications={notifications}
       >
         {children}
       </AppShell>

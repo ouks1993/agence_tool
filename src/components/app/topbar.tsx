@@ -4,6 +4,7 @@ import Link from "next/link";
 import { LogOut, Search, Settings, User as UserIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { ShellUser } from "@/components/app/app-shell";
+import { NotificationsBell } from "@/components/app/notifications-bell";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -14,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ModeToggle } from "@/components/ui/mode-toggle";
+import type { InboxSnapshot } from "@/lib/actions/user-notifications";
 import { initials } from "@/lib/format";
 
 function openCommandPalette() {
@@ -26,9 +28,12 @@ function openCommandPalette() {
  */
 export function Topbar({
   user,
+  notifications,
   onSignOut,
 }: {
   user: ShellUser;
+  /** Initial inbox snapshot for the notification bell (server-fetched). */
+  notifications: InboxSnapshot;
   onSignOut: () => void;
 }) {
   const tSearch = useTranslations("search");
@@ -52,6 +57,7 @@ export function Topbar({
       </button>
 
       <div className="ms-auto flex items-center gap-2">
+        <NotificationsBell initial={notifications} />
         <ModeToggle />
 
         <DropdownMenu>

@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { verifyWebhookSignature } from "@/lib/billing/stripe";
 import { db } from "@/lib/db";
+import { notifyPaymentReceived } from "@/lib/notifications/inbox";
 import { payment } from "@/lib/schema";
 
 /**
@@ -47,14 +48,16 @@ export async function POST(req: Request): Promise<Response> {
       // retries this (idempotent) update, rather than bubbling as an unhandled
       // rejection. Only a single update runs here, so a thrown error can't
       // partially double-apply within this invocation.
+      let updated: { bookingId: string; amount: string }[];
       try {
-        await db
+        updated = await db
           .update(payment)
           .set({
             status: "completed",
             reference: session.payment_intent ?? null,
           })
-          .where(eq(payment.stripeSessionId, session.id));
+          .where(eq(payment.stripeSessionId, session.id))
+          .returning({ bookingId: payment.bookingId, amount: payment.amount });
       } catch (err) {
         console.error(
           "[stripe-webhook]",
@@ -62,6 +65,17 @@ export async function POST(req: Request): Promise<Response> {
           err
         );
         return new Response("Webhook handler failed", { status: 500 });
+      }
+
+      // Best-effort in-app notification. Derives the tenant from the booking row
+      // (the webhook has no session). The helper swallows its own errors, so it
+      // can never change the HTTP status returned to Stripe below.
+      const row = updated[0];
+      if (row) {
+        await notifyPaymentReceived({
+          bookingId: row.bookingId,
+          amount: row.amount,
+        });
       }
     }
   }

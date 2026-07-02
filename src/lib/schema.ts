@@ -642,6 +642,48 @@ export const notification = pgTable(
   ]
 );
 
+/**
+ * A per-user, in-app notification (the recipient's inbox bell).
+ *
+ * Distinct from `notification` (the OUTBOUND email/SMS comms log) and from
+ * `activity_log` (the manager audit trail): this is the personal inbox a staff
+ * member sees in the topbar bell. Rows are best-effort — a failed insert must
+ * never break the business action that triggered it.
+ */
+export const userNotification = pgTable(
+  "user_notification",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    // Tenant root — every row is scoped to one agency.
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agency.id, { onDelete: "cascade" }),
+    // The recipient (a staff user). BetterAuth user ids are text.
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    // Stable event code callers branch on, never free-text:
+    // "proposal_accepted" | "proposal_declined" | "payment_received" | "booking_created"
+    type: text("type").notNull(),
+    title: text("title").notNull(),
+    body: text("body"),
+    // Internal path to open on click, e.g. "/bookings/{id}". Nullable.
+    href: text("href"),
+    // Set when the recipient reads the notification. NULL = unread.
+    readAt: timestamp("read_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    // Per-user inbox: unread lookup + list ordering.
+    index("user_notification_user_read_idx").on(table.userId, table.readAt),
+    // Tenant-scoped recency (housekeeping / tenant deletion cascade support).
+    index("user_notification_agency_created_idx").on(
+      table.agencyId,
+      table.createdAt
+    ),
+  ]
+);
+
 /** Per-day title/notes for a booking's itinerary timeline. */
 export const bookingDay = pgTable(
   "booking_day",
@@ -852,6 +894,7 @@ export const agencyRelations = relations(agency, ({ many }) => ({
   products: many(product),
   bookings: many(booking),
   notifications: many(notification),
+  userNotifications: many(userNotification),
   activities: many(activityLog),
   suppliers: many(supplier),
   supplierContracts: many(supplierContract),
@@ -879,6 +922,7 @@ export const userRelations = relations(user, ({ one, many }) => ({
     relationName: "opportunity_assignee",
   }),
   activities: many(activityLog),
+  userNotifications: many(userNotification),
 }));
 
 export const clientRelations = relations(client, ({ one, many }) => ({
@@ -1006,6 +1050,20 @@ export const notificationRelations = relations(notification, ({ one }) => ({
     references: [booking.id],
   }),
 }));
+
+export const userNotificationRelations = relations(
+  userNotification,
+  ({ one }) => ({
+    agency: one(agency, {
+      fields: [userNotification.agencyId],
+      references: [agency.id],
+    }),
+    user: one(user, {
+      fields: [userNotification.userId],
+      references: [user.id],
+    }),
+  })
+);
 
 export const paymentRelations = relations(payment, ({ one }) => ({
   booking: one(booking, {

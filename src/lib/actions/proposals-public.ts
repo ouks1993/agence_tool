@@ -10,6 +10,10 @@ import { logActivity } from "@/lib/activity";
 import { APP_NAME } from "@/lib/config";
 import { db } from "@/lib/db";
 import { sendEmail } from "@/lib/notifications/email";
+import {
+  notifyProposalAccepted,
+  notifyProposalDeclined,
+} from "@/lib/notifications/inbox";
 import { notification, opportunity, product } from "@/lib/schema";
 
 /**
@@ -132,6 +136,7 @@ export async function acceptProposalByToken(
     // we log and still return success (the agent can convert manually later).
     // The helper is idempotent and derives the tenant from the proposal's own
     // agencyId.
+    let bookedId: string | null = null;
     try {
       const booked = await createBookingFromAcceptedProposal(p.id, {
         actorUserId: p.createdById ?? null,
@@ -139,11 +144,15 @@ export async function acceptProposalByToken(
       if (!booked.ok) {
         console.error("[acceptProposalByToken] auto-booking:", booked.error);
       } else {
+        bookedId = booked.data?.id ?? null;
         revalidatePath("/bookings");
       }
     } catch (bookErr) {
       console.error("[acceptProposalByToken] auto-booking threw:", bookErr);
     }
+
+    // Best-effort in-app inbox notifications (never fail the acceptance).
+    await notifyProposalAccepted(p, d.signerName, bookedId);
 
     revalidatePath(`/p/${d.token}`);
     return { ok: true };
@@ -200,6 +209,9 @@ export async function declineProposalByToken(token: string): Promise<ActionResul
       entityLabel: `${p.reference} · ${p.title}`,
       metadata: { declined: true, via: "public_link" },
     });
+
+    // Best-effort in-app inbox notification (never fail the decline).
+    await notifyProposalDeclined(p);
 
     revalidatePath(`/p/${token}`);
     return { ok: true };

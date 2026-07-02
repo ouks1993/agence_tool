@@ -226,7 +226,8 @@ loaded/mutated through it.
 | `user` | Team member (Better Auth). `agencyId` (NULL only for the platform super-admin), `role`, `active`, `locale`, `commissionRatePercent`, `isPlatformAdmin` |
 | `session`, `account`, `verification` | Better Auth staff sessions/credentials (text ids — managed by Better Auth) |
 | `portal_session` | Passwordless **client** portal session (separate from Better Auth): 15 min magic token rotated to a 7-day session token; scoped to one `clientId` |
-| `notification` | Communications log: `channel` (`email`/`sms`/`whatsapp`/`push`), `kind`, `status`, optional `bookingId` |
+| `notification` | Communications log: `channel` (`email`/`sms`/`whatsapp`/`push`), `kind`, `status`, optional `bookingId` — **outbound** messages, distinct from the in-app inbox below |
+| `user_notification` | Per-user **in-app inbox** (topbar bell): recipient `userId`, `type` code (`proposal_accepted`/`proposal_declined`/`payment_received`/`booking_created`), `title`/`body`/`href`, `readAt` (null = unread) |
 | `activity_log` | Manager-oversight audit trail: `action`, `entityType`, `entityId`, `entityLabel`, `metadata` |
 | `hotel_content` | Global Hotelbeds content cache (photos, facilities, coords); **not** tenant-scoped |
 

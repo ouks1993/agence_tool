@@ -22,6 +22,7 @@ import {
   SheetContent,
   SheetTitle,
 } from "@/components/ui/sheet";
+import type { InboxSnapshot } from "@/lib/actions/user-notifications";
 import { signOut } from "@/lib/auth-client";
 import { APP_NAME, APP_TAGLINE } from "@/lib/config";
 import { type UserRole } from "@/lib/domain";
@@ -39,6 +40,7 @@ export function AppShell({
   user,
   counts,
   paletteEntities,
+  notifications,
   children,
 }: {
   user: ShellUser;
@@ -46,6 +48,8 @@ export function AppShell({
   counts?: NavCounts;
   /** Entities the command palette can jump to (real data from queries). */
   paletteEntities?: PaletteEntities;
+  /** Initial inbox snapshot for the topbar notification bell (server-fetched). */
+  notifications: InboxSnapshot;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -168,7 +172,11 @@ export function AppShell({
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Desktop topbar */}
-        <Topbar user={user} onSignOut={handleSignOut} />
+        <Topbar
+          user={user}
+          notifications={notifications}
+          onSignOut={handleSignOut}
+        />
 
         {/* Mobile top bar — dark brand strip */}
         <header className="bg-sidebar border-sidebar-border sticky top-0 z-20 flex h-14 items-center gap-3 border-b px-3 md:hidden">

@@ -46,7 +46,8 @@ truth, no hard delete, no cross-tenant exposure) at the schema level.
 | `booking_event` | bookingId + agencyId | append-only event log (audit + analytics); stable `event` codes: `search_initiated`, `offer_selected`, `price_validated`, `price_changed`, `booking_submitted`, `booking_confirmed`, `booking_failed`, `booking_cancelled`, `payment_started`, `payment_completed` |
 | `booking_document` | via booking (+ optional booking_item) | documents: `type` (voucher/ticket/invoice/itinerary/receipt), `url` (Vercel Blob), `rawData` (supplier payload for re-generation) |
 | `booking_idempotency` | via booking (+ optional booking_item) | idempotency key registry; key = sha256(bookingId+itemId+offerId); prevents duplicate supplier orders on retry; `expiresAt` (24 h TTL); a `pending` row is treated as in-flight (never re-called) and expired rows are excluded from cache reads; swept daily by the cleanup cron (`GET /api/cron/cleanup`, see [deployment.md](deployment.md#scheduled-cleanup)) |
-| `notification` | agencyId | comms log |
+| `notification` | agencyId | comms log (outbound email/sms — distinct from the in-app inbox below) |
+| `user_notification` | agencyId | per-user **in-app inbox** (topbar bell): recipient `userId`, stable `type` codes (`proposal_accepted` \| `proposal_declined` \| `payment_received` \| `booking_created`), `title`/`body`/`href`, `readAt` (null = unread); indexes `(userId, readAt)` + `(agencyId, createdAt)` |
 | `activity_log` | agencyId | audit trail |
 | `supplier` | agencyId | managed supplier directory (hotels, airlines, DMC, etc.); `updatedAt` is app-managed via `$onUpdate` |
 | `supplier_contract` | agencyId | commission basis/rate, validity dates, file URL; `updatedAt` is app-managed via `$onUpdate` |
@@ -79,6 +80,7 @@ All ID columns **not** related to Better Auth use UUIDs, randomly generated. See
 | `0019` | Sprint 1 booking architecture: `booking_supplier_ref`, `booking_event`, `booking_document`, `booking_idempotency` tables; `booking_traveller.email` + `.phone` columns |
 | `0020` | `product.convertedBookingId` (FK → `booking`, `set null`) — the proposal→booking idempotency latch used by auto-booking on accept (see [decision 0006](decisions/0006-auto-booking-on-proposal-accept.md)) |
 | `0021` | `commission.bookingId` + `commission.bookingItemId` FKs changed `cascade` → `set null` (the commission ledger now survives booking/item deletion — see [decision 0007](decisions/0007-commission-ledger-survives-booking-deletion.md)); new indexes `commission_item_idx`, `commission_supplier_idx`, `product_converted_booking_idx`; `portal_session.purpose` (`'magic'` \| `'session'`, default `'session'`) |
+| `0022` | `user_notification` table — per-user in-app notification inbox (topbar bell) |
 
 > Migrations `0000`–`0005` predate the multi-tenant rework (the pre-tenancy base
 > schema) and are not itemized here.

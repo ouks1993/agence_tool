@@ -280,5 +280,5 @@ Status: ✅ done · 🟡 partial · 🔴 not started
 | `1896596` | Per-role workspaces (Finance + Support) + role-based landing/nav |
 | `9e8fb4b` | Multi-tenant architecture + vendor platform console |
 
-Migrations: 22 (latest `0021` — commission ledger set-null + portal session
-purpose + cleanup indexes). Prod DB: `ep-misty-thunder-aixz34vy`.
+Migrations: 23 (latest `0022` — in-app notification inbox). Prod DB:
+`ep-misty-thunder-aixz34vy`.
