@@ -7,9 +7,10 @@ import { ProductForm } from "@/components/products/product-form";
 import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db";
 import { toDateInputValue } from "@/lib/format";
+import { effectiveDepositPercent } from "@/lib/payments/deposit";
 import { requireAgencyUser } from "@/lib/permissions";
 import { listClientOptions, listOpportunityOptions } from "@/lib/queries";
-import { product } from "@/lib/schema";
+import { agency, product } from "@/lib/schema";
 
 export const metadata = { title: "Edit proposal" };
 
@@ -20,14 +21,19 @@ export default async function EditProductPage({
 }) {
   const user = await requireAgencyUser();
   const { id } = await params;
-  const [p, clients, opportunities] = await Promise.all([
+  const [p, clients, opportunities, ag] = await Promise.all([
     db.query.product.findFirst({
       where: and(eq(product.id, id), eq(product.agencyId, user.agencyId)),
     }),
     listClientOptions(user.agencyId),
     listOpportunityOptions(user.agencyId),
+    db.query.agency.findFirst({
+      where: eq(agency.id, user.agencyId),
+      columns: { depositPercent: true },
+    }),
   ]);
   if (!p) notFound();
+  const agencyDepositPercent = effectiveDepositPercent(null, ag?.depositPercent);
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6 px-4 py-8 sm:px-6">
@@ -43,6 +49,7 @@ export default async function EditProductPage({
         productId={id}
         clients={clients}
         opportunities={opportunities}
+        agencyDepositPercent={agencyDepositPercent}
         initial={{
           title: p.title,
           clientId: p.clientId ?? "",
@@ -53,6 +60,8 @@ export default async function EditProductPage({
           paxCount: String(p.paxCount),
           currency: p.currency,
           markupPercent: p.markupPercent,
+          // Empty string = inherit; a stored override pre-fills the field.
+          depositPercent: p.depositPercent ?? "",
           validUntil: toDateInputValue(p.validUntil),
           summary: p.summary ?? "",
         }}

@@ -35,7 +35,7 @@ import {
   type PaymentKind,
 } from "@/lib/domain";
 import { formatDate, formatMoney, initials } from "@/lib/format";
-import { depositAmount } from "@/lib/payments/deposit";
+import { depositAmount, effectiveDepositPercent } from "@/lib/payments/deposit";
 import { paymentSummary } from "@/lib/payments/summary";
 import { requirePortalSession } from "@/lib/portal-session";
 import { agency, booking, client } from "@/lib/schema";
@@ -118,7 +118,12 @@ export default async function PortalBookingPage({
     columns: { stripeConnectOnboarded: true, depositPercent: true },
   });
   const canPayOnline = ag?.stripeConnectOnboarded === true;
-  const depositPercent = parseFloat(ag?.depositPercent ?? "50");
+  // Deposit % resolves the override chain: the booking's snapshotted override
+  // (frozen at conversion) falls back to the agency default.
+  const depositPercent = effectiveDepositPercent(
+    b.depositPercent,
+    ag?.depositPercent
+  );
 
   // The travel agent who owns this client relationship (real user row).
   const clientRow = await db.query.client.findFirst({
@@ -134,8 +139,8 @@ export default async function PortalBookingPage({
   const total = parseFloat(b.totalAmount ?? "0");
   const { paid: totalPaid, balance } = paymentSummary(b.payments, total);
   const paidPct = total > 0 ? Math.min(100, Math.round((totalPaid / total) * 100)) : 0;
-  // Remainder still needed to reach the agency's deposit threshold (display
-  // only — the pay action recomputes this server-side). <= 0 once covered.
+  // Remainder still needed to reach the booking's effective deposit threshold
+  // (display only — the pay action recomputes this server-side). <= 0 once covered.
   const depositDue = Math.max(0, depositAmount(total, depositPercent) - totalPaid);
 
   // ---- Hero derivations ----

@@ -98,6 +98,12 @@ const productInput = z.object({
   paxCount: z.coerce.number().int().min(1).default(1),
   currency: z.string().trim().min(1).max(8).default("DZD"),
   markupPercent: z.coerce.number().min(0).max(100).default(0),
+  // Optional per-deal deposit override (% of the total that "secures the dates").
+  // `null` means "inherit the agency default" — the effective % resolves along
+  // the chain booking.depositPercent ?? product.depositPercent ?? agency.depositPercent.
+  // `0` is a meaningful value (no deposit), distinct from null, so the form maps
+  // an empty field to null (not 0).
+  depositPercent: z.coerce.number().min(0).max(100).nullable().optional(),
   summary: z.string().trim().max(20000).optional(),
   validUntil: z.string().optional(),
 });
@@ -154,6 +160,10 @@ export async function createProduct(
           paxCount: d.paxCount,
           currency: d.currency,
           markupPercent: String(d.markupPercent),
+          // Empty field → null (inherit); an explicit 0..100 override is stored
+          // as a numeric string. `?? null` keeps `undefined` out of the DB write.
+          depositPercent:
+            d.depositPercent == null ? null : String(d.depositPercent),
           summary: d.summary || null,
           validUntil: toDate(d.validUntil),
           createdById: user.id,
@@ -227,6 +237,10 @@ export async function updateProduct(
       paxCount: d.paxCount,
       currency: d.currency,
       markupPercent: String(d.markupPercent),
+      // Empty field → null (inherit); an explicit 0..100 override is stored as
+      // a numeric string. `== null` treats both null and undefined as inherit.
+      depositPercent:
+        d.depositPercent == null ? null : String(d.depositPercent),
       summary: d.summary || null,
       validUntil: toDate(d.validUntil),
     })

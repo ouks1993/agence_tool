@@ -29,6 +29,7 @@ import {
   type ProductStatus,
 } from "@/lib/domain";
 import { formatDate } from "@/lib/format";
+import { effectiveDepositPercent } from "@/lib/payments/deposit";
 import { requireAgencyUser } from "@/lib/permissions";
 import { toProposalDocData } from "@/lib/proposal-doc";
 import { product } from "@/lib/schema";
@@ -63,7 +64,11 @@ export default async function ProductDetailPage({
 
   const meta = PRODUCT_STATUS_META[p.status as ProductStatus];
   const doc = toProposalDocData(p, p.client?.name ?? null);
-  const depositPercent = parseFloat(p.agency?.depositPercent ?? "50");
+  // Preview mirrors the client-facing deposit: per-deal override → agency default.
+  const depositPercent = effectiveDepositPercent(
+    p.depositPercent,
+    p.agency?.depositPercent
+  );
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-6 px-4 py-8 sm:px-6">

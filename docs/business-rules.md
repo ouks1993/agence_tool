@@ -67,7 +67,7 @@ Supplier reservation → Payment → Ticketing → Travel → Feedback → Repea
 | **Customer accepts** | e-sign stamps signer + flips opportunity to **won** + **auto-creates the booking** | also acceptable in the client portal |
 | **Booking** | `booking` — auto-created on accept (status `awaiting_payment`); agent one-click **convert proposal → booking** is the idempotent fallback | auto path starts at `awaiting_payment`, agent-drafted bookings at `draft` |
 | **Supplier reservation** | `booking_item` + `supplier` picker + `booking_service.ts` | live Duffel/Hotelbeds search; real booking wired via provider registry (quote → book → idempotency → event log); activate with production credentials |
-| **Payment** | `payment` (deposit/installments, Stripe Connect) | `confirmed` requires the agency deposit threshold (default 50%); zero balance required for `ticketed` |
+| **Payment** | `payment` (deposit/installments, Stripe Connect) | `confirmed` requires the deal's effective deposit threshold (per-proposal override → agency default 50%); zero balance required for `ticketed` |
 | **Ticketing** | lifecycle `ticketed` | requires trip items; auto-generates commissions |
 | **Travel** | lifecycle `completed`; itinerary `/i/[token]` | day-by-day timeline, vouchers/invoices |
 | **Feedback** | activity log / notes on the client timeline | closes the loop |
@@ -119,13 +119,21 @@ that can jump to any status (`setBookingStatus`). **Both share the same
 server-side guards** — the dropdown is not a way around the stepper's rules:
 
 - `confirmed`, `ticketed`, and `completed` all require at least one trip item.
-- `confirmed` requires the **agency's deposit threshold** to be paid —
-  `paid ≥ agency.depositPercent % of the booking total` (numeric column,
-  default **50**, configurable 0–100 in Settings → Agency; see
-  [decision 0009](decisions/0009-deposit-threshold-booking-lifecycle.md)).
+- `confirmed` requires the **effective deposit threshold** to be paid —
+  `paid ≥ effective deposit % of the booking total`. The percent resolves an
+  **override chain**: `booking.depositPercent` (snapshotted at proposal →
+  booking conversion) → `agency.depositPercent` (default **50**, configurable
+  0–100 in Settings → Agency) → 50. See
+  [decision 0009](decisions/0009-deposit-threshold-booking-lifecycle.md).
   This matches the promise on client proposals ("a {depositPercent}% deposit
-  secures your dates"), which is sourced from the **same column**, so the sales
-  copy and the lifecycle gate can never disagree. A 0% deposit confirms without
+  secures your dates"), which resolves the **same chain**
+  (`product.depositPercent ?? agency.depositPercent`), so the sales copy and
+  the lifecycle gate can never disagree. Each proposal may carry a per-deal
+  override ("Deposit required (%)" in the builder — empty inherits the agency
+  default, an explicit 0 means no deposit); acceptance **snapshots** the
+  effective percent onto the booking so later default changes never alter
+  signed terms. Agent-drafted bookings inherit the agency default until
+  overridden on the booking edit form. A 0% deposit confirms without
   payment; 100% reproduces the old zero-balance behavior. Threshold math lives
   in the pure helper `src/lib/payments/deposit.ts` (cent-rounded comparison).
 - `ticketed` and `completed` additionally require a **zero outstanding
@@ -205,11 +213,12 @@ spellings never drift; city uses curated autocomplete suggestions.
 - Agents send the invite from a client or booking detail page; the link is
   copyable when email is unconfigured.
 - Online "Pay now" appears only when the agency has onboarded Stripe Connect.
-  It offers the traveler **two server-computed options**: pay the agency's
-  deposit % (the remainder needed to reach the deposit threshold, recorded as
-  kind `deposit`) or the full outstanding balance. Amounts are recomputed
-  server-side from the booking total, completed payments, and
-  `agency.depositPercent` — a client-supplied amount is never trusted. Once the
+  It offers the traveler **two server-computed options**: pay the booking's
+  effective deposit % (the remainder needed to reach the deposit threshold,
+  recorded as kind `deposit`) or the full outstanding balance. Amounts are
+  recomputed server-side from the booking total, completed payments, and the
+  deposit override chain (`booking.depositPercent ?? agency.depositPercent`) —
+  a client-supplied amount is never trusted. Once the
   deposit is covered, only "Pay balance" is shown.
 - Clients can accept/decline proposals in-portal with the same e-sign audit as the
   public flow.

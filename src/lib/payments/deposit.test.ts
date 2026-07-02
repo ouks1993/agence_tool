@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { depositAmount, meetsDepositThreshold } from "@/lib/payments/deposit";
+import {
+  depositAmount,
+  effectiveDepositPercent,
+  meetsDepositThreshold,
+} from "@/lib/payments/deposit";
 
 describe("depositAmount", () => {
   it("computes the percent of the total (2dp)", () => {
@@ -86,5 +90,46 @@ describe("meetsDepositThreshold", () => {
     // just under the exact deposit must still satisfy the threshold.
     expect(meetsDepositThreshold(1246050, 623025.004, 50)).toBe(true);
     expect(meetsDepositThreshold(1246050, 623024.996, 50)).toBe(true);
+  });
+});
+
+describe("effectiveDepositPercent", () => {
+  it("returns the agency default when the override is null/undefined", () => {
+    expect(effectiveDepositPercent(null, 40)).toBe(40);
+    expect(effectiveDepositPercent(undefined, "35")).toBe(35);
+  });
+
+  it("returns the override when present (numeric)", () => {
+    expect(effectiveDepositPercent(25, 50)).toBe(25);
+  });
+
+  it("parses a Drizzle numeric string override", () => {
+    expect(effectiveDepositPercent("25.5", "50")).toBe(25.5);
+  });
+
+  it("honours an explicit 0 override (no deposit — not 'inherit')", () => {
+    expect(effectiveDepositPercent(0, 50)).toBe(0);
+    expect(effectiveDepositPercent("0", "50")).toBe(0);
+  });
+
+  it("clamps an out-of-range override into [0, 100]", () => {
+    expect(effectiveDepositPercent(150, 50)).toBe(100);
+    expect(effectiveDepositPercent(-20, 50)).toBe(0);
+  });
+
+  it("falls through garbage override strings to the agency default", () => {
+    expect(effectiveDepositPercent("abc", 60)).toBe(60);
+    expect(effectiveDepositPercent("", "60")).toBe(60);
+  });
+
+  it("clamps the agency default when it is the resolved value", () => {
+    expect(effectiveDepositPercent(null, 150)).toBe(100);
+    expect(effectiveDepositPercent(null, -5)).toBe(0);
+  });
+
+  it("falls back to 50 when both are null/garbage", () => {
+    expect(effectiveDepositPercent(null, null)).toBe(50);
+    expect(effectiveDepositPercent(undefined, undefined)).toBe(50);
+    expect(effectiveDepositPercent("nope", "nope")).toBe(50);
   });
 });

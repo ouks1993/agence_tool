@@ -280,5 +280,5 @@ Status: ✅ done · 🟡 partial · 🔴 not started
 | `1896596` | Per-role workspaces (Finance + Support) + role-based landing/nav |
 | `9e8fb4b` | Multi-tenant architecture + vendor platform console |
 
-Migrations: 24 (latest `0023` — deposit-threshold confirmation). Prod DB:
+Migrations: 25 (latest `0024` — per-deal deposit override). Prod DB:
 `ep-misty-thunder-aixz34vy`.

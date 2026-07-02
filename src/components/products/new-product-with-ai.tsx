@@ -16,10 +16,12 @@ type ProductFormInitial = React.ComponentProps<typeof ProductForm>["initial"];
 export function NewProductWithAi({
   clients,
   opportunities,
+  agencyDepositPercent,
   initial,
 }: {
   clients: ClientOption[];
   opportunities: OpportunityOption[];
+  agencyDepositPercent: number;
   initial?: ProductFormInitial;
 }) {
   const [formInitial, setFormInitial] = useState<ProductFormInitial>(initial);
@@ -50,6 +52,7 @@ export function NewProductWithAi({
         mode="create"
         clients={clients}
         opportunities={opportunities}
+        agencyDepositPercent={agencyDepositPercent}
         {...(formInitial ? { initial: formInitial } : {})}
       />
     </div>

@@ -30,6 +30,7 @@ type FormState = {
   tripType: string;
   currency: string;
   leadTravellerName: string;
+  depositPercent: string;
   notes: string;
 };
 
@@ -74,11 +75,16 @@ export function BookingForm({
   mode,
   bookingId,
   clients,
+  agencyDepositPercent,
   initial,
 }: {
   mode: "create" | "edit";
   bookingId?: string;
   clients: ClientOption[];
+  // The effective deposit % this booking would inherit (its snapshotted override
+  // resolved against the agency default) — shown as the placeholder/hint when
+  // the edit field is left empty. Only supplied in edit mode.
+  agencyDepositPercent?: number;
   initial?: Partial<FormState>;
 }) {
   const router = useRouter();
@@ -94,6 +100,7 @@ export function BookingForm({
     tripType: initial?.tripType ?? "",
     currency: initial?.currency ?? DEFAULT_CURRENCY,
     leadTravellerName: initial?.leadTravellerName ?? "",
+    depositPercent: initial?.depositPercent ?? "",
     notes: initial?.notes ?? "",
   });
 
@@ -127,7 +134,15 @@ export function BookingForm({
       tripType: form.tripType as BookingInput["tripType"],
       currency: form.currency,
       notes: form.notes,
-      ...(mode === "create" ? { leadTravellerName: form.leadTravellerName } : {}),
+      ...(mode === "create"
+        ? { leadTravellerName: form.leadTravellerName }
+        : {
+            // Empty = inherit → null (not 0, which would mean "no deposit").
+            depositPercent:
+              form.depositPercent.trim() === ""
+                ? null
+                : Number(form.depositPercent),
+          }),
     };
     startTransition(async () => {
       const res =
@@ -334,6 +349,34 @@ export function BookingForm({
               All amounts on this booking use this currency. Default is {DEFAULT_CURRENCY}.
             </p>
           </div>
+
+          {mode === "edit" && (
+            <div className="space-y-2">
+              <Label htmlFor="depositPercent">Deposit required (%)</Label>
+              <Input
+                id="depositPercent"
+                type="number"
+                min="0"
+                max="100"
+                step="0.5"
+                value={form.depositPercent}
+                onChange={(e) => set("depositPercent", e.target.value)}
+                placeholder={
+                  agencyDepositPercent === undefined
+                    ? undefined
+                    : String(agencyDepositPercent)
+                }
+                aria-describedby="depositPercent-help"
+                className="tabular-nums"
+              />
+              <p id="depositPercent-help" className="text-muted-foreground text-xs">
+                Share of the total that confirms this booking.
+                {agencyDepositPercent === undefined
+                  ? " Leave empty to use the agency default."
+                  : ` Leave empty to use the agency default (${agencyDepositPercent}%).`}
+              </p>
+            </div>
+          )}
 
           <div className="space-y-2 md:col-span-2">
             <Label htmlFor="notes">Notes</Label>

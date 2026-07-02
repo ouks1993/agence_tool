@@ -7,6 +7,7 @@ import { ProposalDocument } from "@/components/products/proposal-document";
 import { Button } from "@/components/ui/button";
 import { APP_NAME, APP_TAGLINE } from "@/lib/config";
 import { db } from "@/lib/db";
+import { effectiveDepositPercent } from "@/lib/payments/deposit";
 import { requireAgencyUser } from "@/lib/permissions";
 import { toProposalDocData } from "@/lib/proposal-doc";
 import { product } from "@/lib/schema";
@@ -33,7 +34,11 @@ export default async function ProposalView({
   });
   if (!p) notFound();
 
-  const depositPercent = parseFloat(p.agency?.depositPercent ?? "50");
+  // Deposit % resolves along the override chain: per-deal override → agency default.
+  const depositPercent = effectiveDepositPercent(
+    p.depositPercent,
+    p.agency?.depositPercent
+  );
   const doc = toProposalDocData(p, p.client?.name ?? null);
 
   return (

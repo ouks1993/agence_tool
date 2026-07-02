@@ -17,7 +17,11 @@ import {
   TRIP_TYPES,
 } from "@/lib/domain";
 import { formatMoney } from "@/lib/format";
-import { depositAmount, meetsDepositThreshold } from "@/lib/payments/deposit";
+import {
+  depositAmount,
+  effectiveDepositPercent,
+  meetsDepositThreshold,
+} from "@/lib/payments/deposit";
 import { paymentSummary } from "@/lib/payments/summary";
 import { requireAgencyUser } from "@/lib/permissions";
 import { agency, booking, bookingTraveller, bookingItem, bookingDay, client, product, payment } from "@/lib/schema";
@@ -123,16 +127,23 @@ async function bookingPayment(
 }
 
 /**
- * The agency's deposit percentage (the share of a booking total that must be
- * paid to confirm). Scoped to the booking's own `agencyId`. Falls back to 50%
- * — the historical default — if the row is somehow missing.
+ * The effective deposit percentage for a booking — the share of the total that
+ * must be paid to confirm. Resolves the override chain
+ * `booking.depositPercent ?? agency.depositPercent`, using the booking's own
+ * snapshotted override (frozen at conversion) when present and otherwise the
+ * agency default. Scoped to the booking's own `agencyId` (tenant-safe — the
+ * booking row is caller-validated before this runs). Falls back to 50% — the
+ * historical default — if the override is null and the agency row is missing.
  */
-async function agencyDepositPercent(agencyId: string): Promise<number> {
+async function bookingDepositPercent(b: {
+  agencyId: string;
+  depositPercent: string | null;
+}): Promise<number> {
   const row = await db.query.agency.findFirst({
-    where: eq(agency.id, agencyId),
+    where: eq(agency.id, b.agencyId),
     columns: { depositPercent: true },
   });
-  return num(row?.depositPercent ?? "50");
+  return effectiveDepositPercent(b.depositPercent, row?.depositPercent);
 }
 
 // --- Booking CRUD -----------------------------------------------------------
@@ -147,6 +158,11 @@ const bookingInput = z.object({
   currency: z.string().trim().min(1).max(8).default("DZD"),
   notes: z.string().trim().max(5000).optional(),
   leadTravellerName: z.string().trim().max(200).optional(),
+  // Optional per-deal deposit override. `null` means "inherit" — the effective
+  // % resolves along booking.depositPercent ?? agency.depositPercent. `0` is a
+  // meaningful value (no deposit), so the edit form maps an empty field to null.
+  // Only `updateBooking` reads this; `createBooking` leaves the column NULL.
+  depositPercent: z.coerce.number().min(0).max(100).nullable().optional(),
 });
 
 export type BookingInput = z.input<typeof bookingInput>;
@@ -257,6 +273,11 @@ export async function updateBooking(
       tripType: d.tripType || null,
       currency: d.currency,
       notes: d.notes || null,
+      // Empty field → null (inherit the agency default); an explicit 0..100
+      // override is stored as a numeric string. The edit form always sends this
+      // field, so writing it here can't accidentally clear a value elsewhere.
+      depositPercent:
+        d.depositPercent == null ? null : String(d.depositPercent),
     })
     .where(and(eq(booking.id, id), eq(booking.agencyId, user.agencyId)));
 
@@ -305,9 +326,11 @@ const ZERO_BALANCE_STATUSES: BookingStatus[] = ["ticketed", "completed"];
  * - `cancelled` and backward moves (e.g. → draft) are always permitted (no
  *   prerequisites): a booking must be cancellable/reversible from any state.
  * - `confirmed`/`ticketed`/`completed` all require at least one trip service.
- * - `confirmed` additionally requires the agency's **deposit threshold** to be
- *   met (paid ≥ depositPercent of the total) — this is what the client proposal
- *   promises "secures the dates". A 100% deposit collapses to zero-balance.
+ * - `confirmed` additionally requires the booking's **effective deposit
+ *   threshold** to be met (paid ≥ depositPercent of the total), resolving the
+ *   chain booking.depositPercent (snapshotted at conversion) ?? agency default —
+ *   this is what the client proposal promises "secures the dates". A 100%
+ *   deposit collapses to zero-balance.
  * - `ticketed`/`completed` additionally require a **fully settled balance**
  *   (>0.01 tolerates float drift) — the zero-balance gate that formerly sat on
  *   `confirmed` now blocks ticketing (and stays on completion).
@@ -330,9 +353,10 @@ async function checkStatusPrerequisites(
   const total = parseFloat(existing.totalAmount || "0");
   const { paid, balance } = await bookingPayment(existing.id, existing.totalAmount);
 
-  // Deposit gate — reaching `confirmed` unlocks at the agency deposit threshold.
+  // Deposit gate — reaching `confirmed` unlocks at the booking's effective
+  // deposit threshold (its snapshotted override, else the agency default).
   if (target === "confirmed") {
-    const percent = await agencyDepositPercent(existing.agencyId);
+    const percent = await bookingDepositPercent(existing);
     if (!meetsDepositThreshold(total, paid, percent)) {
       const required = depositAmount(total, percent);
       return {
@@ -1123,6 +1147,18 @@ export async function createBookingFromAcceptedProposal(
     )
   );
 
+  // Snapshot the deposit % agreed for THIS deal onto the booking, resolving the
+  // override chain at conversion time: the proposal's per-deal override falls
+  // back to the agency default. Snapshotting freezes signed terms so a later
+  // change to the agency default can never alter this booking's deposit gate.
+  const ag = await db.query.agency.findFirst({
+    where: eq(agency.id, agencyId),
+    columns: { depositPercent: true },
+  });
+  const snapshotDepositPercent = String(
+    round2(effectiveDepositPercent(p.depositPercent, ag?.depositPercent))
+  );
+
   // Generate a per-agency reference the same way createBooking does, retrying on
   // the rare concurrent-insert collision.
   let reference = "";
@@ -1141,6 +1177,8 @@ export async function createBookingFromAcceptedProposal(
           notes: p.summary ?? null,
           status: "awaiting_payment",
           totalAmount: String(totalAmount),
+          // Frozen deposit terms for this deal (see snapshotDepositPercent above).
+          depositPercent: snapshotDepositPercent,
           createdById: actorUserId,
         })
         .returning({ id: booking.id });

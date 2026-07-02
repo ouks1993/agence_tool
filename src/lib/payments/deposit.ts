@@ -27,6 +27,43 @@ function clampPercent(percent: number): number {
 }
 
 /**
+ * Parse a stored deposit percent into a finite number, or `null` when it is
+ * absent/unparseable. Drizzle `numeric` columns come back as strings, so we
+ * accept both `string` and `number`. Note `0` is a *meaningful* value (no
+ * deposit) and must survive — so we test finiteness, not truthiness.
+ */
+function parsePercent(
+  v: string | number | null | undefined
+): number | null {
+  if (v === null || v === undefined) return null;
+  const n = typeof v === "string" ? parseFloat(v) : v;
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * Resolve the effective deposit percent for a deal along the override chain.
+ *
+ * `override` is the more-specific value (a booking's snapshotted percent, or a
+ * product's per-deal override); `agencyDefault` is the agency-wide fallback.
+ * Precedence: a finite, parseable `override` wins (after clamping to [0, 100]);
+ * otherwise a finite, parseable `agencyDefault`; otherwise the historical 50%
+ * default. Both args may be Drizzle numeric strings, plain numbers, or null.
+ *
+ * `0` is preserved end-to-end (an explicit "no deposit" override is honoured and
+ * never mistaken for "inherit"); only null/undefined/garbage falls through.
+ */
+export function effectiveDepositPercent(
+  override: string | number | null | undefined,
+  agencyDefault: string | number | null | undefined
+): number {
+  const o = parsePercent(override);
+  if (o !== null) return clampPercent(o);
+  const d = parsePercent(agencyDefault);
+  if (d !== null) return clampPercent(d);
+  return 50;
+}
+
+/**
  * The deposit amount required for a booking of `total` at `depositPercent`.
  *
  * - `depositPercent` is clamped to [0, 100] (a stored/typed value out of range

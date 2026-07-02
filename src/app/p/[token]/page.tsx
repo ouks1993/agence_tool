@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { APP_NAME, APP_TAGLINE } from "@/lib/config";
 import { db } from "@/lib/db";
 import { formatDate, formatMoney } from "@/lib/format";
-import { depositAmount } from "@/lib/payments/deposit";
+import { depositAmount, effectiveDepositPercent } from "@/lib/payments/deposit";
 import { toProposalDocData } from "@/lib/proposal-doc";
 import { product } from "@/lib/schema";
 
@@ -43,9 +43,13 @@ export default async function PublicProposal({
   if (!p) notFound();
 
   const totalPrice = parseFloat(p.totalPrice || "0");
-  // Deposit that "secures the dates" is the proposal's agency deposit %, derived
-  // from the loaded product row (tenant-safe — never a caller-supplied value).
-  const depositPercent = parseFloat(p.agency?.depositPercent ?? "50");
+  // Deposit that "secures the dates" resolves along the override chain — the
+  // proposal's per-deal override falls back to its agency default. Derived from
+  // the loaded product row (tenant-safe — never a caller-supplied value).
+  const depositPercent = effectiveDepositPercent(
+    p.depositPercent,
+    p.agency?.depositPercent
+  );
   const deposit = depositAmount(totalPrice, depositPercent);
   const expired = isExpired(p.validUntil);
   const open = !p.acceptedAt && !p.declinedAt && !expired;

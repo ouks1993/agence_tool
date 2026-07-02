@@ -56,7 +56,10 @@ import {
 } from "@/lib/domain";
 import { formatDate, passportExpiryStatus } from "@/lib/format";
 import { isEmailConfigured } from "@/lib/notifications/email";
-import { meetsDepositThreshold } from "@/lib/payments/deposit";
+import {
+  effectiveDepositPercent,
+  meetsDepositThreshold,
+} from "@/lib/payments/deposit";
 import { isStripeConfigured } from "@/lib/payments/stripe";
 import { paymentSummary } from "@/lib/payments/summary";
 import { requireAgencyUser } from "@/lib/permissions";
@@ -125,14 +128,19 @@ export default async function BookingWorkspace({
   const total = parseFloat(b.totalAmount || "0");
   const { paid, balance } = paymentSummary(b.payments, total);
 
-  // Deposit gate for the status controls: `confirmed` unlocks once the agency's
-  // deposit threshold is met, so the soft warnings must reflect the deposit —
-  // not the full balance — for that step. (Ticketing still needs zero balance.)
+  // Deposit gate for the status controls: `confirmed` unlocks once the booking's
+  // effective deposit threshold is met, so the soft warnings must reflect the
+  // deposit — not the full balance — for that step. The effective % resolves the
+  // chain booking.depositPercent (snapshotted) ?? agency default. (Ticketing
+  // still needs zero balance.)
   const ag = await db.query.agency.findFirst({
     where: eq(agency.id, user.agencyId),
     columns: { depositPercent: true },
   });
-  const depositPercent = parseFloat(ag?.depositPercent ?? "50");
+  const depositPercent = effectiveDepositPercent(
+    b.depositPercent,
+    ag?.depositPercent
+  );
   const belowDeposit = !meetsDepositThreshold(total, paid, depositPercent);
 
   // Gross margin for the rail Margin card: sum of this booking's commission

@@ -7,9 +7,10 @@ import { BookingForm } from "@/components/bookings/booking-form";
 import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db";
 import { toDateInputValue } from "@/lib/format";
+import { effectiveDepositPercent } from "@/lib/payments/deposit";
 import { requireAgencyUser } from "@/lib/permissions";
 import { listClientOptions } from "@/lib/queries";
-import { booking } from "@/lib/schema";
+import { agency, booking } from "@/lib/schema";
 
 export const metadata = { title: "Edit booking" };
 
@@ -20,13 +21,19 @@ export default async function EditBookingPage({
 }) {
   const user = await requireAgencyUser();
   const { id } = await params;
-  const [b, clients] = await Promise.all([
+  const [b, clients, ag] = await Promise.all([
     db.query.booking.findFirst({
       where: and(eq(booking.id, id), eq(booking.agencyId, user.agencyId)),
     }),
     listClientOptions(user.agencyId),
+    db.query.agency.findFirst({
+      where: eq(agency.id, user.agencyId),
+      columns: { depositPercent: true },
+    }),
   ]);
   if (!b) notFound();
+  // Placeholder shown when the override is left empty = the agency default.
+  const agencyDepositPercent = effectiveDepositPercent(null, ag?.depositPercent);
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6 px-4 py-8 sm:px-6">
@@ -41,6 +48,7 @@ export default async function EditBookingPage({
         mode="edit"
         bookingId={id}
         clients={clients}
+        agencyDepositPercent={agencyDepositPercent}
         initial={{
           clientId: b.clientId ?? "",
           destination: b.destination ?? "",
@@ -49,6 +57,8 @@ export default async function EditBookingPage({
           travelPurpose: b.travelPurpose ?? "",
           tripType: b.tripType ?? "",
           currency: b.currency,
+          // Empty string = inherit; a snapshotted override pre-fills the field.
+          depositPercent: b.depositPercent ?? "",
           notes: b.notes ?? "",
         }}
       />

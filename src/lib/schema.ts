@@ -365,6 +365,12 @@ export const product = pgTable(
     markupPercent: numeric("markup_percent", { precision: 5, scale: 2 })
       .default("0")
       .notNull(),
+    // Optional per-deal deposit override for this proposal. NULL means "inherit"
+    // — the effective deposit % resolves along the chain
+    // booking.depositPercent ?? product.depositPercent (snapshotted at
+    // conversion) ?? agency.depositPercent. Nullable & no default so an empty
+    // form field saves NULL (inherit), while 0 is a meaningful value (no deposit).
+    depositPercent: numeric("deposit_percent", { precision: 5, scale: 2 }),
     totalCost: numeric("total_cost", { precision: 12, scale: 2 })
       .default("0")
       .notNull(),
@@ -486,6 +492,13 @@ export const booking = pgTable(
     totalAmount: numeric("total_amount", { precision: 12, scale: 2 })
       .default("0")
       .notNull(),
+    // Snapshotted per-deal deposit override. Set at proposal → booking
+    // conversion to the effective deposit % agreed for THIS deal (product
+    // override ?? agency default), so later default changes never alter signed
+    // terms. NULL means "inherit" — the effective % resolves along the chain
+    // booking.depositPercent ?? agency.depositPercent. Nullable & no default so
+    // agent-created bookings inherit, while 0 is a meaningful value (no deposit).
+    depositPercent: numeric("deposit_percent", { precision: 5, scale: 2 }),
     // Public, unguessable token for the shareable itinerary link (/i/[token]).
     shareToken: text("share_token").unique(),
     createdById: text("created_by_id").references(() => user.id, {

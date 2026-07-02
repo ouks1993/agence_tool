@@ -56,3 +56,17 @@ Make confirmation deposit-based and agency-configurable:
   (server-side guards remain the source of truth).
 - Unit coverage: `src/lib/payments/deposit.test.ts` (18 cases — thresholds,
   clamping, rounding, float noise).
+
+## Amendment (2026-07-02) — per-deal override chain
+
+The deposit percent is no longer agency-global at read time. It resolves an
+override chain — `booking.depositPercent` → `agency.depositPercent` → 50 —
+with nullable `product.depositPercent` / `booking.depositPercent` columns
+added in migration `0024`. The proposal builder exposes "Deposit required (%)"
+per deal (empty = inherit the agency default; an explicit 0 = no deposit,
+confirm immediately; 100 = full payment at acceptance). At proposal → booking
+conversion the **effective** percent is snapshotted onto the booking, freezing
+the signed terms against later changes to the agency default or the proposal.
+Every consumer (confirmed gate, proposal copy on all four surfaces, portal
+deposit-vs-full payment options, booking-detail soft warnings) reads the same
+`effectiveDepositPercent()` helper (`src/lib/payments/deposit.ts`, unit-tested).

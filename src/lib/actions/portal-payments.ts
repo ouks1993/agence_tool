@@ -5,7 +5,7 @@ import { z } from "zod";
 import type { ActionResult } from "@/lib/actions/types";
 import { db } from "@/lib/db";
 import { getServerEnv } from "@/lib/env";
-import { depositAmount } from "@/lib/payments/deposit";
+import { depositAmount, effectiveDepositPercent } from "@/lib/payments/deposit";
 import { isStripeConfigured } from "@/lib/payments/stripe";
 import { createConnectCheckoutSession } from "@/lib/payments/stripe";
 import { paymentSummary } from "@/lib/payments/summary";
@@ -99,7 +99,12 @@ export async function createPortalPaymentLink(
   // paid: only completed rows count (pending rows must NOT count as paid),
   // refunds subtracted — via the shared paymentSummary helper.
   const { paid, balance } = paymentSummary(b.payments, total);
-  const depositPercent = parseFloat(ag.depositPercent ?? "50");
+  // Deposit % resolves the override chain: the booking's snapshotted override
+  // (frozen at conversion) falls back to the agency default.
+  const depositPercent = effectiveDepositPercent(
+    b.depositPercent,
+    ag.depositPercent
+  );
 
   let amount: number;
   let kind: "deposit" | "payment";

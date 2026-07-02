@@ -23,6 +23,7 @@ type FormState = {
   paxCount: string;
   currency: string;
   markupPercent: string;
+  depositPercent: string;
   validUntil: string;
   summary: string;
 };
@@ -32,12 +33,16 @@ export function ProductForm({
   productId,
   clients,
   opportunities,
+  agencyDepositPercent,
   initial,
 }: {
   mode: "create" | "edit";
   productId?: string;
   clients: ClientOption[];
   opportunities: OpportunityOption[];
+  // The agency-wide default deposit %, shown as the placeholder/hint when this
+  // proposal leaves its override empty (empty = inherit the agency default).
+  agencyDepositPercent: number;
   initial?: Partial<FormState>;
 }) {
   const router = useRouter();
@@ -52,6 +57,7 @@ export function ProductForm({
     paxCount: initial?.paxCount ?? "1",
     currency: initial?.currency ?? "DZD",
     markupPercent: initial?.markupPercent ?? "0",
+    depositPercent: initial?.depositPercent ?? "",
     validUntil: initial?.validUntil ?? "",
     summary: initial?.summary ?? "",
   });
@@ -82,6 +88,10 @@ export function ProductForm({
       paxCount: form.paxCount === "" ? 1 : Number(form.paxCount),
       currency: form.currency,
       markupPercent: form.markupPercent === "" ? 0 : Number(form.markupPercent),
+      // Empty = inherit the agency default → send null (not 0, which would mean
+      // "no deposit"). A typed 0..100 override is sent as a number.
+      depositPercent:
+        form.depositPercent.trim() === "" ? null : Number(form.depositPercent),
       validUntil: form.validUntil,
       summary: form.summary,
     };
@@ -229,6 +239,23 @@ export function ProductForm({
             />
             <p className="text-muted-foreground text-xs">
               Agency margin added on top of net supplier cost.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="depositPercent">Deposit required (%)</Label>
+            <Input
+              id="depositPercent"
+              type="number"
+              min="0"
+              max="100"
+              step="0.5"
+              value={form.depositPercent}
+              onChange={(e) => set("depositPercent", e.target.value)}
+              placeholder={String(agencyDepositPercent)}
+            />
+            <p className="text-muted-foreground text-xs">
+              Leave empty to use the agency default ({agencyDepositPercent}%).
             </p>
           </div>
 

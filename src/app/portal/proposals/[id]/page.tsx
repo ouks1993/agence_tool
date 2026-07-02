@@ -7,7 +7,7 @@ import { ProposalDocument } from "@/components/products/proposal-document";
 import { APP_NAME, APP_TAGLINE } from "@/lib/config";
 import { db } from "@/lib/db";
 import { formatDate, formatMoney } from "@/lib/format";
-import { depositAmount } from "@/lib/payments/deposit";
+import { depositAmount, effectiveDepositPercent } from "@/lib/payments/deposit";
 import { requirePortalSession } from "@/lib/portal-session";
 import { toProposalDocData } from "@/lib/proposal-doc";
 import { product } from "@/lib/schema";
@@ -42,7 +42,12 @@ export default async function PortalProposalPage({
   if (!p) notFound();
 
   const totalPrice = parseFloat(p.totalPrice || "0");
-  const depositPercent = parseFloat(p.agency?.depositPercent ?? "50");
+  // Deposit % resolves along the override chain: this proposal's per-deal
+  // override falls back to the agency default (both from the loaded row).
+  const depositPercent = effectiveDepositPercent(
+    p.depositPercent,
+    p.agency?.depositPercent
+  );
   const deposit = depositAmount(totalPrice, depositPercent);
   const doc = toProposalDocData(p, session.client.name);
 

@@ -39,8 +39,8 @@ truth, no hard delete, no cross-tenant exposure) at the schema level.
 | `portal_session` | via client | passwordless client portal sessions; token + expiresAt; `purpose` (`'magic'` \| `'session'`, default `'session'`) distinguishes a short-lived magic-link token from a real session — a magic token can no longer be used as a session bearer; swept daily by the cleanup cron (see [deployment.md](deployment.md#scheduled-cleanup)) |
 | `client` | agencyId | + `client_contact` (child); `source` (lead-source code), `industry` (code), country stored as canonical ISO name |
 | `opportunity` | agencyId | pipeline stage, value, currency; `travel_purpose` code; `lost_reason` code |
-| `product` | agencyId | proposal; ref unique per agency; + `product_item` (child; `supplierId` FK optional); **e-sign**: shareToken (unique), acceptedAt/declinedAt, signerName/Email, signatureData, signerIp/UserAgent |
-| `booking` | agencyId | ref unique per agency; shareToken; `travel_purpose` + `trip_type` codes |
+| `product` | agencyId | proposal; ref unique per agency; `depositPercent` nullable numeric(5,2) — per-deal deposit override (null = inherit agency default); + `product_item` (child; `supplierId` FK optional); **e-sign**: shareToken (unique), acceptedAt/declinedAt, signerName/Email, signatureData, signerIp/UserAgent |
+| `booking` | agencyId | ref unique per agency; shareToken; `travel_purpose` + `trip_type` codes; `depositPercent` nullable numeric(5,2) — effective deposit % **snapshotted at proposal→booking conversion** (null = inherit agency default) |
 | `booking_traveller` (+ `title`, `gender` codes), `booking_item` (+ `supplierId` FK), `payment`, `booking_day` | via booking | children; `booking_traveller` carries `email` + `phone` (required by supplier APIs for the lead passenger) |
 | `booking_supplier_ref` | via booking + booking_item | structured supplier confirmation: `providerId`, `confirmationNumber`, `pnr`, `supplierOrderId`, `rawPayload`; replaces untyped JSONB in `booking_item.details` |
 | `booking_event` | bookingId + agencyId | append-only event log (audit + analytics); stable `event` codes: `search_initiated`, `offer_selected`, `price_validated`, `price_changed`, `booking_submitted`, `booking_confirmed`, `booking_failed`, `booking_cancelled`, `payment_started`, `payment_completed` |
@@ -82,6 +82,7 @@ All ID columns **not** related to Better Auth use UUIDs, randomly generated. See
 | `0021` | `commission.bookingId` + `commission.bookingItemId` FKs changed `cascade` → `set null` (the commission ledger now survives booking/item deletion — see [decision 0007](decisions/0007-commission-ledger-survives-booking-deletion.md)); new indexes `commission_item_idx`, `commission_supplier_idx`, `product_converted_booking_idx`; `portal_session.purpose` (`'magic'` \| `'session'`, default `'session'`) |
 | `0022` | `user_notification` table — per-user in-app notification inbox (topbar bell) |
 | `0023` | `agency.depositPercent` — deposit-threshold booking confirmation ([decision 0009](decisions/0009-deposit-threshold-booking-lifecycle.md)) |
+| `0024` | Nullable `product.depositPercent` + `booking.depositPercent` — per-deal deposit override chain, snapshotted onto the booking at conversion |
 
 > Migrations `0000`–`0005` predate the multi-tenant rework (the pre-tenancy base
 > schema) and are not itemized here.
