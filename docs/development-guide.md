@@ -220,7 +220,23 @@ See [security.md](security.md).
 
 ## Testing
 
-There is no unit-test runner configured. The project ships targeted verification
+**Unit tests — Vitest.** The unit-test runner is Vitest (`vitest@^3.2.6`, pinned to
+the 3.x line — vitest 4 pulls vite 8, whose transitive deps currently fail to
+install; `@vitest/coverage-v8` is available). Config lives in `vitest.config.ts`
+(node environment, `@` → `./src` alias, includes `src/**/*.test.ts`).
+
+```bash
+pnpm test          # vitest run — single pass
+pnpm test:watch    # vitest — watch mode
+```
+
+Conventions: tests are **colocated** next to the module (`src/lib/analytics.test.ts`),
+import `{ describe, it, expect }` explicitly from `"vitest"` (no globals), and cover
+**pure modules only** — nothing that imports `src/lib/db.ts` or triggers `env.ts`
+validation. Current suite: analytics, payments/summary, reports/period, status-tone,
+domain, export/csv, format.
+
+**Integration verification scripts.** The project also ships targeted verification
 scripts — most importantly `scripts/test-tenant-isolation.ts`, which seeds two agencies and
 asserts that no query, child-row lookup, or reference collides across tenants (then cleans
 up). Use these to verify changes; per project rules, never assume a change works, and if no

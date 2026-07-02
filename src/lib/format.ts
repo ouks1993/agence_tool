@@ -20,7 +20,8 @@ export function formatMoney(
 }
 
 /**
- * Compact money for KPI tiles, e.g. 42_800_000 -> "42.8M DZD". Keeps figures
+ * Compact money for KPI tiles, e.g. 42_800_000 -> "42.8m DZD" (ICU compact
+ * notation renders a lowercase suffix). Keeps figures
  * dense on dashboard cards where the precise value lives in a tooltip/export.
  * No FX — the caller is responsible for passing a single-currency total.
  */

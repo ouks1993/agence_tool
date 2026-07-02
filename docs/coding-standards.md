@@ -16,7 +16,10 @@
   `next build` (`npm run check`, `npm run build:ci`). See
   [development-guide.md](development-guide.md).
 - **Testing** — use available testing tools; never assume changes work; if no
-  tooling exists for a change, ask whether to skip.
+  tooling exists for a change, ask whether to skip. Pure `src/lib/**` modules
+  are unit-tested with **Vitest** (`pnpm test`; colocated `*.test.ts`, explicit
+  `{ describe, it, expect }` imports — no globals). See
+  [development-guide.md](development-guide.md#testing).
 
 ## Engineering rules
 

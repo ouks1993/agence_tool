@@ -276,6 +276,8 @@ Full endpoint/env details are in [api-integrations.md](api-integrations.md).
 | `eslint-config-next` | `16.0.7` | Next.js core-web-vitals ruleset |
 | `prettier` | `^3.8.3` | Formatting |
 | `tsx` | `^4.21.0` | Run TS scripts (`scripts/*.ts`, setup) |
+| `vitest` | `^3.2.6` | Unit-test runner (`vitest.config.ts`: node env, `@` alias, colocated `src/**/*.test.ts`). Pinned to 3.x — vitest 4 pulls vite 8 whose transitive deps currently fail to install |
+| `@vitest/coverage-v8` | `^3.2.6` | Coverage provider |
 
 `eslint.config.mjs` extends `eslint-config-next/core-web-vitals` and adds
 project rules: enforced `import/order` grouping (react/next/`@/` ordered),
@@ -292,6 +294,8 @@ pnpm build:ci     # next build only (used by CI/Vercel)
 pnpm lint         # eslint .
 pnpm typecheck    # tsc --noEmit
 pnpm check        # lint + typecheck
+pnpm test         # vitest run (unit tests)
+pnpm test:watch   # vitest watch mode
 pnpm format       # prettier --write .
 pnpm db:generate  # drizzle-kit generate
 pnpm db:migrate   # drizzle-kit migrate
