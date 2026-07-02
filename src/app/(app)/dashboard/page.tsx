@@ -201,6 +201,33 @@ export default async function DashboardPage() {
   );
   const overdueTotal = headlineTotal(overdueByCurrency);
 
+  // To collect before departure — DZD headline Σ of positive balances on
+  // non-cancelled, non-completed bookings whose departure falls in the next 30
+  // days [now, now+30d). Same balance basis as Overdue (paymentSummary), just a
+  // forward window and completed bookings excluded (nothing left to chase once
+  // the trip is done). Currency-safe via sumByCurrency → DZD headline only.
+  const in30Days = new Date(now.getTime() + 30 * 86_400_000);
+  const toCollectSoonRows = active.filter((b) => {
+    if (b.status === "completed" || !b.departDate) return false;
+    const d = new Date(b.departDate);
+    if (Number.isNaN(d.getTime()) || d < now || d >= in30Days) return false;
+    const { balance } = paymentSummary(b.payments, num(b.totalAmount));
+    return balance > 0;
+  });
+  const toCollectSoonByCurrency = sumByCurrency(
+    toCollectSoonRows,
+    (b) => {
+      const { balance } = paymentSummary(b.payments, num(b.totalAmount));
+      return balance > 0 ? balance : 0;
+    },
+    (b) => b.currency || "DZD"
+  );
+  const toCollectSoonTotal = headlineTotal(toCollectSoonByCurrency);
+  // Count of DZD bookings backing the headline total (for the muted note).
+  const toCollectSoonCount = toCollectSoonRows.filter(
+    (b) => (b.currency || "DZD") === "DZD"
+  ).length;
+
   // --- Hero KPI derivations (DZD-only money, no FX) ------------------------
   // Revenue this month + MoM delta — confirmed & paid bookings, DZD, by createdAt.
   const dzdConfirmed = confirmedBookings.filter((b) => (b.currency || "DZD") === "DZD");
@@ -685,6 +712,22 @@ export default async function DashboardPage() {
             label: "Overdue",
             value: formatMoneyCompact(overdueTotal),
             ...(overdueTotal > 0 ? { tone: "text-warning" } : {}),
+          },
+          {
+            label: "To collect · next 30 days",
+            value: formatMoneyCompact(toCollectSoonTotal),
+            ...(toCollectSoonTotal > 0
+              ? {
+                  tone: "text-warning",
+                  ...(toCollectSoonCount > 0
+                    ? {
+                        note: `across ${toCollectSoonCount} booking${
+                          toCollectSoonCount === 1 ? "" : "s"
+                        }`,
+                      }
+                    : {}),
+                }
+              : { note: "nothing due before departure" }),
           },
           {
             label: "New clients this month",

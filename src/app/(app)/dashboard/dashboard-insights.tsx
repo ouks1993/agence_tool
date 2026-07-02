@@ -24,7 +24,7 @@ import {
 } from "@/lib/domain";
 import { formatMoneyCompact } from "@/lib/format";
 import { paymentSummary } from "@/lib/payments/summary";
-import { opportunity, client as clientTable, user as userTable } from "@/lib/schema";
+import { opportunity, product, client as clientTable, user as userTable } from "@/lib/schema";
 
 /**
  * Minimal shape of the bookings the insights section reads. The dashboard page
@@ -129,6 +129,36 @@ export async function DashboardInsights({
   const wonOpps = allOpps.filter((o) => o.stage === "won");
   const wonPipeline = wonOpps.reduce((s, o) => s + num(o.value), 0);
 
+  // Gross margin (all-time) — mirrors the /reports gross-profit basis for
+  // consistency: Σ (totalPrice − totalCost) over ACCEPTED, DZD proposals, the
+  // only table carrying a real cost basis (bookings have no cost column).
+  // All-time window to match the band's other tiles. Numeric columns are
+  // strings — coerced via the finite-guarded `num` helper. The secondary line
+  // shows margin as a % of proposal revenue; division is guarded so a zero
+  // revenue base simply omits the %.
+  const proposals = await db
+    .select({
+      status: product.status,
+      currency: product.currency,
+      totalCost: product.totalCost,
+      totalPrice: product.totalPrice,
+    })
+    .from(product)
+    .where(eq(product.agencyId, agencyId));
+  const dzdAcceptedProposals = proposals.filter(
+    (p) => p.status === "accepted" && (p.currency || DEFAULT_CURRENCY) === DEFAULT_CURRENCY
+  );
+  const grossMargin = dzdAcceptedProposals.reduce(
+    (s, p) => s + (num(p.totalPrice) - num(p.totalCost)),
+    0
+  );
+  const proposalRevenue = dzdAcceptedProposals.reduce(
+    (s, p) => s + num(p.totalPrice),
+    0
+  );
+  const marginPct =
+    proposalRevenue > 0 ? Math.round((grossMargin / proposalRevenue) * 1000) / 10 : null;
+
   return (
     <section className="space-y-6">
       <div className="flex items-center gap-2">
@@ -154,6 +184,13 @@ export async function DashboardInsights({
             label: "Won pipeline",
             value: formatMoneyCompact(wonPipeline, DEFAULT_CURRENCY),
             tone: "text-success",
+          },
+          {
+            label: "Gross margin · all time",
+            value: formatMoneyCompact(grossMargin, DEFAULT_CURRENCY),
+            ...(marginPct !== null
+              ? { note: `${marginPct}% of proposal revenue` }
+              : {}),
           },
         ]}
       />
@@ -193,7 +230,7 @@ export function DashboardInsightsSkeleton() {
         <BarChart3 className="text-muted-foreground size-5" />
         <Skeleton className="h-7 w-32" />
       </div>
-      <StatStripSkeleton cells={3} />
+      <StatStripSkeleton cells={4} />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {[0, 1, 2, 3].map((i) => (
           <Card key={i} className="card-elevated overflow-hidden">

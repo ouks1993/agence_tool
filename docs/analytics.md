@@ -25,13 +25,20 @@ The insights section (`DashboardInsights` in `dashboard-insights.tsx`) is
 rendered inside a Suspense boundary — the page shell streams first, then the
 insights-specific queries resolve behind `DashboardInsightsSkeleton`. It renders:
 
-- **Finance KPIs (3 tiles, all-time, labelled "· all time"):** Total revenue
+- **Finance KPIs (4 tiles, all-time, labelled "· all time"):** Total revenue
   (post-confirmation bookings — `confirmed | paid | ticketed | completed`, DZD),
-  Collected (completed payments net of refunds), Won pipeline. The former "MoM
-  revenue growth" tile was removed — the hero StatStrip's this-month delta is
-  the page's single growth metric (it renders a neutral "no confirmed revenue
+  Collected (completed payments net of refunds), Won pipeline, and Gross margin
+  (Σ `totalPrice − totalCost` over accepted DZD proposals — same basis as
+  `/reports` gross profit — with a "% of proposal revenue" note). The former
+  "MoM revenue growth" tile was removed — the hero StatStrip's this-month delta
+  is the page's single growth metric (it renders a neutral "no confirmed revenue
   yet this month" note instead of a red −100% chip when the current month is
-  still zero).
+  still zero). The Insights section renders only for admin/manager (other roles
+  are redirected to their role home before reaching it).
+- **Act-today band:** Departures next 7 days, Proposals awaiting response,
+  Overdue, **To collect · next 30 days** (DZD balances on non-cancelled,
+  non-completed bookings departing within 30 days — a cash-inflow forecast,
+  warning-toned with an "across N bookings" note), New clients this month.
 - **Charts:** Revenue evolution (last 12 months), Top destinations by revenue
   (last 12 months), Top clients by revenue, Revenue per agent (first names
   title-cased), Bookings by status (count donut — center shows the **active**
