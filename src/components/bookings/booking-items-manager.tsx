@@ -601,14 +601,12 @@ function BookingPricingRow({
         disabled={disabled}
         placeholder="cost"
         onChange={(e) => {
+          // A booking item's sell price is what the client agreed — editing the
+          // recorded cost must NEVER reprice the line. The price stays put and
+          // the displayed margin re-derives from (new cost, existing price).
+          // Only an explicit margin edit recomputes the price.
           setCost(e.target.value);
-          // Cost change keeps the current margin: recompute price from the
-          // current margin draft/derived value so margin stays put.
-          const m = marginDraft ?? (derivedMargin === null ? "0" : String(derivedMargin));
-          const mn = m === "" ? 0 : Number(m);
-          if (e.target.value.trim() !== "" && Number.isFinite(mn)) {
-            setPrice(String(priceFromMargin(toNumber(e.target.value), mn)));
-          }
+          setMarginDraft(null);
         }}
         onBlur={() => commit({ cost, price: toNumber(price) })}
         className="h-7 w-20 text-right text-xs tabular-nums"

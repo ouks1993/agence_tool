@@ -193,8 +193,11 @@ function PricingRow({
             onChange={(e) => {
               setCost(e.target.value);
               // Cost change keeps the current margin: recompute price from the
-              // current margin draft/derived value so margin stays put.
-              const m = marginDraft ?? (derivedMargin === null ? "0" : String(derivedMargin));
+              // current margin draft/derived value so margin stays put. When no
+              // margin is derivable (cost was 0/blank), KEEP the existing price
+              // and let the margin re-derive — never reprice off a phantom 0%.
+              const m = marginDraft ?? (derivedMargin === null ? null : String(derivedMargin));
+              if (m === null) return;
               const mn = m === "" ? 0 : Number(m);
               if (Number.isFinite(mn)) {
                 setPrice(String(priceFromMargin(toNumber(e.target.value), mn)));
